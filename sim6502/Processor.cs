@@ -30,7 +30,6 @@ either expressed or implied, of the FreeBSD Project.
 using NLog;
 using System;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Globalization;
 
 namespace sim6502
@@ -180,7 +179,8 @@ namespace sim6502
         /// </summary>
         public Processor()
 		{
-			Logger.Debug("6502 Simulator Copyright © 2013 Aaron Mell. All Rights Reserved.");
+			Logger.Info("6502 Simulator Copyright © 2013 Aaron Mell. All Rights Reserved.");
+			Logger.Info("https://github.com/aaronmell/6502Net");
 			ResetMemory();
 			StackPointer = 0x100;
 
@@ -242,6 +242,46 @@ namespace sim6502
 		public bool IsJSR()
 		{
 			return Memory[ProgramCounter] == 0x20;
+		}
+
+		/// <summary>
+		/// Used for the 6502 sim tester CLI to execute and test routines
+		/// </summary>
+		/// <param name="address">The address of the routine to test.</param>
+		/// <param name="stopOn">What should we stop on? RTS is the only thing allowed right now.</param>
+		/// <param name="failOnBrk">True if an encountered BRK instruction should fail the associated test.</param>
+		/// <returns>True if we're exiting cleanly, False otherwise</returns>
+		public bool RunRoutine(int address, string stopOn, bool failOnBrk)
+		{
+			var keepRunning = true;
+			var subroutineCount = 1;
+			var exitCleanly = true;
+			ProgramCounter = address;
+			
+			do
+			{
+				if (IsJSR())
+					subroutineCount++;
+
+				if (IsRTS())
+				{
+					subroutineCount--;
+                            
+					if (subroutineCount == 0 && "rts".Equals(stopOn.ToLower()))
+						keepRunning = false;
+				}
+
+				if (IsBRK())
+				{
+					keepRunning = false;
+					if (failOnBrk)
+						exitCleanly = false;
+				}
+                            
+				NextStep();
+			} while (keepRunning);
+
+			return exitCleanly;
 		}
 		
 		/// <summary>
@@ -354,6 +394,19 @@ namespace sim6502
         {
             var value = Memory[address];
             return value;
+        }
+
+        /// <summary>
+        /// Return the 16-bit word at a given address without incrementing the cycle counter.
+        /// </summary>
+        /// <param name="address"></param>
+        /// <returns></returns>
+        public virtual int ReadMemoryWordWithoutCycle(int address)
+        {
+	        var lobyte = ReadMemoryValueWithoutCycle(address);
+	        var hibyte = ReadMemoryValueWithoutCycle(address + 1);
+
+	        return hibyte * 256 + lobyte;
         }
 
         /// <summary>

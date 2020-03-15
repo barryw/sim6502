@@ -1,21 +1,22 @@
 ﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using CommandLine;
 using NLog;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 using sim6502.UnitTests;
+// ReSharper disable UnusedAutoPropertyAccessor.Local
 
 namespace sim6502
 {
     internal class Sim6502Cli
     {
-        private Processor Processor { get; set; }
         private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
         
+        private Processor _processor;
+        private ExpressionParser _expr;
+        
+        // ReSharper disable once ClassNeverInstantiated.Local
         private class Options
         {
             [Option('d', "debug", Required = false, Default = false, HelpText = "Enable or disable debug mode")]
@@ -31,11 +32,11 @@ namespace sim6502
         /// <summary>
         /// TODO: Make this shit work in the nlog.config file.
         /// </summary>
-        public Sim6502Cli()
+        private Sim6502Cli()
         {
             var config = new NLog.Config.LoggingConfiguration();
             var logconsole = new NLog.Targets.ConsoleTarget("logconsole");
-            config.AddRule(LogLevel.Trace, LogLevel.Fatal, logconsole);
+            config.AddRule(LogLevel.Debug, LogLevel.Fatal, logconsole);
             LogManager.Configuration = config;
         }
         
@@ -44,15 +45,15 @@ namespace sim6502
             var cli = new Sim6502Cli();
             
             Logger.Debug("Initializing 6502 simulator.");
-            var proc = new Processor();
-            proc.Reset();
-            cli.Processor = proc;
+            cli._processor = new Processor();
+            cli._processor.Reset();
             Logger.Debug("6502 simulator initialized and reset.");
-
+            Logger.Info("6502 Simulator Test Runner CLI Copyright © 2020 Barry Walker. All Rights Reserved.");
+            
             return Parser.Default
                 .ParseArguments<Options>(args)
                 .MapResult(
-                    (Options opts) => cli.RunCli(opts),
+                    opts => cli.RunCli(opts),
                     errs => 1);
             
         }
@@ -64,70 +65,26 @@ namespace sim6502
         /// <returns></returns>
         private int RunCli(Options opts)
         {
+            int retval;
             try
             {
                 var symbols = LoadSymbolFile(opts.SymbolFile);
                 var tests = DeserializeTestsYaml(opts.TestYaml);
+                _expr = new ExpressionParser(_processor, symbols);
 
-                // This is the thing we want to poke at and test. The loadAddress is not required since
-                // we can get it from the first 2 bytes of the file.
-                var program = tests.UnitTests.Program;
-                var address = "".Equals(tests.UnitTests.Address) || tests.UnitTests.Address == null ? Utility.GetProgramLoadAddress(program) : tests.UnitTests.AddressParsed;
+                var allPassed = tests.UnitTests.RunUnitTests(_processor, _expr, tests.Init.LoadFiles);
+                var passed = allPassed ? "PASSED" : "FAILED";
+                Logger.Info($"Complete Test Suite : {passed}");
 
-                foreach (var test in tests.UnitTests.UnitTests)
-                {
-                    // At the start of each test, reset memory, load roms & program, and set any initial memory values
-                    Processor.ResetMemory();
-                    LoadRoms(tests);
-                    LoadFile(program, address, true);
-                    SetMemoryValues(test, symbols);
-
-                    // Where is the code we want to test?
-                    var jumpAddress = Utility.EvaluateExpression(test.JumpAddress, symbols);
-                    Processor.ProgramCounter = jumpAddress;
-                    
-                    var stopOn = test.StopOn;
-                    var failOnBrk = test.FailOnBrk;
-                    var keepRunning = true;
-                    var testPassed = false;
-                    // We need to keep track of calls to subroutines from within our function so that an RTS from them
-                    // doesn't prematurely end our test.
-                    var subroutineCount = 1;
-
-                    do
-                    {
-                        if (Processor.IsJSR())
-                            subroutineCount++;
-
-                        if (Processor.IsRTS())
-                        {
-                            subroutineCount--;
-                            
-                            if (subroutineCount == 0 && "rts".Equals(stopOn.ToLower()))
-                                keepRunning = false;
-                        }
-
-                        if (Processor.IsBRK())
-                        {
-                            keepRunning = false;
-                            if (failOnBrk)
-                                testPassed = false;
-                        }
-                            
-                        Processor.NextStep();
-                    } while (keepRunning);
-
-                    var passed = testPassed ? "PASSED" : "FAILED";
-                    Logger.Info($"{test.Name}:{test.Description}:{passed}");
-                }
+                retval = allPassed ? 0 : 1;
             }
             catch(Exception ex)
             {
                 Logger.Fatal(ex, $"Failed to run tests: {ex.Message}, {ex.StackTrace}");
-                return 1;
+                retval = 1;
             }
 
-            return 0;
+            return retval;
         }
 
         /// <summary>
@@ -135,16 +92,10 @@ namespace sim6502
         /// </summary>
         /// <param name="testYamlFilename"></param>
         /// <returns></returns>
-        private Tests DeserializeTestsYaml(string testYamlFilename)
+        private static Tests DeserializeTestsYaml(string testYamlFilename)
         {
-            Tests tests = null;
-            
-            if (!FileExists(testYamlFilename))
-            {
-                Logger.Fatal($"The yaml file specified '{testYamlFilename}' does not exist.");
-                throw new FileNotFoundException();
-            }
-            
+            Tests tests;
+            Utility.FileExists(testYamlFilename);
             try
             {
                 var testYaml = File.ReadAllText(testYamlFilename);
@@ -163,116 +114,21 @@ namespace sim6502
 
             return tests;
         }
-
-        private void ResetMachine()
-        {
-            Processor.ResetMemory();
-            Processor.ResetCycleCount();
-            
-            
-        }
-        
-        /// <summary>
-        /// Set up any memory locations for each test
-        /// </summary>
-        /// <param name="test">The current test</param>
-        /// <param name="symbols">The loaded symbols</param>
-        private void SetMemoryValues(TestUnitTest test, SymbolFile symbols)
-        {
-            foreach (var memory in test.SetMemory)
-            {
-                var location = Utility.EvaluateExpression(memory.Address, symbols);
-                if (memory.WordValue != null && !"".Equals(memory.WordValue))
-                {
-                    var wordValue = Utility.EvaluateExpression(memory.WordValue, symbols);
-                    Processor.WriteMemoryWord(location, wordValue);
-                }
-                else
-                {
-                    var byteValue = Utility.EvaluateExpression(memory.ByteValue, symbols);
-                    Processor.WriteMemoryValueWithoutIncrement(location, (byte)byteValue);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Load any initialization ROMs
-        /// </summary>
-        /// <param name="tests"></param>
-        private void LoadRoms(Tests tests)
-        {
-            foreach (var loadfile in tests.Init.LoadFiles)
-            {
-                LoadFile(loadfile.Filename, loadfile.AddressParsed);
-            }    
-        }
         
         /// <summary>
         /// Load the Kickassembler generated symbol file.
         /// </summary>
         /// <param name="symbolFilename">The path to the symbol file</param>
         /// <returns>A SymbolFile object that makes it easier to work with the symbols</returns>
-        private SymbolFile LoadSymbolFile(string symbolFilename)
+        private static SymbolFile LoadSymbolFile(string symbolFilename)
         {
             if ("".Equals(symbolFilename) || symbolFilename == null)
                 return null;
             
-            if (!FileExists(symbolFilename))
-            {
-                Logger.Fatal($"The symbol file specified '{symbolFilename}' does not exist.");
-                throw new FileNotFoundException();
-            }
-
+            Utility.FileExists(symbolFilename);
+            
             var symbolFile = File.ReadAllText(symbolFilename);
             return new SymbolFile(symbolFile);
-        }
-
-        /// <summary>
-        /// Check to see if a file exists. This is used for roms and c64 programs
-        /// </summary>
-        /// <param name="filename">The name of the file to check</param>
-        /// <returns>true if the file exists, or false otherwise</returns>
-        private bool FileExists(string filename)
-        {
-            return File.Exists(filename);
-        }
-
-        /// <summary>
-        /// Load a file from disk into the 6502 sim's address space
-        /// </summary>
-        /// <param name="filename">The filename of the file to load</param>
-        /// <param name="address">The 16-bit address within the 6502 sim to load the file</param>
-        /// <param name="stripHeader">Remove the first 2 bytes, which are the load address</param>
-        private void LoadFile(string filename, int address, bool stripHeader = false)
-        {
-            Logger.Debug($"Loading {filename} @ {address.ToHex()}");
-            if (!FileExists(filename))
-            {
-                Logger.Fatal($"Failed to load {filename} - it does not exist.");
-                throw new FileNotFoundException();
-            }
-            using var file = new FileStream(filename, FileMode.Open, FileAccess.Read);
-            var program = new List<byte>(StreamToBytes(file));
-
-            if (stripHeader)
-            {
-                program.RemoveAt(0);
-                program.RemoveAt(0);
-            }
-            
-            Processor.LoadProgram(address, program.ToArray());
-        }
-
-        /// <summary>
-        /// Convert a stream to a byte array
-        /// </summary>
-        /// <param name="stream">The stream to convert, which will be a FileStream</param>
-        /// <returns>The contents of the stream as a byte[]</returns>
-        private byte[] StreamToBytes(Stream stream)
-        {
-            using var ms = new MemoryStream();
-            stream.CopyTo(ms);
-            return ms.ToArray();
         }
     }
 }

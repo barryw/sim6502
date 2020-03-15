@@ -7,10 +7,9 @@ namespace sim6502
     public class SymbolFile
     {
         private readonly string[] _symbolfile;
-        private readonly Dictionary<string, int> _symbols = new Dictionary<string, int>();
 
-        public Dictionary<string, int> Symbols => _symbols;
-        
+        private Dictionary<string, int> Symbols { get; } = new Dictionary<string, int>();
+
         /// <summary>
         /// Pass in the contents of the symbol file - not the path to it
         /// </summary>
@@ -43,7 +42,7 @@ namespace sim6502
                         var label = m.Groups[1].Value;
                         var address = m.Groups[2].Value;
 
-                        _symbols.Add("".Equals(currentNamespace) ? label : $"{currentNamespace}.{label}",
+                        Symbols.Add("".Equals(currentNamespace) ? label : $"{currentNamespace}.{label}",
                             address.ParseNumber());
                     }
                 } else if (l.StartsWith(".namespace"))
@@ -68,7 +67,7 @@ namespace sim6502
         /// <returns>The 16-bit address if found. An exception is thrown if it's not found</returns>
         public int SymbolToAddress(string symbol)
         {
-            return _symbols[symbol];
+            return Symbols[symbol];
         }
 
         /// <summary>
@@ -81,7 +80,7 @@ namespace sim6502
         {
             var symbol = asHex ? address.ToHex() : address.ToString();
             
-            foreach (var (key, value) in _symbols)
+            foreach (var (key, value) in Symbols)
             {
                 if (value != address) continue;
                 symbol = key;

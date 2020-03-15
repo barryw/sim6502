@@ -1,13 +1,14 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
-using System.Text.RegularExpressions;
-using NCalc2;
 using NLog;
 
 namespace sim6502
 {
 	public static class Utility
 	{
+		private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
+		
 		/// <summary>
 		/// Convert an integer to a hex string
 		/// </summary>
@@ -34,7 +35,7 @@ namespace sim6502
 		/// <returns>The thing as an integer</returns>
 		public static int ParseNumber(this string number)
 		{
-			var retval = 0;
+			int retval;
 			if (number.StartsWith("$"))
 			{
 				number = number.Replace("$", "0x");
@@ -80,24 +81,49 @@ namespace sim6502
 		}
 
 		/// <summary>
-		/// Allow us to use expressions in our test yaml which include things like symbol references
+		/// Load a rom or program into the processor's memory
 		/// </summary>
-		/// <param name="expression">The expression to parse</param>
-		/// <param name="sf">A fully loaded symbol file</param>
-		/// <returns>The expression's integer value</returns>
-		public static int EvaluateExpression(string expression, SymbolFile sf)
+		/// <param name="proc"></param>
+		/// <param name="address"></param>
+		/// <param name="filename"></param>
+		/// <param name="stripHeader"></param>
+		public static void LoadFileIntoProcessor(Processor proc, int address, string filename, bool stripHeader = false)
 		{
-			foreach (Match match in Regex.Matches(expression, "{([0-9a-zA-Z_]+)}"))
+			Logger.Debug($"Loading {filename} @ {address.ToHex()}");
+			FileExists(filename);
+			using var file = new FileStream(filename, FileMode.Open, FileAccess.Read);
+			var program = new List<byte>(StreamToBytes(file));
+
+			if (stripHeader)
 			{
-				var symbol = match.Groups[1].Value;
-				var value = sf.SymbolToAddress(symbol);
-				var capture = match.Groups[0].Value;
-				
-				expression = expression.Replace(capture, value.ToString());
+				program.RemoveAt(0);
+				program.RemoveAt(0);
 			}
-			
-			var expr = new Expression(expression);
-			return Convert.ToInt32(expr.Evaluate());
+            
+			proc.LoadProgram(address, program.ToArray());
+		}
+		
+		/// <summary>
+		/// Convert a stream to a byte array
+		/// </summary>
+		/// <param name="stream">The stream to convert, which will be a FileStream</param>
+		/// <returns>The contents of the stream as a byte[]</returns>
+		private static IEnumerable<byte> StreamToBytes(Stream stream)
+		{
+			using var ms = new MemoryStream();
+			stream.CopyTo(ms);
+			return ms.ToArray();
+		}
+		
+		/// <summary>
+		/// Check to see if a file exists. This is used for roms and c64 programs
+		/// </summary>
+		/// <param name="filename">The name of the file to check</param>
+		public static void FileExists(string filename)
+		{
+			if (File.Exists(filename)) return;
+			Logger.Fatal($"The file '{filename}' does not exist.");
+			throw new FileNotFoundException();
 		}
 	}
 }

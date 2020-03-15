@@ -14,9 +14,14 @@
 
     <ItemGroup>
       <PackageReference Include="CommandLineParser" Version="2.7.82" />
-      <PackageReference Include="NCalc2" Version="2.1.0" />
       <PackageReference Include="NLog" Version="4.7.0-rc1" />
       <PackageReference Include="YamlDotNet" Version="8.1.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Reference Include="NCalc, Version=3.5.0.2, Culture=neutral, PublicKeyToken=null">
+        <HintPath>..\dependencies\NCalc.dll</HintPath>
+      </Reference>
     </ItemGroup>
 
 </Project>
