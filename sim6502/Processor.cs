@@ -90,7 +90,7 @@ namespace sim6502
 		public int ProgramCounter
 		{
 			get => _programCounter;
-			private set => _programCounter = WrapProgramCounter(value);
+			set => _programCounter = WrapProgramCounter(value);
 		}
 		
 		/// <summary>
@@ -329,7 +329,31 @@ namespace sim6502
         public virtual void WriteMemoryValue(int address, byte data)
         {
             IncrementCycleCount();
-            Memory[address] = data;
+            WriteMemoryValueWithoutIncrement(address, data);
+        }
+
+        /// <summary>
+        /// Writes data to the given address, but doesn't increase the cycle count.
+        /// </summary>
+        /// <param name="address">The address to write data to</param>
+        /// <param name="data">The data to write</param>
+        public virtual void WriteMemoryValueWithoutIncrement(int address, byte data)
+        {
+	        Memory[address] = data;
+        }
+
+        /// <summary>
+        /// Write 2 bytes to address and address + 1
+        /// </summary>
+        /// <param name="address">The starting address to write to</param>
+        /// <param name="word">The 16-bit word to write</param>
+        public virtual void WriteMemoryWord(int address, int word)
+        {
+	        var page = Convert.ToByte(word / 256);
+	        var b = Convert.ToByte(word - page * 256);
+
+	        Memory[address] = b;
+	        Memory[address + 1] = page;
         }
 
         /// <summary>
@@ -1680,8 +1704,7 @@ namespace sim6502
 			return (byte)((CarryFlag ? 0x01 : 0) + (ZeroFlag ? 0x02 : 0) + (DisableInterruptFlag ? 0x04 : 0) +
 						 (DecimalFlag ? 8 : 0) + (setBreak ? 0x10 : 0) + 0x20 + (OverflowFlag ? 0x40 : 0) + (NegativeFlag ? 0x80 : 0));
 		}
-
-        [Conditional("DEBUG")]
+		
 		private void SetDisassembly()
         {
             if (!Logger.IsDebugEnabled)
@@ -2105,7 +2128,7 @@ namespace sim6502
 		/// The ASL - Shift Left One Bit (Memory or Accumulator)
 		/// </summary>
 		/// <param name="addressingMode">The addressing Mode being used</param>
-		public void AslOperation(AddressingMode addressingMode)
+		private void AslOperation(AddressingMode addressingMode)
 		{
 			int value;
 			var memoryAddress = 0;

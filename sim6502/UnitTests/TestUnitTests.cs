@@ -8,8 +8,10 @@ namespace sim6502.UnitTests
         [YamlMember(Alias = "program", ApplyNamingConventions = false)]
         public string Program { get; set; }
         [YamlMember(Alias = "address", ApplyNamingConventions = false)]
-        public string LoadAddress { get; set; }
+        public string Address { get; set; }
         [YamlMember(Alias = "tests", ApplyNamingConventions = false)]
         public List<TestUnitTest> UnitTests { get; set; }
+        
+        public int AddressParsed => Address.ParseNumber();
     }
 }

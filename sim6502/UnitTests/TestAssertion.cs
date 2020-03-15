@@ -10,5 +10,7 @@ namespace sim6502.UnitTests
         public string Op { get; set; }
         [YamlMember(Alias = "value", ApplyNamingConventions = false)]
         public string Value { get; set; }
+        
+        public int AddressParsed => Address.ParseNumber();
     }
 }

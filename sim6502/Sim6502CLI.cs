@@ -1,4 +1,7 @@
-﻿using System.IO;
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
 using CommandLine;
 using NLog;
 using YamlDotNet.Serialization;
@@ -64,9 +67,45 @@ namespace sim6502
             {
                 var symbols = LoadSymbolFile(opts.SymbolFile);
                 var tests = DeserializeTestsYaml(opts.TestYaml);
+
+                // This is the thing we want to poke at and test. The loadAddress is not required since
+                // we can get it from the first 2 bytes of the file.
+                var program = tests.UnitTests.Program;
+                var address = "".Equals(tests.UnitTests.Address) || tests.UnitTests.Address == null ? Utility.GetProgramLoadAddress(program) : tests.UnitTests.AddressParsed;
+                LoadFile(program, address, true);
+
+                var mem = Processor.DumpMemory();
+                File.WriteAllBytes("dump.rom", mem);
+                
+                foreach (var test in tests.UnitTests.UnitTests)
+                {
+                    Logger.Info(test.Name);
+                    Logger.Info(test.Description);
+
+                    foreach (var memory in test.SetMemory)
+                    {
+                        var location = Utility.EvaluateExpression(memory.Address, symbols);
+                        if (memory.WordValue != null && !"".Equals(memory.WordValue))
+                        {
+                            var wordValue = Utility.EvaluateExpression(memory.WordValue, symbols);
+                            Processor.WriteMemoryWord(location, wordValue);
+                        }
+                        else
+                        {
+                            var byteValue = Utility.EvaluateExpression(memory.ByteValue, symbols);
+                            Processor.WriteMemoryValueWithoutIncrement(location, (byte)byteValue);
+                        }
+                    }
+
+                    var jumpAddress = Utility.EvaluateExpression(test.JumpAddress, symbols);
+                    Processor.ProgramCounter = jumpAddress;
+                    Processor.NextStep();
+                    Processor.NextStep();
+                }
             }
-            catch
+            catch(Exception ex)
             {
+                Logger.Fatal(ex, $"Failed to run tests: {ex.Message}, {ex.StackTrace}");
                 return 1;
             }
 
@@ -99,16 +138,7 @@ namespace sim6502
                 tests = deserializer.Deserialize<Tests>(testYaml);
                 foreach (var loadfile in tests.Init.LoadFiles)
                 {
-                    Logger.Debug($"Loading {loadfile.Filename} at {loadfile.Address}");
-                    if (!FileExists(loadfile.Filename))
-                    {
-                        Logger.Fatal($"Failed to load {loadfile.Filename} - it does not exist.");
-                        throw new FileNotFoundException();
-                    }
-                    else
-                    {
-                        LoadFile(loadfile.Filename, loadfile.AddressParsed);
-                    }
+                    LoadFile(loadfile.Filename, loadfile.AddressParsed);
                 }
             }
             catch (YamlDotNet.Core.YamlException ye)
@@ -155,10 +185,25 @@ namespace sim6502
         /// </summary>
         /// <param name="filename">The filename of the file to load</param>
         /// <param name="address">The 16-bit address within the 6502 sim to load the file</param>
-        private void LoadFile(string filename, int address)
+        /// <param name="stripHeader">Remove the first 2 bytes, which are the load address</param>
+        private void LoadFile(string filename, int address, bool stripHeader = false)
         {
+            Logger.Debug($"Loading {filename} @ {address.ToHex()}");
+            if (!FileExists(filename))
+            {
+                Logger.Fatal($"Failed to load {filename} - it does not exist.");
+                throw new FileNotFoundException();
+            }
             using var file = new FileStream(filename, FileMode.Open, FileAccess.Read);
-            Processor.LoadProgram(address, StreamToBytes(file));
+            var program = new List<byte>(StreamToBytes(file));
+
+            if (stripHeader)
+            {
+                program.RemoveAt(0);
+                program.RemoveAt(0);
+            }
+            
+            Processor.LoadProgram(address, program.ToArray());
         }
 
         /// <summary>

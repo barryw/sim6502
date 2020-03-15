@@ -1,5 +1,8 @@
 using System;
 using System.IO;
+using System.Text.RegularExpressions;
+using NCalc2;
+using NLog;
 
 namespace sim6502
 {
@@ -74,6 +77,27 @@ namespace sim6502
 		public static int GetProgramLoadAddress(byte[] program)
 		{
 			return program[1] * 256 + program[0];
+		}
+
+		/// <summary>
+		/// Allow us to use expressions in our test yaml which include things like symbol references
+		/// </summary>
+		/// <param name="expression">The expression to parse</param>
+		/// <param name="sf">A fully loaded symbol file</param>
+		/// <returns>The expression's integer value</returns>
+		public static int EvaluateExpression(string expression, SymbolFile sf)
+		{
+			foreach (Match match in Regex.Matches(expression, "{([0-9a-zA-Z_]+)}"))
+			{
+				var symbol = match.Groups[1].Value;
+				var value = sf.SymbolToAddress(symbol);
+				var capture = match.Groups[0].Value;
+				
+				expression = expression.Replace(capture, value.ToString());
+			}
+			
+			var expr = new Expression(expression);
+			return Convert.ToInt32(expr.Evaluate());
 		}
 	}
 }

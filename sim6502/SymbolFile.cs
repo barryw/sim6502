@@ -37,7 +37,7 @@ namespace sim6502
                 
                 if (l.StartsWith(".label"))
                 {
-                    var m = Regex.Match(l, @".label\s+([A-Za-z0-9]+)=([A-Fa-f0-9$]+)", RegexOptions.IgnoreCase);
+                    var m = Regex.Match(l, @".label\s+([A-Za-z0-9_]+)=([A-Fa-f0-9$]+)", RegexOptions.IgnoreCase);
                     if (m.Success)
                     {
                         var label = m.Groups[1].Value;
@@ -48,7 +48,7 @@ namespace sim6502
                     }
                 } else if (l.StartsWith(".namespace"))
                 {
-                    var m = Regex.Match(l, @".namespace ([A-Za-z0-9]+)", RegexOptions.IgnoreCase);
+                    var m = Regex.Match(l, @".namespace ([A-Za-z0-9_]+)", RegexOptions.IgnoreCase);
                     if (m.Success)
                     {
                         currentNamespace = m.Groups[1].Value;

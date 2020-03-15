@@ -17,5 +17,7 @@ namespace sim6502.UnitTests
         public string StopOn { get; set; }
         [YamlMember(Alias = "assert", ApplyNamingConventions = false)]
         public List<TestAssertion> Assertions { get; set; }
+
+        public int JumpAddressParsed => JumpAddress.ParseNumber();
     }
 }
