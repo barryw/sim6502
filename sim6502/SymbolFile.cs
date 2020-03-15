@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text.RegularExpressions;
 
 namespace sim6502
@@ -88,6 +89,22 @@ namespace sim6502
             }
 
             return symbol;
+        }
+        
+        /// <summary>
+        /// Load the Kickassembler generated symbol file.
+        /// </summary>
+        /// <param name="symbolFilename">The path to the symbol file</param>
+        /// <returns>A SymbolFile object that makes it easier to work with the symbols</returns>
+        public static SymbolFile LoadSymbolFile(string symbolFilename)
+        {
+            if ("".Equals(symbolFilename) || symbolFilename == null)
+                return null;
+            
+            Utility.FileExists(symbolFilename);
+            
+            var symbolFile = File.ReadAllText(symbolFilename);
+            return new SymbolFile(symbolFile);
         }
     }
 }

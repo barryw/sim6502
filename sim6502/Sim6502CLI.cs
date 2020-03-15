@@ -2,8 +2,6 @@
 using System.IO;
 using CommandLine;
 using NLog;
-using YamlDotNet.Serialization;
-using YamlDotNet.Serialization.NamingConventions;
 using sim6502.UnitTests;
 // ReSharper disable UnusedAutoPropertyAccessor.Local
 
@@ -68,8 +66,8 @@ namespace sim6502
             int retval;
             try
             {
-                var symbols = LoadSymbolFile(opts.SymbolFile);
-                var tests = DeserializeTestsYaml(opts.TestYaml);
+                var symbols = SymbolFile.LoadSymbolFile(opts.SymbolFile);
+                var tests = TestYaml.DeserializeTestsYaml(opts.TestYaml);
                 _expr = new ExpressionParser(_processor, symbols);
 
                 var allPassed = tests.UnitTests.RunUnitTests(_processor, _expr, tests.Init.LoadFiles);
@@ -85,50 +83,6 @@ namespace sim6502
             }
 
             return retval;
-        }
-
-        /// <summary>
-        /// Deserialize our test yaml into a graph of objects
-        /// </summary>
-        /// <param name="testYamlFilename"></param>
-        /// <returns></returns>
-        private static Tests DeserializeTestsYaml(string testYamlFilename)
-        {
-            Tests tests;
-            Utility.FileExists(testYamlFilename);
-            try
-            {
-                var testYaml = File.ReadAllText(testYamlFilename);
-            
-                var deserializer = new DeserializerBuilder()
-                    .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                    .Build();
-                
-                tests = deserializer.Deserialize<Tests>(testYaml);
-            }
-            catch (YamlDotNet.Core.YamlException ye)
-            {
-                Logger.Fatal($"Failed to parse test yaml file: {ye.Message}, {ye.InnerException.Message}");
-                throw;
-            }
-
-            return tests;
-        }
-        
-        /// <summary>
-        /// Load the Kickassembler generated symbol file.
-        /// </summary>
-        /// <param name="symbolFilename">The path to the symbol file</param>
-        /// <returns>A SymbolFile object that makes it easier to work with the symbols</returns>
-        private static SymbolFile LoadSymbolFile(string symbolFilename)
-        {
-            if ("".Equals(symbolFilename) || symbolFilename == null)
-                return null;
-            
-            Utility.FileExists(symbolFilename);
-            
-            var symbolFile = File.ReadAllText(symbolFilename);
-            return new SymbolFile(symbolFile);
         }
     }
 }

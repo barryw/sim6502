@@ -21,9 +21,9 @@ namespace sim6502.UnitTests
         /// <summary>
         /// Run all of the unit tests
         /// </summary>
-        /// <param name="proc"></param>
-        /// <param name="expr"></param>
-        /// <param name="roms"></param>
+        /// <param name="proc">A reference to the running 6502</param>
+        /// <param name="expr">A reference to our expression parser</param>
+        /// <param name="roms">The ROMS that we'd like to load in</param>
         /// <returns>True if all tests completed successfully, False otherwise</returns>
         public bool RunUnitTests(Processor proc, ExpressionParser expr, IEnumerable<TestInitLoadFile> roms)
         {
@@ -46,7 +46,7 @@ namespace sim6502.UnitTests
         /// <summary>
         /// Load the thing we're testing into the processor
         /// </summary>
-        /// <param name="proc"></param>
+        /// <param name="proc">A reference to the running 6502</param>
         private void LoadProgram(Processor proc)
         {
             var address = "".Equals(Address) || Address == null ? Utility.GetProgramLoadAddress(Program) : AddressParsed;
@@ -56,9 +56,9 @@ namespace sim6502.UnitTests
         /// <summary>
         /// Load all of the required roms into the processor
         /// </summary>
-        /// <param name="proc"></param>
-        /// <param name="expr"></param>
-        /// <param name="roms"></param>
+        /// <param name="proc">A reference to the running 6502</param>
+        /// <param name="expr">A reference to our expression parser</param>
+        /// <param name="roms">The ROMS we'd like to load in</param>
         private static void LoadRoms(Processor proc, ExpressionParser expr, IEnumerable<TestInitLoadFile> roms)
         {
             foreach (var rom in roms)

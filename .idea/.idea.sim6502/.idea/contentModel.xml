@@ -37,6 +37,7 @@
           <e p="TestUnitTest.cs" t="Include" />
           <e p="TestUnitTests.cs" t="Include" />
           <e p="TestUnitTestSetMemory.cs" t="Include" />
+          <e p="TestYaml.cs" t="Include" />
         </e>
         <e p="Utility.cs" t="Include" />
       </e>

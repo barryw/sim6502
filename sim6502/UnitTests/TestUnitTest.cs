@@ -67,27 +67,9 @@ namespace sim6502.UnitTests
         public void DoTestInit(Processor proc, ExpressionParser expr)
         {
             proc.ResetMemory();
-            SetMemoryValues(proc, expr);
-        }
-        
-        /// <summary>
-        /// Set up any memory locations for each test
-        /// </summary>
-        private void SetMemoryValues(Processor proc, ExpressionParser expr)
-        {
-            foreach (var memory in SetMemory)
+            foreach (var mem in SetMemory)
             {
-                var location = expr.Evaluate(memory.Address);
-                if (memory.WordValue != null && !"".Equals(memory.WordValue))
-                {
-                    var wordValue = expr.Evaluate(memory.WordValue);
-                    proc.WriteMemoryWord(location, wordValue);
-                }
-                else
-                {
-                    var byteValue = expr.Evaluate(memory.ByteValue);
-                    proc.WriteMemoryValueWithoutIncrement(location, (byte)byteValue);
-                }
+                mem.SetMemory(proc, expr);
             }
         }
     }
