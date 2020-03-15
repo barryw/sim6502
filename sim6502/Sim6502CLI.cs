@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using CommandLine;
 using NLog;
@@ -72,35 +73,52 @@ namespace sim6502
                 // we can get it from the first 2 bytes of the file.
                 var program = tests.UnitTests.Program;
                 var address = "".Equals(tests.UnitTests.Address) || tests.UnitTests.Address == null ? Utility.GetProgramLoadAddress(program) : tests.UnitTests.AddressParsed;
-                LoadFile(program, address, true);
 
-                var mem = Processor.DumpMemory();
-                File.WriteAllBytes("dump.rom", mem);
-                
                 foreach (var test in tests.UnitTests.UnitTests)
                 {
-                    Logger.Info(test.Name);
-                    Logger.Info(test.Description);
+                    // At the start of each test, reset memory, load roms & program, and set any initial memory values
+                    Processor.ResetMemory();
+                    LoadRoms(tests);
+                    LoadFile(program, address, true);
+                    SetMemoryValues(test, symbols);
 
-                    foreach (var memory in test.SetMemory)
-                    {
-                        var location = Utility.EvaluateExpression(memory.Address, symbols);
-                        if (memory.WordValue != null && !"".Equals(memory.WordValue))
-                        {
-                            var wordValue = Utility.EvaluateExpression(memory.WordValue, symbols);
-                            Processor.WriteMemoryWord(location, wordValue);
-                        }
-                        else
-                        {
-                            var byteValue = Utility.EvaluateExpression(memory.ByteValue, symbols);
-                            Processor.WriteMemoryValueWithoutIncrement(location, (byte)byteValue);
-                        }
-                    }
-
+                    // Where is the code we want to test?
                     var jumpAddress = Utility.EvaluateExpression(test.JumpAddress, symbols);
                     Processor.ProgramCounter = jumpAddress;
-                    Processor.NextStep();
-                    Processor.NextStep();
+                    
+                    var stopOn = test.StopOn;
+                    var failOnBrk = test.FailOnBrk;
+                    var keepRunning = true;
+                    var testPassed = false;
+                    // We need to keep track of calls to subroutines from within our function so that an RTS from them
+                    // doesn't prematurely end our test.
+                    var subroutineCount = 1;
+
+                    do
+                    {
+                        if (Processor.IsJSR())
+                            subroutineCount++;
+
+                        if (Processor.IsRTS())
+                        {
+                            subroutineCount--;
+                            
+                            if (subroutineCount == 0 && "rts".Equals(stopOn.ToLower()))
+                                keepRunning = false;
+                        }
+
+                        if (Processor.IsBRK())
+                        {
+                            keepRunning = false;
+                            if (failOnBrk)
+                                testPassed = false;
+                        }
+                            
+                        Processor.NextStep();
+                    } while (keepRunning);
+
+                    var passed = testPassed ? "PASSED" : "FAILED";
+                    Logger.Info($"{test.Name}:{test.Description}:{passed}");
                 }
             }
             catch(Exception ex)
@@ -136,10 +154,6 @@ namespace sim6502
                     .Build();
                 
                 tests = deserializer.Deserialize<Tests>(testYaml);
-                foreach (var loadfile in tests.Init.LoadFiles)
-                {
-                    LoadFile(loadfile.Filename, loadfile.AddressParsed);
-                }
             }
             catch (YamlDotNet.Core.YamlException ye)
             {
@@ -150,6 +164,49 @@ namespace sim6502
             return tests;
         }
 
+        private void ResetMachine()
+        {
+            Processor.ResetMemory();
+            Processor.ResetCycleCount();
+            
+            
+        }
+        
+        /// <summary>
+        /// Set up any memory locations for each test
+        /// </summary>
+        /// <param name="test">The current test</param>
+        /// <param name="symbols">The loaded symbols</param>
+        private void SetMemoryValues(TestUnitTest test, SymbolFile symbols)
+        {
+            foreach (var memory in test.SetMemory)
+            {
+                var location = Utility.EvaluateExpression(memory.Address, symbols);
+                if (memory.WordValue != null && !"".Equals(memory.WordValue))
+                {
+                    var wordValue = Utility.EvaluateExpression(memory.WordValue, symbols);
+                    Processor.WriteMemoryWord(location, wordValue);
+                }
+                else
+                {
+                    var byteValue = Utility.EvaluateExpression(memory.ByteValue, symbols);
+                    Processor.WriteMemoryValueWithoutIncrement(location, (byte)byteValue);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Load any initialization ROMs
+        /// </summary>
+        /// <param name="tests"></param>
+        private void LoadRoms(Tests tests)
+        {
+            foreach (var loadfile in tests.Init.LoadFiles)
+            {
+                LoadFile(loadfile.Filename, loadfile.AddressParsed);
+            }    
+        }
+        
         /// <summary>
         /// Load the Kickassembler generated symbol file.
         /// </summary>

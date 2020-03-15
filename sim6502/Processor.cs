@@ -181,41 +181,76 @@ namespace sim6502
         public Processor()
 		{
 			Logger.Debug("6502 Simulator Copyright © 2013 Aaron Mell. All Rights Reserved.");
-			Memory = new byte[0x10000];
+			ResetMemory();
 			StackPointer = 0x100;
 
 		    CycleCountIncrementedAction = () => { };
 		}
+
+        /// <summary>
+        /// Clear memory
+        /// </summary>
+        public void ResetMemory()
+        {
+	        Memory = new byte[0x10000];
+        }
 
 		/// <summary>
 		/// Initializes the processor to its default state.
 		/// </summary>
 		public void Reset()
 		{
-            ResetCycleCount();
+			ResetCycleCount();
            
 			StackPointer = 0x1FD;
 
-			//Set the Program Counter to the Reset Vector Address.
+			// Set the Program Counter to the Reset Vector Address.
 			ProgramCounter = 0xFFFC;
-			//Reset the Program Counter to the Address contained in the Reset Vector
+			// Reset the Program Counter to the Address contained in the Reset Vector
 			ProgramCounter = ( Memory[ProgramCounter] | ( Memory[ProgramCounter + 1] << 8));
 
             CurrentOpCode = Memory[ProgramCounter];
-			
-            //SetDisassembly();
 
-			DisableInterruptFlag = true;
+            DisableInterruptFlag = true;
             _previousInterrupt = false;
             TriggerNmi = false;
             TriggerIrq = false;
 		}
 
 		/// <summary>
+		/// Is the current instruction a BRK instruction?
+		/// </summary>
+		/// <returns></returns>
+		public bool IsBRK()
+		{
+			return Memory[ProgramCounter] == 0x00;
+		}
+
+		/// <summary>
+		/// Is the current instruction an RTS instruction?
+		/// </summary>
+		/// <returns></returns>
+		public bool IsRTS()
+		{
+			return Memory[ProgramCounter] == 0x60;
+		}
+
+		/// <summary>
+		/// Is the current instruction a JSR instruction?
+		/// </summary>
+		/// <returns></returns>
+		public bool IsJSR()
+		{
+			return Memory[ProgramCounter] == 0x20;
+		}
+		
+		/// <summary>
 		/// Performs the next step on the processor
 		/// </summary>
 		public void NextStep()
 		{
+			CurrentOpCode = Memory[ProgramCounter];
+			
             SetDisassembly();
 
             //Have to read this first otherwise it causes tests to fail on a NES
@@ -1838,11 +1873,11 @@ namespace sim6502
 					                     DisassemblyOutput = disassembledStep
 				                     };
 
-			Logger.Debug("{0} : {1}{2}{3} {4} {5} A: {6} X: {7} Y: {8} SP {9} N: {10} V: {11} B: {12} D: {13} I: {14} Z: {15} C: {16}",
+			Logger.Debug("${0} : {1}{2}{3} {4} {5} A: {6} X: {7} Y: {8} SP {9} N: {10} V: {11} B: {12} D: {13} I: {14} Z: {15} C: {16}",
 							 ProgramCounter.ToString("X").PadLeft(4, '0'),
 							 CurrentOpCode.ToString("X").PadLeft(2, '0'),
-							 CurrentDisassembly.LowAddress,
-							 CurrentDisassembly.HighAddress,
+							 CurrentDisassembly.LowAddress.PadLeft(2, ' '),
+							 CurrentDisassembly.HighAddress.PadLeft(2, ' '),
 							 
 							 CurrentDisassembly.OpCodeString,
 							 CurrentDisassembly.DisassemblyOutput.PadRight(10, ' '),
