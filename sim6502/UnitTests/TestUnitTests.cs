@@ -9,6 +9,10 @@ namespace sim6502.UnitTests
     // ReSharper disable once ClassNeverInstantiated.Global
     public class TestUnitTests
     {
+        public int TotalTestsRan { get; set; } = 0;
+        public int TotalTestsPassed { get; set; } = 0;
+        public int TotalTestsFailed { get; set; } = 0;
+        
         [YamlMember(Alias = "program", ApplyNamingConventions = false)]
         public string Program { get; set; }
         [YamlMember(Alias = "address", ApplyNamingConventions = false)]
@@ -36,8 +40,16 @@ namespace sim6502.UnitTests
                 LoadProgram(proc);
                 
                 var passed = test.RunUnitTest(proc, expr);
-                if (!passed)
+                if (passed)
+                {
+                    TotalTestsPassed++;
+                } else
+                {
                     allPassed = false;
+                    TotalTestsFailed++;
+                }
+
+                TotalTestsRan++;
             }
 
             return allPassed;

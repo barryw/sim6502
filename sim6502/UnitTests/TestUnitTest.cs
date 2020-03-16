@@ -54,7 +54,7 @@ namespace sim6502.UnitTests
             }
 
             var disposition = testPassed ? "PASSED" : "FAILED";
-            Logger.Log(testPassed ? LogLevel.Info : LogLevel.Error, $"{Name} : {Description} : {disposition}");
+            Logger.Log(testPassed ? LogLevel.Info : LogLevel.Fatal, $"{Name} : {Description} : {disposition}");
             
             return testPassed;
         }

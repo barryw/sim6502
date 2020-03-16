@@ -1,7 +1,7 @@
 ﻿using System;
-using System.IO;
 using CommandLine;
 using NLog;
+using NLog.Fluent;
 using sim6502.UnitTests;
 // ReSharper disable UnusedAutoPropertyAccessor.Local
 
@@ -27,17 +27,6 @@ namespace sim6502
             public string TestYaml { get; set; }
         }
 
-        /// <summary>
-        /// TODO: Make this shit work in the nlog.config file.
-        /// </summary>
-        private Sim6502Cli()
-        {
-            var config = new NLog.Config.LoggingConfiguration();
-            var logconsole = new NLog.Targets.ConsoleTarget("logconsole");
-            config.AddRule(LogLevel.Debug, LogLevel.Fatal, logconsole);
-            LogManager.Configuration = config;
-        }
-        
         private static int Main(string[] args)
         {
             var cli = new Sim6502Cli();
@@ -60,9 +49,12 @@ namespace sim6502
         /// Run the 6502 test CLI
         /// </summary>
         /// <param name="opts">Options specified on the command line</param>
-        /// <returns></returns>
+        /// <returns>0 if all tests passed, >0 otherwise</returns>
         private int RunCli(Options opts)
         {
+            LogManager.Configuration.Variables["cliLogLevel"] = opts.Debug ? "Debug" : "Info";
+            LogManager.ReconfigExistingLoggers();
+            
             int retval;
             try
             {
@@ -71,8 +63,15 @@ namespace sim6502
                 _expr = new ExpressionParser(_processor, symbols);
 
                 var allPassed = tests.UnitTests.RunUnitTests(_processor, _expr, tests.Init.LoadFiles);
-                var passed = allPassed ? "PASSED" : "FAILED";
-                Logger.Info($"Complete Test Suite : {passed}");
+                var numPassed = tests.UnitTests.TotalTestsPassed;
+                var numFailed = tests.UnitTests.TotalTestsFailed;
+                var numRun = tests.UnitTests.TotalTestsRan;
+                
+                var disposition = allPassed ? "PASSED" : "FAILED";
+                Logger.Info(
+                    string.Format(new PluralFormatProvider(), "{0:test;tests} passed, {1:test;tests} failed, ran {2:test;tests} total.", numPassed, numFailed, numRun));
+                Logger.Log(allPassed ? LogLevel.Info : LogLevel.Fatal, $"Complete Test Suite : {disposition}");
+                
 
                 retval = allPassed ? 0 : 1;
             }

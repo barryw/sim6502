@@ -125,5 +125,15 @@ namespace sim6502
 			Logger.Fatal($"The file '{filename}' does not exist.");
 			throw new FileNotFoundException();
 		}
+
+		/// <summary>
+		/// Allow us to pluralize strings
+		/// </summary>
+		/// <param name="message"></param>
+		/// <returns></returns>
+		public static string Pluralize(string message)
+		{
+			return string.Format(new PluralFormatProvider(), message);
+		}
 	}
 }
