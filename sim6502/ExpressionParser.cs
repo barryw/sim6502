@@ -1,4 +1,5 @@
 using System;
+using System.Data;
 using System.Text.RegularExpressions;
 using NCalc;
 using NLog;
@@ -59,9 +60,11 @@ namespace sim6502
         public int Evaluate(string expression)
         {
             Logger.Trace($"Evaluating raw expression '{expression}'");
-            var replaceTokens = ReplaceSymbols(expression);
-            Logger.Trace($"After symbol substitution '{replaceTokens}'");
-            var expr = new Expression(replaceTokens);
+            var replaceSymbols = ReplaceSymbols(expression);
+            Logger.Trace($"After symbol substitution '{replaceSymbols}'");
+            var replaceHex = ReplaceHexStrings(replaceSymbols);
+            Logger.Trace($"After hex substitution '{replaceHex}'");
+            var expr = new Expression(replaceHex);
             var f = expr.ToLambda<ExpressionContext, int>();
             var context = new ExpressionContext {Processor = _proc};
             var val = Convert.ToInt32(f(context));
@@ -79,9 +82,33 @@ namespace sim6502
             foreach (Match match in Regex.Matches(expression, "{([0-9a-zA-Z_]+)}"))
             {
                 var symbol = match.Groups[1].Value;
-                var value = _syms.SymbolToAddress(symbol);
+                var value = 0;
+                if(_syms.SymbolExists(symbol))
+                    value = _syms.SymbolToAddress(symbol);
+                else
+                    throw new InvalidExpressionException($"The symbol '{symbol}' does not exist in the symbol file.");
+                
                 var capture = match.Groups[0].Value;
 				
+                expression = expression.Replace(capture, value.ToString());
+            }
+
+            return expression;
+        }
+
+        /// <summary>
+        /// Replace all hex strings starting with $ with their int equivalent
+        /// </summary>
+        /// <param name="expression">The expression to process</param>
+        /// <returns>The expression with hex values converted to integer</returns>
+        private string ReplaceHexStrings(string expression)
+        {
+            foreach (Match match in Regex.Matches(expression, "(\\$[0-9a-f]+)", RegexOptions.IgnoreCase))
+            {
+                var hex = match.Groups[1].Value;
+                var value = hex.ParseNumber();
+                var capture = match.Groups[0].Value;
+
                 expression = expression.Replace(capture, value.ToString());
             }
 

@@ -62,6 +62,16 @@ namespace sim6502
         }
 
         /// <summary>
+        /// Determine whether a symbol exists in the symbol table
+        /// </summary>
+        /// <param name="symbol">The symbol to check</param>
+        /// <returns>True if the symbol exists, False otherwise</returns>
+        public bool SymbolExists(string symbol)
+        {
+            return Symbols.ContainsKey(symbol);
+        }
+        
+        /// <summary>
         /// Use the symbol file to translate a symbol to a 16-bit address
         /// </summary>
         /// <param name="symbol">The symbol to translate</param>

@@ -27,8 +27,6 @@ namespace sim6502.UnitTests
         public List<TestAssertion> Assertions { get; set; }
         [YamlMember(Alias = "fail_on_brk", ApplyNamingConventions = false)]
         public bool FailOnBrk { get; set; }
-        
-        public int JumpAddressParsed => JumpAddress.ParseNumber();
 
         /// <summary>
         /// Run a single unit test

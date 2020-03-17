@@ -77,7 +77,7 @@ namespace sim6502
             }
             catch(Exception ex)
             {
-                Logger.Fatal(ex, $"Failed to run tests: {ex.Message}, {ex.StackTrace}");
+                Logger.Fatal(ex, $"Failed to run tests: {ex.Message}");
                 retval = 1;
             }
 

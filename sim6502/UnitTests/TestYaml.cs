@@ -18,9 +18,10 @@ namespace sim6502.UnitTests
         public static Tests DeserializeTestsYaml(string testYamlFilename)
         {
             Tests tests;
-            Utility.FileExists(testYamlFilename);
+            
             try
             {
+                Utility.FileExists(testYamlFilename);
                 var testYaml = File.ReadAllText(testYamlFilename);
             
                 var deserializer = new DeserializerBuilder()
