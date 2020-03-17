@@ -1,5 +1,3 @@
-using NLog;
-
 namespace sim6502.UnitTests
 {
     /// <summary>
@@ -13,14 +11,20 @@ namespace sim6502.UnitTests
             
             var assertionAddress = expr.Evaluate(assertion.Address);
             var byteCount = expr.Evaluate(assertion.ByteCount);
-            var byteValue = expr.Evaluate(assertion.ByteValue);
-
-            for (var i = assertionAddress; i <= assertionAddress + byteCount; i++)
+            var assertValue = expr.Evaluate(assertion.ByteValue);
+            var badMemoryValues = 0;
+            
+            for (var i = assertionAddress; i < assertionAddress + byteCount; i++)
             {
-                var val = proc.ReadMemoryValueWithoutCycle(i);
-                if (val != byteValue)
-                    passed = false;
+                var actualValue = proc.ReadMemoryValueWithoutCycle(i);
+                if (actualValue == assertValue) continue;
+                WriteFailureMessage($"Expected '{assertValue}' at location '{i}', but got '{actualValue}'", test, assertion);
+                badMemoryValues++;
+                passed = false;
             }
+            
+            if(badMemoryValues > 0)
+                WriteFailureMessage(string.Format(new PluralFormatProvider(), "A total of {0:memory value;memory values} contain unexpected values", badMemoryValues), test, assertion);
             
             return passed;
         }

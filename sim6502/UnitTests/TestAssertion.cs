@@ -1,5 +1,3 @@
-using System.IO;
-using NLog;
 using YamlDotNet.Serialization;
 // ReSharper disable MemberCanBePrivate.Global
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -9,8 +7,6 @@ namespace sim6502.UnitTests
     // ReSharper disable once ClassNeverInstantiated.Global
     public class TestAssertion
     {
-        private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
-        
         [YamlMember(Alias = "byte_count", ApplyNamingConventions = false)]
         public string ByteCount { get; set; }
         [YamlMember(Alias = "description", ApplyNamingConventions = false)]

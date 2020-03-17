@@ -1,5 +1,6 @@
 using YamlDotNet.Serialization;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
+// ReSharper disable MemberCanBePrivate.Global
 
 namespace sim6502.UnitTests
 {

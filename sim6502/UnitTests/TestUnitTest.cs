@@ -48,7 +48,7 @@ namespace sim6502.UnitTests
                 testPassed = false;
 
             // Run the test's assertions after we've run the code under test
-            foreach (var assertionPassed in Assertions.Select(assertion => assertion.PerformAssertion(proc, expr, this)).Where(assertionPassed => !assertionPassed))
+            foreach (var unused in Assertions.Select(assertion => assertion.PerformAssertion(proc, expr, this)).Where(assertionPassed => !assertionPassed))
             {
                 testPassed = false;
             }
