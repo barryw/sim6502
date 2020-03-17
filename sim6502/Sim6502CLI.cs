@@ -69,7 +69,7 @@ namespace sim6502
                 
                 var disposition = allPassed ? "PASSED" : "FAILED";
                 Logger.Info(
-                    string.Format(new PluralFormatProvider(), "{0:test;tests} passed, {1:test;tests} failed, ran {2:test;tests} total.", numPassed, numFailed, numRun));
+                    string.Format(new PluralFormatProvider(), "{0:test;tests} passed, {1:test;tests} failed, {2:test;tests} total.", numPassed, numFailed, numRun));
                 Logger.Log(allPassed ? LogLevel.Info : LogLevel.Fatal, $"Complete Test Suite : {disposition}");
                 
 

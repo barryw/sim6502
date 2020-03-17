@@ -31,6 +31,10 @@
         <e p="Sim6502CLI.cs" t="Include" />
         <e p="SymbolFile.cs" t="Include" />
         <e p="UnitTests" t="Include">
+          <e p="AssertionFactory.cs" t="Include" />
+          <e p="BaseAssertion.cs" t="Include" />
+          <e p="MemoryBlockAssertion.cs" t="Include" />
+          <e p="MemoryTestAssertion.cs" t="Include" />
           <e p="TestAssertion.cs" t="Include" />
           <e p="TestInit.cs" t="Include" />
           <e p="TestInitLoadFile.cs" t="Include" />

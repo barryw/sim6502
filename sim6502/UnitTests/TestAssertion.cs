@@ -11,6 +11,8 @@ namespace sim6502.UnitTests
     {
         private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
         
+        [YamlMember(Alias = "byte_count", ApplyNamingConventions = false)]
+        public string ByteCount { get; set; }
         [YamlMember(Alias = "description", ApplyNamingConventions = false)]
         public string Description { get; set; }
         [YamlMember(Alias = "address", ApplyNamingConventions = false)]
@@ -29,75 +31,9 @@ namespace sim6502.UnitTests
         /// <param name="expr">A reference to our expression parser</param>
         /// <param name="test">A reference to our parent TestUnitTest object</param>
         /// <returns>True if the assertion passed, or False otherwise</returns>
-        /// <exception cref="InvalidDataException"></exception>
         public bool PerformAssertion(Processor proc, ExpressionParser expr, TestUnitTest test)
         {
-            var passed = true;
-
-            var assertionAddress = expr.Evaluate(Address);
-            var wordValue = WordValue;
-            var byteValue = ByteValue;
-
-            if (!"".Equals(wordValue) && wordValue != null && !"".Equals(byteValue) && byteValue != null)
-            {
-                throw new InvalidDataException($"Your tests can only assert either a 'word_value' or a 'byte_value' but not both. Failed on test '{test.Name}' assertion '{Description}'");
-            }
-
-            int assertValue;
-            int actualValue;
-            if (!"".Equals(wordValue) && wordValue != null)
-            {
-                assertValue = expr.Evaluate(wordValue);
-                actualValue = proc.ReadMemoryWordWithoutCycle(assertionAddress);
-            }
-            else
-            {
-                assertValue = expr.Evaluate(byteValue);
-                actualValue = proc.ReadMemoryValueWithoutCycle(assertionAddress);
-            }
-                        
-            var op = Op;
-            switch (op.ToLower())
-            {
-                case "eq":
-                    if (actualValue != assertValue)
-                    {
-                        WriteFailureMessage($"Expected '{assertValue}', but got '{actualValue}'", test);
-                        passed = false;   
-                    }
-                    break;
-                case "gt":
-                    if (actualValue < assertValue)
-                    {
-                        WriteFailureMessage($"Expected '{actualValue}' > '{assertValue}'", test);
-                        passed = false;
-                    }
-                    break;
-                case "lt":
-                    if (actualValue > assertValue)
-                    {
-                        WriteFailureMessage($"Expected '{actualValue}' < '{assertValue}'", test);
-                    }
-                    break;
-                case "ne":
-                    if (actualValue == assertValue)
-                    {
-                        WriteFailureMessage($"Expected '{assertValue}' != '{actualValue}'", test);
-                        passed = false;
-                    }
-                    break;
-                default:
-                    WriteFailureMessage($"Invalid comparison operator '{op}'. Valid operators are eq, ne, gt and lt", test);
-                    passed = false;
-                    break;
-            }
-
-            return passed;
-        }
-
-        private void WriteFailureMessage(string message, TestUnitTest test)
-        {
-            Logger.Fatal($"{message} for '{Description}' assertion of test '{test.Name}'");
+            return AssertionFactory.GetAssertionClass(this).PerformAssertion(proc, expr, test, this);
         }
     }
 }

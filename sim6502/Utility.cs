@@ -8,6 +8,16 @@ namespace sim6502
 	public static class Utility
 	{
 		private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
+
+		/// <summary>
+		/// Check whether a string is null or empty
+		/// </summary>
+		/// <param name="str">The string to check</param>
+		/// <returns></returns>
+		public static bool Empty(this string str)
+		{
+			return string.IsNullOrEmpty(str);
+		}
 		
 		/// <summary>
 		/// Convert an integer to a hex string

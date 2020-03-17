@@ -67,6 +67,7 @@ namespace sim6502.UnitTests
         public void DoTestInit(Processor proc, ExpressionParser expr)
         {
             proc.ResetMemory();
+            if (SetMemory == null) return;
             foreach (var mem in SetMemory)
             {
                 mem.SetMemory(proc, expr);
