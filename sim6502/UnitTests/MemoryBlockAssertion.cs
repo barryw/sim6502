@@ -11,7 +11,7 @@ namespace sim6502.UnitTests
             
             var assertionAddress = expr.Evaluate(assertion.Address);
             var byteCount = expr.Evaluate(assertion.ByteCount);
-            var assertValue = expr.Evaluate(assertion.ByteValue);
+            var assertValue = assertion.AssertionValue(expr, test);
             var badMemoryValues = 0;
             
             for (var i = assertionAddress; i < assertionAddress + byteCount; i++)
