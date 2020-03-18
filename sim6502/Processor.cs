@@ -201,7 +201,9 @@ namespace sim6502
 		public void Reset()
 		{
 			ResetCycleCount();
-           
+
+			CycleCount = 0;
+			
 			StackPointer = 0x1FD;
 
 			// Set the Program Counter to the Reset Vector Address.
@@ -221,7 +223,7 @@ namespace sim6502
 		/// Is the current instruction a BRK instruction?
 		/// </summary>
 		/// <returns></returns>
-		public bool IsBRK()
+		public bool IsBrk()
 		{
 			return Memory[ProgramCounter] == 0x00;
 		}
@@ -230,7 +232,7 @@ namespace sim6502
 		/// Is the current instruction an RTS instruction?
 		/// </summary>
 		/// <returns></returns>
-		public bool IsRTS()
+		public bool IsRts()
 		{
 			return Memory[ProgramCounter] == 0x60;
 		}
@@ -239,7 +241,7 @@ namespace sim6502
 		/// Is the current instruction a JSR instruction?
 		/// </summary>
 		/// <returns></returns>
-		public bool IsJSR()
+		public bool IsJsr()
 		{
 			return Memory[ProgramCounter] == 0x20;
 		}
@@ -260,10 +262,10 @@ namespace sim6502
 			
 			do
 			{
-				if (IsJSR())
+				if (IsJsr())
 					subroutineCount++;
 
-				if (IsRTS())
+				if (IsRts())
 				{
 					subroutineCount--;
                             
@@ -271,7 +273,7 @@ namespace sim6502
 						keepRunning = false;
 				}
 
-				if (IsBRK())
+				if (IsBrk())
 				{
 					keepRunning = false;
 					if (failOnBrk)
