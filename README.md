@@ -58,6 +58,45 @@ If your code requires kernal, basic or character roms, you will need to provide 
 
 You'll also notice things like this: `{UpdateTimers}`. These are symbols referenced from a generated Kickassembler symbol file. These are very handy and allow you to reference symbols from your source in your test suite so that you don't have to hard-code values. If you're creating constants in your source, use the Kickassembler directive `.label` to define them, and they will show up in your symbol file.
 
+The symbol file for the above snippet might look like this:
+
+```
+.label ENABLE=$80
+.label DISABLE=$00
+.label TIMER_ONE_SECOND=$3c
+.label TIMER_SINGLE=$0
+
+.label UpdateTimers=$209d
+.label UpdateScreen=$21cc
+
+.label c64lib_timers=$33c
+```
+
+The CLI also supports symbol files containing namespaces:
+
+```
+.namespace vic {
+  .label SP0X   = $d000
+  .label SP0Y   = $d001
+  .label SP1X   = $d002
+  .label SP1Y   = $d003
+  .label SP2X   = $d004
+  .label SP2Y   = $d005
+  .label SP3X   = $d006
+  .label SP3Y   = $d007
+  .label SP4X   = $d008
+  .label SP4Y   = $d009
+  .label SP5X   = $d00a
+  .label SP5Y   = $d00b
+  .label SP6X   = $d00c
+  .label SP6Y   = $d00d
+  .label SP7X   = $d00e
+  .label SP7Y   = $d00f
+}
+```
+
+If you wanted to reference the symbol `SP0X` inside of the `vic` namespace, you'd reference it as `{vic.SP0X}`.
+
 You can also perform simple expressions like `{UpdateTimers} + 1` or `peekword({r0L})` in both `set_memory` and in your `assert` expressions.
 
 #### Running

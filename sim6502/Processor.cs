@@ -1840,7 +1840,7 @@ namespace sim6502
 					}
 				case AddressingMode.Immediate:
 					{
-						disassembledStep = $"#${address1.Value.ToString("X").PadLeft(4, '0')}";
+						disassembledStep = $"#${address1.Value.ToString("X").PadLeft(2, '0')}";
 						address2 = null;
 						break;
 					}
