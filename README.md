@@ -128,6 +128,12 @@ If you'd like to see the assembly language instructions that it executes while r
 dotnet Sim6502TestRunner.dll -d -s {path to your symbolfile} -y {path to your test yaml}
 ```
 
+There is also a docker image if you'd like to not have to mess with installing the .NET Core framework. You can run it like this:
+
+```bash
+docker run -v ${PWD}:/code barrywalker71/sim6502cli:latest -y /code/{your test yaml} -s /code/{your symbol file} -d
+```
+
 #### Thanks
 
 Thanks to Aaron Mell for building the 6502 simulator (https://github.com/aaronmell/6502Net). It was a tremendous help in building this tool.
