@@ -36,9 +36,9 @@ namespace sim6502.UnitTests
     // ReSharper disable once ClassNeverInstantiated.Global
     public class TestUnitTests
     {
-        public int TotalTestsRan { get; set; } = 0;
-        public int TotalTestsPassed { get; set; } = 0;
-        public int TotalTestsFailed { get; set; } = 0;
+        public int TotalTestsRan { get; set; }
+        public int TotalTestsPassed { get; set; }
+        public int TotalTestsFailed { get; set; }
         
         [YamlMember(Alias = "program", ApplyNamingConventions = false)]
         public string Program { get; set; }

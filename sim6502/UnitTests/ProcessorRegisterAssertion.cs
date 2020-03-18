@@ -69,7 +69,7 @@ namespace sim6502.UnitTests
             }
 
             var assertValue = assertion.AssertionValue(expr, test);
-            var res = assertion.CompareValues(registerValue, assertValue, proc, expr, test);
+            var res = assertion.CompareValues(registerValue, assertValue, expr, test);
             if(!res.ComparisonPassed)
                 WriteFailureMessage(res.FailureMessage, test, assertion);
 

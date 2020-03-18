@@ -112,7 +112,7 @@ namespace sim6502
             foreach (Match match in Regex.Matches(expression, "{([0-9a-zA-Z_]+)}"))
             {
                 var symbol = match.Groups[1].Value;
-                var value = 0;
+                int value;
                 if(_syms.SymbolExists(symbol))
                     value = _syms.SymbolToAddress(symbol);
                 else

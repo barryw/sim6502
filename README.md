@@ -132,7 +132,7 @@ Memory block assertion: check an entire block of memory to make sure it's set to
   byte_value: "$00"
 ```
 
-Processor register assertion (A,X,Y, PC, S, P): ensures that the processor's registers and flags contain what we expect
+Processor register assertion (A, X, Y, PC, S, P): ensures that the processor's registers and flags contain what we expect
 ```yaml
 - description: Check A register's value
   register: a

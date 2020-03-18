@@ -35,6 +35,7 @@ namespace sim6502.UnitTests
     public class TestInit
     {
         [YamlMember(Alias = "load", ApplyNamingConventions = false)]
+        // ReSharper disable once CollectionNeverUpdated.Global
         public List<TestInitLoadFile> LoadFiles { get; set; }
     }
 }
