@@ -1873,19 +1873,17 @@ namespace sim6502
 				case AddressingMode.Relative:
 			    {
                     var valueToMove = (byte)address1.Value;
-
                     var movement = valueToMove > 127 ? (valueToMove - 255) : valueToMove;
-
-                    var newProgramCounter = ProgramCounter + movement;
+                    var newProgramCounter = ProgramCounter + movement + 1;
 
                     //This makes sure that we always land on the correct spot for a positive number
                     if (movement >= 0)
                         newProgramCounter++;
 
-                    var stringAddress = ProgramCounter.ToString("X").PadLeft(4, '0');
+                    var stringAddress = valueToMove.ToString("X").PadLeft(2, '0');
 
                     address1 = int.Parse(stringAddress.Substring(0, 2), NumberStyles.AllowHexSpecifier);
-                    address2 = int.Parse(stringAddress.Substring(2, 2), NumberStyles.AllowHexSpecifier);
+                    address2 = null;
 
                     disassembledStep = $"${newProgramCounter.ToString("X").PadLeft(4, '0')}";
 
@@ -1983,32 +1981,33 @@ namespace sim6502
 					{
 						return AddressingMode.Absolute;
 					}
-				case 0x1D: //ORA
-				case 0x3D: //AND
-				case 0x5D: //EOR
-				case 0x7D: //ADC
-				case 0x9D: //STA
-				case 0xBD: //LDA
-				case 0xDD: //CMP
-				case 0xFD: //SBC
-				case 0xBC: //LDY
-				case 0xFE: //INC
-				case 0x1E: //ASL
-				case 0x3E: //ROL
-				case 0x5E: //LSR
-				case 0x7E: //ROR
+					case 0x1D: //ORA
+					case 0x3D: //AND
+					case 0x5D: //EOR
+					case 0x7D: //ADC
+					case 0x9D: //STA
+					case 0xBD: //LDA
+					case 0xDD: //CMP
+					case 0xFD: //SBC
+					case 0xBC: //LDY
+					case 0xFE: //INC
+					case 0x1E: //ASL
+					case 0x3E: //ROL
+					case 0x5E: //LSR
+					case 0x7E: //ROR
+					case 0xDE: //DEC
 					{
 						return AddressingMode.AbsoluteX;
 					}
-				case 0x19: //ORA
-				case 0x39: //AND
-				case 0x59: //EOR
-				case 0x79: //ADC
-				case 0x99: //STA
-				case 0xB9: //LDA
-				case 0xD9: //CMP
-				case 0xF9: //SBC
-				case 0xBE: //LDX
+					case 0x19: //ORA
+					case 0x39: //AND
+					case 0x59: //EOR
+					case 0x79: //ADC
+					case 0x99: //STA
+					case 0xB9: //LDA
+					case 0xD9: //CMP
+					case 0xF9: //SBC
+					case 0xBE: //LDX
 					{
 						return AddressingMode.AbsoluteY;
 					}
@@ -2039,7 +2038,6 @@ namespace sim6502
 				case 0xD8: //CLD
 				case 0x58: //CLI
 				case 0xB8: //CLV
-				case 0xDE: //DEC
 				case 0xCA: //DEX
 				case 0x88: //DEY
 				case 0xE8: //INX
@@ -2605,7 +2603,7 @@ namespace sim6502
 	    /// </summary>
 	    private void ReturnFromSubRoutineOperation()
 	    {
-	         ReadMemoryValue(++ProgramCounter);
+		    ReadMemoryValue(++ProgramCounter);
 	        StackPointer++;
 	        IncrementCycleCount();
 
