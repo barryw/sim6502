@@ -65,6 +65,7 @@ The symbol file for the above snippet might look like this:
 .label DISABLE=$00
 .label TIMER_ONE_SECOND=$3c
 .label TIMER_SINGLE=$0
+.label TIMER_STRUCT_BYTES=$40
 
 .label UpdateTimers=$209d
 .label UpdateScreen=$21cc
@@ -105,6 +106,47 @@ The CLI's expression parser understands these functions:
 - `peekbyte(address)`: returns the byte at location `address`
 
 The `6502tests` project is a good place to look to see what the expression parser supports.
+
+Currently, you can perform the following assertions:
+
+Cycle count assertion: makes sure that the code executes within the specified number of clock cycles
+```yaml
+- description: Make sure we're executing within 85 cycles
+  op: lt
+  cycle_count: 85
+```
+
+Memory test assertion: makes sure that the memory values contain what we expect
+```yaml
+- description: Enabled
+  address: "{c64lib_timers} + 0 + peekbyte({r2H}) * 8"
+  op: eq
+  byte_value: "{ENABLE}"
+```
+
+Memory block assertion: check an entire block of memory to make sure it's set to a single value
+```yaml
+- description: Timer memory is cleared
+  address: "{c64lib_timers}"
+  byte_count: "{TIMER_STRUCT_BYTES}"
+  byte_value: "$00"
+```
+
+Processor register assertion (A,X,Y, PC, S, P): ensures that the processor's registers and flags contain what we expect
+```yaml
+- description: Check A register's value
+  register: a
+  op: eq
+  byte_value: "$21"
+```
+
+The `op` attribute can be one of:
+
+- eq: equal to
+- gt: greater than
+- lt: less than
+- ne: not equal to
+
 
 #### Running
 
