@@ -1,8 +1,11 @@
-FROM mcr.microsoft.com/dotnet/core/runtime:3.1-alpine
+FROM mcr.microsoft.com/dotnet/core/sdk:3.1
 
 WORKDIR /app
-COPY sim6502/bin/Release/netcoreapp3.0/*.dll /app/
-COPY sim6502/bin/Release/netcoreapp3.0/Sim6502TestRunner.runtimeconfig.json /app
-COPY sim6502/bin/Release/netcoreapp3.0/nlog.config /app
 
-ENTRYPOINT ["dotnet","/app/Sim6502TestRunner.dll"]
+COPY . /app/
+RUN dotnet build /app/sim6502.sln -c Release
+RUN dotnet test /app/sim6502.sln -c Release
+
+RUN ls -lR /app/
+
+ENTRYPOINT ["dotnet","/app/sim6502/bin/Release/netcoreapp3.0/Sim6502TestRunner.dll"]

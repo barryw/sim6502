@@ -131,8 +131,10 @@ dotnet Sim6502TestRunner.dll -d -s {path to your symbolfile} -y {path to your te
 There is also a docker image if you'd like to not have to mess with installing the .NET Core framework. You can run it like this:
 
 ```bash
-docker run -v ${PWD}:/code barrywalker71/sim6502cli:latest -y /code/{your test yaml} -s /code/{your symbol file} -d
+docker run -v ${PWD}:/code -it barrywalker71/sim6502cli:latest -y /code/{your test yaml} -s /code/{your symbol file} -d
 ```
+
+That would mount the current directory to a directory in the container called `/code` and would expect to see all of your artifacts there, unless you've given them absolute paths. Just make sure you update your tests yaml to point to the correct location of any roms and programs.
 
 #### Thanks
 

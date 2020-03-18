@@ -1,0 +1,6 @@
+Dockerfile
+README.md
+sim6502/bin/**
+sim6502/obj/**
+sim6502tests/bin/**
+sim6502tests/obj/**
