@@ -1,7 +1,6 @@
 ﻿using System;
 using CommandLine;
 using NLog;
-using NLog.Fluent;
 using sim6502.UnitTests;
 // ReSharper disable UnusedAutoPropertyAccessor.Local
 
