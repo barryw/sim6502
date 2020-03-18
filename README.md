@@ -99,6 +99,13 @@ If you wanted to reference the symbol `SP0X` inside of the `vic` namespace, you'
 
 You can also perform simple expressions like `{UpdateTimers} + 1` or `peekword({r0L})` in both `set_memory` and in your `assert` expressions.
 
+The CLI's expression parser understands these functions:
+
+- `peekword(address)`: returns the 16-bit word starting at location `address`
+- `peekbyte(address)`: returns the byte at location `address`
+
+The `6502tests` project is a good place to look to see what the expression parser supports.
+
 #### Running
 
 You'll need to have the following things available to the test CLI:
