@@ -8,7 +8,7 @@ namespace sim6502tests
     {
         private Processor Proc;
         private SymbolFile Syms;
-        
+
         [SetUp]
         public void Setup()
         {
@@ -16,11 +16,11 @@ namespace sim6502tests
             Proc.Reset();
             const string symbols = ".label test1=$0001\n.label test2=$fffe\n.label test3=$8000";
             Syms = new SymbolFile(symbols);
-            
+
             Proc.WriteMemoryValue(0x0001, 0xcd);
             Proc.WriteMemoryWord(0xfffe, 0xabcd);
         }
-        
+
         [TestCase("1+1", 2)]
         [TestCase("{test3}", 0x8000)]
         [TestCase("peekbyte({test1})", 0xcd)]

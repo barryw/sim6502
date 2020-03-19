@@ -25,6 +25,7 @@ The views and conclusions contained in the software and documentation are those
 of the authors and should not be interpreted as representing official policies, 
 either expressed or implied, of the FreeBSD Project.
 */
+
 using System.IO;
 using NLog;
 using YamlDotNet.Serialization;
@@ -36,7 +37,7 @@ namespace sim6502.UnitTests
     public class TestYaml
     {
         private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
-        
+
         /// <summary>
         /// Deserialize our test yaml into a graph of objects
         /// </summary>
@@ -45,16 +46,16 @@ namespace sim6502.UnitTests
         public static Tests DeserializeTestsYaml(string testYamlFilename)
         {
             Tests tests;
-            
+
             try
             {
                 Utility.FileExists(testYamlFilename);
                 var testYaml = File.ReadAllText(testYamlFilename);
-            
+
                 var deserializer = new DeserializerBuilder()
                     .WithNamingConvention(CamelCaseNamingConvention.Instance)
                     .Build();
-                
+
                 tests = deserializer.Deserialize<Tests>(testYaml);
             }
             catch (YamlDotNet.Core.YamlException ye)

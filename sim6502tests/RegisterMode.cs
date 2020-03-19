@@ -38,10 +38,12 @@ namespace sim6502tests
         /// CMP Operation
         /// </summary>
         Accumulator = 1,
+
         /// <summary>
         /// CPX Operation
         /// </summary>
         XRegister = 2,
+
         /// <summary>
         /// CPY Operation
         /// </summary>

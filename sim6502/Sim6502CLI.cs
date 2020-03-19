@@ -25,10 +25,12 @@ The views and conclusions contained in the software and documentation are those
 of the authors and should not be interpreted as representing official policies, 
 either expressed or implied, of the FreeBSD Project.
 */
+
 using System;
 using CommandLine;
 using NLog;
 using sim6502.UnitTests;
+
 // ReSharper disable UnusedAutoPropertyAccessor.Local
 
 namespace sim6502
@@ -36,21 +38,24 @@ namespace sim6502
     internal class Sim6502Cli
     {
         private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
-        
+
         private Processor _processor;
         private ExpressionParser _expr;
-        
+
         // ReSharper disable once ClassNeverInstantiated.Local
         private class Options
         {
-            [Option('t', "trace", SetName = "trace", Required = false, Default = false, HelpText = "Enable or disable trace mode")]
+            [Option('t', "trace", SetName = "trace", Required = false, Default = false,
+                HelpText = "Enable or disable trace mode")]
             public bool Trace { get; set; }
-            [Option('d', "debug", SetName = "debug", Required = false, Default = false, HelpText = "Enable or disable debug mode")]
+
+            [Option('d', "debug", SetName = "debug", Required = false, Default = false,
+                HelpText = "Enable or disable debug mode")]
             public bool Debug { get; set; }
-            
+
             [Option('s', "symbolfile", Required = false, HelpText = "The path to the generated symbols file")]
             public string SymbolFile { get; set; }
-            
+
             [Option('y', "yaml", Required = true, HelpText = "The path to your yaml test spec file.")]
             public string TestYaml { get; set; }
         }
@@ -63,13 +68,13 @@ namespace sim6502
         private static int Main(string[] args)
         {
             var cli = new Sim6502Cli();
-            
+
             Logger.Debug("Initializing 6502 simulator.");
             cli._processor = new Processor();
             cli._processor.Reset();
             Logger.Debug("6502 simulator initialized and reset.");
             Logger.Info("6502 Simulator Test Runner CLI Copyright © 2020 Barry Walker. All Rights Reserved.");
-            
+
             return Parser.Default
                 .ParseArguments<Options>(args)
                 .MapResult(
@@ -96,15 +101,17 @@ namespace sim6502
                 var numPassed = tests.UnitTests.TotalTestsPassed;
                 var numFailed = tests.UnitTests.TotalTestsFailed;
                 var numRun = tests.UnitTests.TotalTestsRan;
-                
+
                 var disposition = allPassed ? "PASSED" : "FAILED";
                 Logger.Info(
-                    string.Format(new PluralFormatProvider(), "{0:test;tests} passed, {1:test;tests} failed, {2:test;tests} total.", numPassed, numFailed, numRun));
+                    string.Format(new PluralFormatProvider(),
+                        "{0:test;tests} passed, {1:test;tests} failed, {2:test;tests} total.", numPassed, numFailed,
+                        numRun));
                 Logger.Log(allPassed ? LogLevel.Info : LogLevel.Fatal, $"Complete Test Suite : {disposition}");
-                
+
                 return allPassed ? 0 : 1;
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 Logger.Fatal(ex, $"Failed to run tests: {ex.Message}, {ex.StackTrace}");
                 return 1;
@@ -122,7 +129,7 @@ namespace sim6502
                 LogManager.Configuration.Variables["cliLogLevel"] = LogLevel.Debug.Name;
             if (opts.Trace)
                 LogManager.Configuration.Variables["cliLogLevel"] = LogLevel.Trace.Name;
-            
+
             LogManager.ReconfigExistingLoggers();
         }
     }

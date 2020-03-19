@@ -25,11 +25,13 @@ The views and conclusions contained in the software and documentation are those
 of the authors and should not be interpreted as representing official policies, 
 either expressed or implied, of the FreeBSD Project.
 */
+
 using System;
 using System.Data;
 using System.Text.RegularExpressions;
 using NCalc;
 using NLog;
+
 // ReSharper disable UnusedMember.Local
 
 namespace sim6502
@@ -40,7 +42,7 @@ namespace sim6502
     public class ExpressionParser
     {
         private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
-        
+
         /// <summary>
         /// Allow us to have functions in our expressions
         /// </summary>
@@ -72,10 +74,10 @@ namespace sim6502
                 return val;
             }
         }
-        
+
         private readonly Processor _proc;
         private readonly SymbolFile _syms;
-        
+
         public ExpressionParser(Processor proc, SymbolFile symbols)
         {
             _proc = proc;
@@ -113,13 +115,13 @@ namespace sim6502
             {
                 var symbol = match.Groups[1].Value;
                 int value;
-                if(_syms.SymbolExists(symbol))
+                if (_syms.SymbolExists(symbol))
                     value = _syms.SymbolToAddress(symbol);
                 else
                     throw new InvalidExpressionException($"The symbol '{symbol}' does not exist in the symbol file.");
-                
+
                 var capture = match.Groups[0].Value;
-				
+
                 expression = expression.Replace(capture, value.ToString());
             }
 

@@ -27,6 +27,7 @@ either expressed or implied, of the FreeBSD Project.
 */
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable MemberCanBePrivate.Global
+
 namespace sim6502.UnitTests
 {
     // ReSharper disable once ClassNeverInstantiated.Global

@@ -25,10 +25,12 @@ The views and conclusions contained in the software and documentation are those
 of the authors and should not be interpreted as representing official policies, 
 either expressed or implied, of the FreeBSD Project.
 */
+
 using System.Collections.Generic;
 using System.Linq;
 using NLog;
 using YamlDotNet.Serialization;
+
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable MemberCanBePrivate.Global
 // ReSharper disable CollectionNeverUpdated.Global
@@ -39,19 +41,25 @@ namespace sim6502.UnitTests
     public class TestUnitTest
     {
         private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
-        
+
         [YamlMember(Alias = "name", ApplyNamingConventions = false)]
         public string Name { get; set; }
+
         [YamlMember(Alias = "description", ApplyNamingConventions = false)]
         public string Description { get; set; }
+
         [YamlMember(Alias = "set_memory", ApplyNamingConventions = false)]
         public List<TestUnitTestSetMemory> SetMemory { get; set; }
+
         [YamlMember(Alias = "jump_address", ApplyNamingConventions = false)]
         public string JumpAddress { get; set; }
+
         [YamlMember(Alias = "stop_on", ApplyNamingConventions = false)]
         public string StopOn { get; set; }
+
         [YamlMember(Alias = "assert", ApplyNamingConventions = false)]
         public List<TestAssertion> Assertions { get; set; }
+
         [YamlMember(Alias = "fail_on_brk", ApplyNamingConventions = false)]
         public bool FailOnBrk { get; set; }
 
@@ -73,14 +81,15 @@ namespace sim6502.UnitTests
                 testPassed = false;
 
             // Run the test's assertions after we've run the code under test
-            foreach (var unused in Assertions.Select(assertion => assertion.PerformAssertion(proc, expr, this)).Where(assertionPassed => !assertionPassed))
+            foreach (var unused in Assertions.Select(assertion => assertion.PerformAssertion(proc, expr, this))
+                .Where(assertionPassed => !assertionPassed))
             {
                 testPassed = false;
             }
 
             var disposition = testPassed ? "PASSED" : "FAILED";
             Logger.Log(testPassed ? LogLevel.Info : LogLevel.Fatal, $"{Name} : {Description} : {disposition}");
-            
+
             return testPassed;
         }
 

@@ -25,7 +25,9 @@ The views and conclusions contained in the software and documentation are those
 of the authors and should not be interpreted as representing official policies, 
 either expressed or implied, of the FreeBSD Project.
 */
+
 using YamlDotNet.Serialization;
+
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable MemberCanBePrivate.Global
 
@@ -36,10 +38,13 @@ namespace sim6502.UnitTests
     {
         [YamlMember(Alias = "description", ApplyNamingConventions = false)]
         public string Description { get; set; }
+
         [YamlMember(Alias = "address", ApplyNamingConventions = false)]
         public string Address { get; set; }
+
         [YamlMember(Alias = "byte_value", ApplyNamingConventions = false)]
         public string ByteValue { get; set; }
+
         [YamlMember(Alias = "word_value", ApplyNamingConventions = false)]
         public string WordValue { get; set; }
 
@@ -59,7 +64,7 @@ namespace sim6502.UnitTests
             else
             {
                 var byteValue = expr.Evaluate(ByteValue);
-                proc.WriteMemoryValueWithoutIncrement(location, (byte)byteValue);
+                proc.WriteMemoryValueWithoutIncrement(location, (byte) byteValue);
             }
         }
     }

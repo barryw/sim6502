@@ -25,6 +25,7 @@ The views and conclusions contained in the software and documentation are those
 of the authors and should not be interpreted as representing official policies, 
 either expressed or implied, of the FreeBSD Project.
 */
+
 namespace sim6502.UnitTests
 {
     /// <summary>
@@ -40,27 +41,32 @@ namespace sim6502.UnitTests
         /// <param name="test">The current test that's running</param>
         /// <param name="assertion">The current assertion within the test that we'd like to test</param>
         /// <returns>True if the assertion passed, False otherwise</returns>
-        public override bool PerformAssertion(Processor proc, ExpressionParser expr, TestUnitTest test, TestAssertion assertion)
+        public override bool PerformAssertion(Processor proc, ExpressionParser expr, TestUnitTest test,
+            TestAssertion assertion)
         {
             var passed = true;
-            
+
             var assertionAddress = expr.Evaluate(assertion.Address);
             var byteCount = expr.Evaluate(assertion.ByteCount);
             var assertValue = assertion.AssertionValue(expr, test);
             var badMemoryValues = 0;
-            
+
             for (var i = assertionAddress; i < assertionAddress + byteCount; i++)
             {
                 var actualValue = proc.ReadMemoryValueWithoutCycle(i);
                 if (actualValue == assertValue) continue;
-                WriteFailureMessage($"Expected '{assertValue}' at location '{i}', but got '{actualValue}'", test, assertion);
+                WriteFailureMessage($"Expected '{assertValue}' at location '{i}', but got '{actualValue}'", test,
+                    assertion);
                 badMemoryValues++;
                 passed = false;
             }
-            
-            if(badMemoryValues > 0)
-                WriteFailureMessage(string.Format(new PluralFormatProvider(), "A total of {0:memory value;memory values} contain unexpected values", badMemoryValues), test, assertion);
-            
+
+            if (badMemoryValues > 0)
+                WriteFailureMessage(
+                    string.Format(new PluralFormatProvider(),
+                        "A total of {0:memory value;memory values} contain unexpected values", badMemoryValues), test,
+                    assertion);
+
             return passed;
         }
     }

@@ -25,6 +25,7 @@ The views and conclusions contained in the software and documentation are those
 of the authors and should not be interpreted as representing official policies, 
 either expressed or implied, of the FreeBSD Project.
 */
+
 using System;
 
 namespace sim6502
@@ -36,13 +37,15 @@ namespace sim6502
     /// </summary>
     public class PluralFormatProvider : IFormatProvider, ICustomFormatter
     {
-        public object GetFormat(Type formatType) {
+        public object GetFormat(Type formatType)
+        {
             return this;
         }
-        
-        public string Format(string format, object arg, IFormatProvider formatProvider) {
+
+        public string Format(string format, object arg, IFormatProvider formatProvider)
+        {
             var forms = format.Split(';');
-            var value = (int)arg;
+            var value = (int) arg;
             var form = value == 1 ? 0 : 1;
             return value + " " + forms[form];
         }

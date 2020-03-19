@@ -25,6 +25,7 @@ The views and conclusions contained in the software and documentation are those
 of the authors and should not be interpreted as representing official policies, 
 either expressed or implied, of the FreeBSD Project.
 */
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -45,7 +46,7 @@ namespace sim6502
         public SymbolFile(string symbolfile)
         {
             _symbolfile = symbolfile.Trim().Split(
-                new[] { "\r\n", "\r", "\n" },
+                new[] {"\r\n", "\r", "\n"},
                 StringSplitOptions.None
             );
             Parse();
@@ -57,11 +58,11 @@ namespace sim6502
         private void Parse()
         {
             var currentNamespace = "";
-            
+
             foreach (var line in _symbolfile)
             {
                 var l = line.TrimStart();
-                
+
                 if (l.StartsWith(".label"))
                 {
                     var m = Regex.Match(l, @".label\s+([A-Za-z0-9_]+)=([A-Fa-f0-9$]+)", RegexOptions.IgnoreCase);
@@ -73,7 +74,8 @@ namespace sim6502
                         Symbols.Add("".Equals(currentNamespace) ? label : $"{currentNamespace}.{label}",
                             address.ParseNumber());
                     }
-                } else if (l.StartsWith(".namespace"))
+                }
+                else if (l.StartsWith(".namespace"))
                 {
                     var m = Regex.Match(l, @".namespace ([A-Za-z0-9_]+)", RegexOptions.IgnoreCase);
                     if (m.Success)
@@ -97,7 +99,7 @@ namespace sim6502
         {
             return Symbols.ContainsKey(symbol);
         }
-        
+
         /// <summary>
         /// Use the symbol file to translate a symbol to a 16-bit address
         /// </summary>
@@ -117,7 +119,7 @@ namespace sim6502
         public string AddressToSymbol(int address, bool asHex = true)
         {
             var symbol = asHex ? address.ToHex() : address.ToString();
-            
+
             foreach (var (key, value) in Symbols)
             {
                 if (value != address) continue;
@@ -127,7 +129,7 @@ namespace sim6502
 
             return symbol;
         }
-        
+
         /// <summary>
         /// Load the Kickassembler generated symbol file.
         /// </summary>
@@ -137,9 +139,9 @@ namespace sim6502
         {
             if ("".Equals(symbolFilename) || symbolFilename == null)
                 return null;
-            
+
             Utility.FileExists(symbolFilename);
-            
+
             var symbolFile = File.ReadAllText(symbolFilename);
             return new SymbolFile(symbolFile);
         }

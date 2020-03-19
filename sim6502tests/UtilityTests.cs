@@ -14,7 +14,7 @@ namespace sim6502tests
 
             hex1 = "$fff";
             Assert.AreEqual(4095, hex1.ParseNumber());
-            
+
             hex1 = "$ff";
             Assert.AreEqual(255, hex1.ParseNumber());
 

@@ -25,6 +25,7 @@ The views and conclusions contained in the software and documentation are those
 of the authors and should not be interpreted as representing official policies, 
 either expressed or implied, of the FreeBSD Project.
 */
+
 using NLog;
 
 namespace sim6502.UnitTests
@@ -32,7 +33,7 @@ namespace sim6502.UnitTests
     public class AssertionFactory
     {
         private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
-        
+
         /// <summary>
         /// Return the correct assertion implementation
         /// </summary>
@@ -63,7 +64,7 @@ namespace sim6502.UnitTests
                 Logger.Trace($"Using CycleCountAssertion for {assertion.Description}");
                 return new CycleCountAssertion();
             }
-            
+
             return null;
         }
     }

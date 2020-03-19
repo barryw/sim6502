@@ -25,8 +25,10 @@ The views and conclusions contained in the software and documentation are those
 of the authors and should not be interpreted as representing official policies, 
 either expressed or implied, of the FreeBSD Project.
 */
+
 using System.Collections.Generic;
 using YamlDotNet.Serialization;
+
 // ReSharper disable MemberCanBePrivate.Global
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable CollectionNeverUpdated.Global
@@ -39,14 +41,16 @@ namespace sim6502.UnitTests
         public int TotalTestsRan { get; set; }
         public int TotalTestsPassed { get; set; }
         public int TotalTestsFailed { get; set; }
-        
+
         [YamlMember(Alias = "program", ApplyNamingConventions = false)]
         public string Program { get; set; }
+
         [YamlMember(Alias = "address", ApplyNamingConventions = false)]
         public string Address { get; set; }
+
         [YamlMember(Alias = "tests", ApplyNamingConventions = false)]
         public List<TestUnitTest> UnitTests { get; set; }
-        
+
         public int AddressParsed => Address.ParseNumber();
 
         /// <summary>
@@ -65,12 +69,13 @@ namespace sim6502.UnitTests
                 test.DoTestInit(proc, expr);
                 LoadRoms(proc, expr, roms);
                 LoadProgram(proc);
-                
+
                 var passed = test.RunUnitTest(proc, expr);
                 if (passed)
                 {
                     TotalTestsPassed++;
-                } else
+                }
+                else
                 {
                     allPassed = false;
                     TotalTestsFailed++;
@@ -88,7 +93,9 @@ namespace sim6502.UnitTests
         /// <param name="proc">A reference to the running 6502</param>
         private void LoadProgram(Processor proc)
         {
-            var address = "".Equals(Address) || Address == null ? Utility.GetProgramLoadAddress(Program) : AddressParsed;
+            var address = "".Equals(Address) || Address == null
+                ? Utility.GetProgramLoadAddress(Program)
+                : AddressParsed;
             Utility.LoadFileIntoProcessor(proc, address, Program, true);
         }
 

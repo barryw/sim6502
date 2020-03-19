@@ -25,7 +25,9 @@ The views and conclusions contained in the software and documentation are those
 of the authors and should not be interpreted as representing official policies, 
 either expressed or implied, of the FreeBSD Project.
 */
+
 using YamlDotNet.Serialization;
+
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace sim6502.UnitTests
@@ -35,6 +37,7 @@ namespace sim6502.UnitTests
     {
         [YamlMember(Alias = "init", ApplyNamingConventions = false)]
         public TestInit Init { get; set; }
+
         [YamlMember(Alias = "unit_tests", ApplyNamingConventions = false)]
         public TestUnitTests UnitTests { get; set; }
     }
