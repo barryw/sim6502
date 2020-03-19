@@ -60,11 +60,29 @@ namespace sim6502.UnitTests
                 case "s":
                     registerValue = proc.StackPointer;
                     break;
-                case "p":
+                case "n":
+                    registerValue = FlagToInt(proc.NegativeFlag);
+                    break;
+                case "v":
+                    registerValue = FlagToInt(proc.OverflowFlag);
+                    break;
+                case "b":
                     // TODO
                     break;
+                case "d":
+                    registerValue = FlagToInt(proc.DecimalFlag);
+                    break;
+                case "i":
+                    registerValue = FlagToInt(proc.DisableInterruptFlag);
+                    break;
+                case "z":
+                    registerValue = FlagToInt(proc.ZeroFlag);
+                    break;
+                case "c":
+                    registerValue = FlagToInt(proc.CarryFlag);
+                    break;
                 default:
-                    WriteFailureMessage($"{register} is not a valid register value. Valid values are a, x, y, pc, s, p", test, assertion);
+                    WriteFailureMessage($"{register} is not a valid register value. Valid values are a, x, y, pc, s, n, v, b, d, i, z, c", test, assertion);
                     return false;
             }
 
@@ -74,6 +92,16 @@ namespace sim6502.UnitTests
                 WriteFailureMessage(res.FailureMessage, test, assertion);
 
             return res.ComparisonPassed;
+        }
+
+        /// <summary>
+        /// Convert a flag to an integer value
+        /// </summary>
+        /// <param name="flag">The flag's value</param>
+        /// <returns>1 if the flag is true, 0 otherwise</returns>
+        private int FlagToInt(bool flag)
+        {
+            return flag ? 1 : 0;
         }
     }
 }

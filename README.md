@@ -132,13 +132,22 @@ Memory block assertion: check an entire block of memory to make sure it's set to
   byte_value: "$00"
 ```
 
-Processor register assertion (A, X, Y, PC, S, P): ensures that the processor's registers and flags contain what we expect
+Processor register assertion (A, X, Y, PC, S, N, V, B, D, I, Z, C): ensures that the processor's registers and flags contain what we expect
 ```yaml
 - description: Check A register's value
   register: a
   op: eq
   byte_value: "$21"
 ```
+
+If you're checking one of the processor flags (N, V, B, D, I, Z, C), then specify the `byte_value` as `1` for `enabled` and `0` for `disabled`.
+```yaml
+- description: Ensure the carry flag is set
+  register: c
+  op: eq
+  byte_value: "1"
+```
+
 
 The `op` attribute can be one of:
 
