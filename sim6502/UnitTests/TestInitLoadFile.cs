@@ -28,12 +28,16 @@ either expressed or implied, of the FreeBSD Project.
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable MemberCanBePrivate.Global
 
+using YamlDotNet.Serialization;
+
 namespace sim6502.UnitTests
 {
     // ReSharper disable once ClassNeverInstantiated.Global
     public class TestInitLoadFile
     {
+        [YamlMember(Alias = "filename", ApplyNamingConventions = false)]
         public string Filename { get; set; }
+        [YamlMember(Alias = "address", ApplyNamingConventions = false)]
         public string Address { get; set; }
 
         public int AddressParsed => Address.ParseNumber();

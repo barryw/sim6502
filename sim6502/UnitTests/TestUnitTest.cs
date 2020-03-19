@@ -71,14 +71,10 @@ namespace sim6502.UnitTests
         /// <returns></returns>
         public bool RunUnitTest(Processor proc, ExpressionParser expr)
         {
-            var testPassed = true;
-
             // Where is the code we want to test?
             var jumpAddress = expr.Evaluate(JumpAddress);
             Logger.Debug($"Running routine located at {jumpAddress.ToHex()}");
-            var funcExecuted = proc.RunRoutine(jumpAddress, StopOn, FailOnBrk);
-            if (!funcExecuted)
-                testPassed = false;
+            var testPassed = proc.RunRoutine(jumpAddress, StopOn, FailOnBrk);
 
             // Run the test's assertions after we've run the code under test
             foreach (var unused in Assertions.Select(assertion => assertion.PerformAssertion(proc, expr, this))
@@ -102,6 +98,7 @@ namespace sim6502.UnitTests
         {
             proc.ResetMemory();
             if (SetMemory == null) return;
+            
             foreach (var mem in SetMemory)
             {
                 mem.SetMemory(proc, expr);
