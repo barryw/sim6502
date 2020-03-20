@@ -66,9 +66,6 @@ namespace sim6502.UnitTests
                 case "v":
                     registerValue = FlagToInt(proc.OverflowFlag);
                     break;
-                case "b":
-                    // TODO
-                    break;
                 case "d":
                     registerValue = FlagToInt(proc.DecimalFlag);
                     break;
@@ -82,12 +79,12 @@ namespace sim6502.UnitTests
                     registerValue = FlagToInt(proc.CarryFlag);
                     break;
                 default:
-                    WriteFailureMessage($"{register} is not a valid register value. Valid values are a, x, y, pc, s, n, v, b, d, i, z, c", test, assertion);
+                    WriteFailureMessage($"{register} is not a valid register value. Valid values are a, x, y, pc, s, n, v, d, i, z, c", test, assertion);
                     return false;
             }
 
             var assertValue = assertion.AssertionValue(expr, test);
-            var res = assertion.CompareValues(registerValue, assertValue, expr, test);
+            var res = assertion.CompareValues(registerValue, assertValue);
             if(!res.ComparisonPassed)
                 WriteFailureMessage(res.FailureMessage, test, assertion);
 
@@ -99,7 +96,7 @@ namespace sim6502.UnitTests
         /// </summary>
         /// <param name="flag">The flag's value</param>
         /// <returns>1 if the flag is true, 0 otherwise</returns>
-        private int FlagToInt(bool flag)
+        private static int FlagToInt(bool flag)
         {
             return flag ? 1 : 0;
         }

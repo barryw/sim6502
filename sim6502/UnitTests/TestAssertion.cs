@@ -108,11 +108,8 @@ namespace sim6502.UnitTests
         /// </summary>
         /// <param name="actualValue">The actual value from the processor</param>
         /// <param name="assertValue">The value that we expect it to be</param>
-        /// <param name="expr">A reference to our expression parser</param>
-        /// <param name="test">The test that's currently running</param>
         /// <returns></returns>
-        public ComparisonResult CompareValues(int actualValue, int assertValue, ExpressionParser expr,
-            TestUnitTest test)
+        public ComparisonResult CompareValues(int actualValue, int assertValue)
         {
             var res = new ComparisonResult();
 
@@ -122,7 +119,7 @@ namespace sim6502.UnitTests
                     if (actualValue != assertValue)
                     {
                         res.ComparisonPassed = false;
-                        res.FailureMessage = $"Expected '{assertValue}', but got '{actualValue}'";
+                        res.FailureMessage = $"Expected '{assertValue.ToString()}', but got '{actualValue.ToString()}'";
                     }
 
                     break;
@@ -130,7 +127,7 @@ namespace sim6502.UnitTests
                     if (actualValue < assertValue)
                     {
                         res.ComparisonPassed = false;
-                        res.FailureMessage = $"Expected '{actualValue}' > '{assertValue}'";
+                        res.FailureMessage = $"Expected '{actualValue.ToString()}' > '{assertValue.ToString()}'";
                     }
 
                     break;
@@ -138,7 +135,7 @@ namespace sim6502.UnitTests
                     if (actualValue > assertValue)
                     {
                         res.ComparisonPassed = false;
-                        res.FailureMessage = $"Expected '{actualValue}' < '{assertValue}'";
+                        res.FailureMessage = $"Expected '{actualValue.ToString()}' < '{assertValue.ToString()}'";
                     }
 
                     break;
@@ -146,7 +143,7 @@ namespace sim6502.UnitTests
                     if (actualValue == assertValue)
                     {
                         res.ComparisonPassed = false;
-                        res.FailureMessage = $"Expected '{assertValue}' != '{actualValue}'";
+                        res.FailureMessage = $"Expected '{assertValue.ToString()}' != '{actualValue.ToString()}'";
                     }
 
                     break;

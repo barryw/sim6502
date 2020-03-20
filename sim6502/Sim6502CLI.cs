@@ -122,7 +122,7 @@ namespace sim6502
         /// Set the log level based on the options passed in
         /// </summary>
         /// <param name="opts">The specified options</param>
-        private void SetLogLevel(Options opts)
+        private static void SetLogLevel(Options opts)
         {
             LogManager.Configuration.Variables["cliLogLevel"] = LogLevel.Info.Name;
             if (opts.Debug)

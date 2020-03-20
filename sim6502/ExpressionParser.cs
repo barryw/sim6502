@@ -58,7 +58,7 @@ namespace sim6502
             public byte Peekbyte(int address)
             {
                 var val = Processor.ReadMemoryValueWithoutCycle(address);
-                Logger.Trace($"peekbyte({address}) = {val}");
+                Logger.Trace($"peekbyte({address.ToString()}) = {val.ToString()}");
                 return val;
             }
 
@@ -70,7 +70,7 @@ namespace sim6502
             public int Peekword(int address)
             {
                 var val = Processor.ReadMemoryWordWithoutCycle(address);
-                Logger.Trace($"peekword({address}) = {val}");
+                Logger.Trace($"peekword({address.ToString()}) = {val.ToString()}");
                 return val;
             }
         }
@@ -100,7 +100,7 @@ namespace sim6502
             var f = expr.ToLambda<ExpressionContext, int>();
             var context = new ExpressionContext {Processor = _proc};
             var val = Convert.ToInt32(f(context));
-            Logger.Trace($"Final expression value = {val}");
+            Logger.Trace($"Final expression value = {val.ToString()}");
             return val;
         }
 

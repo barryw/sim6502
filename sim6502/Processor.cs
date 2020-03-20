@@ -2632,7 +2632,7 @@ namespace sim6502
             StackPointer--;
             IncrementCycleCount();
 
-            // We only set the Break Flag is a Break Occurs
+            // We only set the Break Flag if a BRK Occurs
             if (isBrk)
                 PokeStack((byte) (ConvertFlagsToByte(true) | 0x10));
             else

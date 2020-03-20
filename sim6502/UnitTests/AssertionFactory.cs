@@ -30,7 +30,7 @@ using NLog;
 
 namespace sim6502.UnitTests
 {
-    public class AssertionFactory
+    public static class AssertionFactory
     {
         private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
 
