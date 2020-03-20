@@ -27,6 +27,8 @@ either expressed or implied, of the FreeBSD Project.
 */
 
 using System.IO;
+using NLog;
+using NLog.Fluent;
 using YamlDotNet.Serialization;
 
 // ReSharper disable MemberCanBePrivate.Global
@@ -37,6 +39,8 @@ namespace sim6502.UnitTests
     // ReSharper disable once ClassNeverInstantiated.Global
     public class TestAssertion
     {
+        private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
+        
         [YamlMember(Alias = "cycle_count", ApplyNamingConventions = false)]
         public string CycleCount { get; set; }
 
@@ -113,6 +117,12 @@ namespace sim6502.UnitTests
         {
             var res = new ComparisonResult();
 
+            if (Op.Empty())
+            {
+                Logger.Warn($"The 'op' attribute is unset. Assuming 'eq' (equal)");
+                Op = "eq";
+            }
+            
             switch (Op.ToLower())
             {
                 case "eq":
