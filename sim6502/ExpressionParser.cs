@@ -111,7 +111,7 @@ namespace sim6502
         /// <returns>The same expression with symbols replaced</returns>
         private string ReplaceSymbols(string expression)
         {
-            foreach (Match match in Regex.Matches(expression, "{([0-9a-zA-Z_]+)}"))
+            foreach (Match match in Regex.Matches(expression, "{([0-9a-zA-Z_.]+)}"))
             {
                 var symbol = match.Groups[1].Value;
                 int value;
