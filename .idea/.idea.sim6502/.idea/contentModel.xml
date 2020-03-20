@@ -26,7 +26,6 @@
         </e>
         <e p="PluralFormatProvider.cs" t="Include" />
         <e p="Processor.cs" t="Include" />
-        <e p="RegisterMode.cs" t="Include" />
         <e p="sim6502.csproj" t="IncludeRecursive" />
         <e p="Sim6502CLI.cs" t="Include" />
         <e p="SymbolFile.cs" t="Include" />

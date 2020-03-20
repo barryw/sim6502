@@ -112,14 +112,15 @@ namespace sim6502.UnitTests
         /// </summary>
         /// <param name="actualValue">The actual value from the processor</param>
         /// <param name="assertValue">The value that we expect it to be</param>
+        /// <<param name="test">The test that's running</param>
         /// <returns></returns>
-        public ComparisonResult CompareValues(int actualValue, int assertValue)
+        public ComparisonResult CompareValues(int actualValue, int assertValue, TestUnitTest test)
         {
             var res = new ComparisonResult();
 
             if (Op.Empty())
             {
-                Logger.Warn($"The 'op' attribute is unset. Assuming 'eq' (equal)");
+                Logger.Warn($"The 'op' attribute is unset for assertion '{Description}' on test '{test.Name}'. Assuming 'eq' (equal)");
                 Op = "eq";
             }
             

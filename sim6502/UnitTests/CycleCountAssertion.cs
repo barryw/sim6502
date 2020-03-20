@@ -16,7 +16,7 @@ namespace sim6502.UnitTests
             var actualValue = proc.CycleCount;
             var assertValue = expr.Evaluate(assertion.CycleCount);
 
-            var res = assertion.CompareValues(actualValue, assertValue);
+            var res = assertion.CompareValues(actualValue, assertValue, test);
             if (!res.ComparisonPassed)
                 WriteFailureMessage(res.FailureMessage, test, assertion);
 
