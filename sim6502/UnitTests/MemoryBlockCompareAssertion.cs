@@ -5,6 +5,7 @@ namespace sim6502.UnitTests
     /// </summary>
     public class MemoryBlockCompareAssertion : BaseAssertion
     {
+        
         /// <summary>
         /// Test a memory location or a memory word and compare it to an expected value
         /// </summary>

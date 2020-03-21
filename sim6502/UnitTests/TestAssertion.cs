@@ -36,6 +36,9 @@ namespace sim6502.UnitTests
     {
         private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
         
+        [YamlMember(Alias = "type", ApplyNamingConventions = false)]
+        public string AssertionType { get; set; }
+        
         [YamlMember(Alias = "cycle_count", ApplyNamingConventions = false)]
         public string CycleCount { get; set; }
 

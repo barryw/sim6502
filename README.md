@@ -112,6 +112,7 @@ Currently, you can perform the following assertions:
 Cycle count assertion: makes sure that the code executes within the specified number of clock cycles
 ```yaml
 - description: Make sure we're executing within 85 cycles
+  type: cycle_count
   op: lt
   cycle_count: 85
 ```
@@ -119,6 +120,7 @@ Cycle count assertion: makes sure that the code executes within the specified nu
 Memory test assertion: makes sure that the memory values contain what we expect
 ```yaml
 - description: Enabled
+  type: memory_test
   address: "{c64lib_timers} + 0 + peekbyte({r2H}) * 8"
   op: eq
   byte_value: "{ENABLE}"
@@ -127,6 +129,7 @@ Memory test assertion: makes sure that the memory values contain what we expect
 Memory block assertion: check an entire block of memory to make sure it's set to a single value
 ```yaml
 - description: Timer memory is cleared
+  type: memory_block
   address: "{c64lib_timers}"
   byte_count: "{TIMER_STRUCT_BYTES}"
   byte_value: "$00"
@@ -135,6 +138,7 @@ Memory block assertion: check an entire block of memory to make sure it's set to
 Memory block compare assertion: compare 2 blocks of memory to ensure that they're identical
 ```yaml
 - description: Memory copied successfully
+  type: memory_block_compare
   address: "$e000"
   target: "$4000"
   byte_count: "$2000"
@@ -143,6 +147,7 @@ Memory block compare assertion: compare 2 blocks of memory to ensure that they'r
 Processor register assertion (A, X, Y, PC, S, N, V, D, I, Z, C): ensures that the processor's registers and flags contain what we expect
 ```yaml
 - description: Check A register's value
+  type: processor_register
   register: a
   op: eq
   byte_value: "$21"
@@ -151,11 +156,21 @@ Processor register assertion (A, X, Y, PC, S, N, V, D, I, Z, C): ensures that th
 If you're checking one of the processor flags (N, V, D, I, Z, C), then specify the `byte_value` as `1` for `enabled` and `0` for `disabled`.
 ```yaml
 - description: Ensure the carry flag is set
+  type: processor_register
   register: c
   op: eq
   byte_value: "1"
 ```
 
+The `type` attribute can be one of:
+
+- memory_block_compare: compare 2 blocks of memory to ensure they're the same
+- memory_block: make sure a block of memory contains the same byte value
+- memory_test: make sure a memory location contains what you expect
+- processor_register: make sure one of the processor registers contains what you expect
+- cycle_count: make sure the number of cycles it takes to execute a routine are what you expect
+
+If the `type` attribute isn't specified, a warning will be displayed and a null assertion will be performed which always returns `true`.
 
 The `op` attribute can be one of:
 
@@ -163,6 +178,8 @@ The `op` attribute can be one of:
 - gt: greater than
 - lt: less than
 - ne: not equal to
+
+If the `op` attribute isn't specified, a warning will be displayed and the default of `eq` will be used.
 
 
 #### Running

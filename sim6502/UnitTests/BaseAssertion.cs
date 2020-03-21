@@ -28,7 +28,7 @@ namespace sim6502.UnitTests
 {
     public abstract class BaseAssertion
     {
-        private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
+        protected static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
 
         public abstract bool PerformAssertion(Processor proc, ExpressionParser expr, TestUnitTest test,
             TestAssertion assertion);

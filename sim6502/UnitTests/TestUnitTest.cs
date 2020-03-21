@@ -51,13 +51,13 @@ namespace sim6502.UnitTests
         public string JumpAddress { get; set; }
 
         [YamlMember(Alias = "stop_on", ApplyNamingConventions = false)]
-        public string StopOn { get; set; }
+        public string StopOn { get; set; } = "rts";
 
         [YamlMember(Alias = "assert", ApplyNamingConventions = false)]
         public List<TestAssertion> Assertions { get; set; }
 
         [YamlMember(Alias = "fail_on_brk", ApplyNamingConventions = false)]
-        public bool FailOnBrk { get; set; }
+        public bool FailOnBrk { get; set; } = true;
 
         /// <summary>
         /// Run a single unit test

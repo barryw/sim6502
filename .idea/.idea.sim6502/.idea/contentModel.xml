@@ -37,6 +37,7 @@
           <e p="MemoryBlockAssertion.cs" t="Include" />
           <e p="MemoryBlockCompareAssertion.cs" t="Include" />
           <e p="MemoryTestAssertion.cs" t="Include" />
+          <e p="NullAssertion.cs" t="Include" />
           <e p="ProcessorRegisterAssertion.cs" t="Include" />
           <e p="TestAssertion.cs" t="Include" />
           <e p="TestInit.cs" t="Include" />

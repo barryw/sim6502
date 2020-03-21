@@ -22,6 +22,7 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+using System.ComponentModel;
 using NLog;
 
 namespace sim6502.UnitTests
@@ -37,37 +38,38 @@ namespace sim6502.UnitTests
         /// <returns>The correct assertion implementation based on the values on the assertion</returns>
         public static BaseAssertion GetAssertionClass(TestAssertion assertion)
         {
-            if (!assertion.Target.Empty() && !assertion.Address.Empty() && !assertion.ByteCount.Empty())
+            if (assertion.AssertionType.Empty())
             {
-                Logger.Trace($"Using MemoryBlockCompareAssertion for {assertion.Description}");
-                return new MemoryBlockCompareAssertion();
+                return new NullAssertion();
             }
             
-            if (!assertion.Address.Empty() && assertion.ByteCount.Empty())
+            var assertionType = assertion.AssertionType.ToLower();
+            
+            switch (assertionType)
             {
-                Logger.Trace($"Using MemoryTestAssertion for {assertion.Description}");
-                return new MemoryTestAssertion();
-            }
+                case "memory_block_compare":
+                    Logger.Trace($"Using MemoryBlockCompareAssertion for {assertion.Description}");
+                    return new MemoryBlockCompareAssertion();
 
-            if (!assertion.Address.Empty() && !assertion.ByteCount.Empty())
-            {
-                Logger.Trace($"Using MemoryBlockAssertion for {assertion.Description}");
-                return new MemoryBlockAssertion();
-            }
+                case "memory_test":
+                    Logger.Trace($"Using MemoryTestAssertion for {assertion.Description}");
+                    return new MemoryTestAssertion();
+                
+                case "memory_block":
+                    Logger.Trace($"Using MemoryBlockAssertion for {assertion.Description}");
+                    return new MemoryBlockAssertion();
+                
+                case "processor_register":
+                    Logger.Trace($"Using ProcessorRegisterAssertion for {assertion.Description}");
+                    return new ProcessorRegisterAssertion();
+                
+                case "cycle_count":
+                    Logger.Trace($"Using CycleCountAssertion for {assertion.Description}");
+                    return new CycleCountAssertion();
 
-            if (!assertion.Register.Empty())
-            {
-                Logger.Trace($"Using ProcessorRegisterAssertion for {assertion.Description}");
-                return new ProcessorRegisterAssertion();
+                default:
+                    throw new InvalidEnumArgumentException($"Invalid assertion type '{assertionType}' found for assertion '{assertion.Description}'");
             }
-
-            if (!assertion.CycleCount.Empty())
-            {
-                Logger.Trace($"Using CycleCountAssertion for {assertion.Description}");
-                return new CycleCountAssertion();
-            }
-
-            return null;
         }
     }
 }
