@@ -25,7 +25,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 using sim6502.Expressions;
 using sim6502.Proc;
 
-namespace sim6502.UnitTests
+namespace sim6502.UnitTests.Assertions
 {
     public class ProcessorRegisterAssertion : BaseAssertion
     {

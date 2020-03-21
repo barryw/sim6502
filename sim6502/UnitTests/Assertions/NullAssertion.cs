@@ -1,7 +1,7 @@
 using sim6502.Expressions;
 using sim6502.Proc;
 
-namespace sim6502.UnitTests
+namespace sim6502.UnitTests.Assertions
 {
     /// <summary>
     /// Always returns true. This is only used if an 'assertion_type' isn't specified

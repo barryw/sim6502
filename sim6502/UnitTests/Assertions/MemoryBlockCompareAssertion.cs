@@ -2,7 +2,7 @@ using sim6502.Expressions;
 using sim6502.Proc;
 using sim6502.Utilities;
 
-namespace sim6502.UnitTests
+namespace sim6502.UnitTests.Assertions
 {
     /// <summary>
     /// Compare blocks of memory to ensure they're identical

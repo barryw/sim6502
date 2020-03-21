@@ -24,13 +24,17 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using sim6502.Expressions;
 using sim6502.Proc;
+using sim6502.Utilities;
 
-namespace sim6502.UnitTests
+namespace sim6502.UnitTests.Assertions
 {
-    public class CycleCountAssertion : BaseAssertion
+    /// <summary>
+    /// Check a block of memory to make sure it's set to the specified value
+    /// </summary>
+    public class MemoryBlockAssertion : BaseAssertion
     {
         /// <summary>
-        /// Verify that cycle counts are what we expect
+        /// Perform a check of a block of memory and compare the entire range with a single value
         /// </summary>
         /// <param name="proc">A reference to the running 6502</param>
         /// <param name="expr">A reference to our expression parser</param>
@@ -40,16 +44,34 @@ namespace sim6502.UnitTests
         public override bool PerformAssertion(Processor proc, ExpressionParser expr, TestUnitTest test,
             TestAssertion assertion)
         {
-            var actualValue = proc.CycleCount;
-            var assertValue = expr.Evaluate(assertion.CycleCount, test, assertion);
-            if (assertValue == -1)
+            var passed = true;
+
+            var assertionAddress = expr.Evaluate(assertion.Address, test, assertion);
+            var byteCount = expr.Evaluate(assertion.ByteCount, test, assertion);
+            var assertValue = assertion.AssertionValue(expr, test);
+
+            if (assertValue == -1 || assertionAddress == -1 || byteCount == -1)
                 return false;
 
-            var res = assertion.CompareValues(actualValue, assertValue, test);
-            if (!res.ComparisonPassed)
-                WriteFailureMessage(res.FailureMessage, test, assertion);
+            var badMemoryValues = 0;
 
-            return res.ComparisonPassed;
+            for (var i = assertionAddress; i < assertionAddress + byteCount; i++)
+            {
+                var actualValue = proc.ReadMemoryValueWithoutCycle(i);
+                if (actualValue == assertValue) continue;
+                WriteFailureMessage($"Expected '{assertValue.ToString()}' at location '{i.ToString()}', but got '{actualValue.ToString()}'", test,
+                    assertion);
+                badMemoryValues++;
+                passed = false;
+            }
+
+            if (badMemoryValues > 0)
+                WriteFailureMessage(
+                    string.Format(new PluralFormatProvider(),
+                        "A total of {0:memory value;memory values} contain unexpected values", badMemoryValues), test,
+                    assertion);
+
+            return passed;
         }
     }
 }

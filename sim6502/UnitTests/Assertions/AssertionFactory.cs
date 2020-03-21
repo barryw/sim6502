@@ -26,7 +26,7 @@ using System.ComponentModel;
 using NLog;
 using sim6502.Utilities;
 
-namespace sim6502.UnitTests
+namespace sim6502.UnitTests.Assertions
 {
     public static class AssertionFactory
     {

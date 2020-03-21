@@ -32,15 +32,17 @@
         <e p="sim6502.csproj" t="IncludeRecursive" />
         <e p="Sim6502CLI.cs" t="Include" />
         <e p="UnitTests" t="Include">
-          <e p="AssertionFactory.cs" t="Include" />
-          <e p="BaseAssertion.cs" t="Include" />
+          <e p="Assertions" t="Include">
+            <e p="AssertionFactory.cs" t="Include" />
+            <e p="BaseAssertion.cs" t="Include" />
+            <e p="CycleCountAssertion.cs" t="Include" />
+            <e p="MemoryBlockAssertion.cs" t="Include" />
+            <e p="MemoryBlockCompareAssertion.cs" t="Include" />
+            <e p="MemoryTestAssertion.cs" t="Include" />
+            <e p="NullAssertion.cs" t="Include" />
+            <e p="ProcessorRegisterAssertion.cs" t="Include" />
+          </e>
           <e p="ComparisonResult.cs" t="Include" />
-          <e p="CycleCountAssertion.cs" t="Include" />
-          <e p="MemoryBlockAssertion.cs" t="Include" />
-          <e p="MemoryBlockCompareAssertion.cs" t="Include" />
-          <e p="MemoryTestAssertion.cs" t="Include" />
-          <e p="NullAssertion.cs" t="Include" />
-          <e p="ProcessorRegisterAssertion.cs" t="Include" />
           <e p="TestAssertion.cs" t="Include" />
           <e p="TestInit.cs" t="Include" />
           <e p="TestInitLoadFile.cs" t="Include" />

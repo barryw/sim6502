@@ -26,6 +26,7 @@ using System.IO;
 using NLog;
 using sim6502.Expressions;
 using sim6502.Proc;
+using sim6502.UnitTests.Assertions;
 using sim6502.Utilities;
 using YamlDotNet.Serialization;
 

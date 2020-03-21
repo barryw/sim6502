@@ -26,7 +26,7 @@ using NLog;
 using sim6502.Expressions;
 using sim6502.Proc;
 
-namespace sim6502.UnitTests
+namespace sim6502.UnitTests.Assertions
 {
     public abstract class BaseAssertion
     {
