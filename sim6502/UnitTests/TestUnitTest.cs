@@ -68,7 +68,10 @@ namespace sim6502.UnitTests
         public bool RunUnitTest(Processor proc, ExpressionParser expr)
         {
             // Where is the code we want to test?
-            var jumpAddress = expr.Evaluate(JumpAddress);
+            var jumpAddress = expr.Evaluate(JumpAddress, this, null);
+            if (jumpAddress == -1)
+                return false;
+            
             Logger.Debug($"Running routine located at {jumpAddress.ToHex()}");
             var testPassed = proc.RunRoutine(jumpAddress, StopOn, FailOnBrk);
 
@@ -97,7 +100,7 @@ namespace sim6502.UnitTests
             
             foreach (var mem in SetMemory)
             {
-                mem.SetMemory(proc, expr);
+                mem.SetMemory(proc, expr, this);
             }
         }
     }

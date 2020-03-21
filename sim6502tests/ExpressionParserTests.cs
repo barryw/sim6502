@@ -32,7 +32,7 @@ namespace sim6502tests
         public void TestExpressions(string expression, int expected)
         {
             var ep = new ExpressionParser(Proc, Syms);
-            var actual = ep.Evaluate(expression);
+            var actual = ep.Evaluate(expression, null, null);
             Assert.AreEqual(expected.ToString(), actual.ToString());
         }
     }

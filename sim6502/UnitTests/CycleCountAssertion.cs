@@ -37,7 +37,9 @@ namespace sim6502.UnitTests
             TestAssertion assertion)
         {
             var actualValue = proc.CycleCount;
-            var assertValue = expr.Evaluate(assertion.CycleCount);
+            var assertValue = expr.Evaluate(assertion.CycleCount, test, assertion);
+            if (assertValue == -1)
+                return false;
 
             var res = assertion.CompareValues(actualValue, assertValue, test);
             if (!res.ComparisonPassed)

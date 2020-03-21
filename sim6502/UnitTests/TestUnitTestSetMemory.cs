@@ -49,17 +49,21 @@ namespace sim6502.UnitTests
         /// </summary>
         /// <param name="proc">A reference to the running 6502</param>
         /// <param name="expr">A reference to our expression parser</param>
-        public void SetMemory(Processor proc, ExpressionParser expr)
+        /// <param name="test">The current running test</param>
+        public void SetMemory(Processor proc, ExpressionParser expr, TestUnitTest test)
         {
-            var location = expr.Evaluate(Address);
+            var location = expr.Evaluate(Address, test, null);
+            if (location == -1)
+                return;
+            
             if (!WordValue.Empty())
             {
-                var wordValue = expr.Evaluate(WordValue);
+                var wordValue = expr.Evaluate(WordValue, test, null);
                 proc.WriteMemoryWord(location, wordValue);
             }
             else
             {
-                var byteValue = expr.Evaluate(ByteValue);
+                var byteValue = expr.Evaluate(ByteValue, test, null);
                 proc.WriteMemoryValueWithoutIncrement(location, (byte) byteValue);
             }
         }

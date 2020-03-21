@@ -83,12 +83,17 @@ namespace sim6502.UnitTests
         /// </summary>
         /// <param name="proc">A reference to our running 6502</param>
         /// <param name="expr">A reference to our expression parser</param>
+        /// <param name="test">The running test</param>
         /// <returns>The assertion's actual value (from the processor)</returns>
-        public int ActualValue(Processor proc, ExpressionParser expr)
+        public int ActualValue(Processor proc, ExpressionParser expr, TestUnitTest test)
         {
+            var address = expr.Evaluate(Address, test, this);
+            if (address == -1)
+                return -1;
+            
             return !WordValue.Empty()
-                ? proc.ReadMemoryWordWithoutCycle(expr.Evaluate(Address))
-                : proc.ReadMemoryValueWithoutCycle(expr.Evaluate(Address));
+                ? proc.ReadMemoryWordWithoutCycle(address)
+                : proc.ReadMemoryValueWithoutCycle(address);
         }
 
         /// <summary>
@@ -105,7 +110,7 @@ namespace sim6502.UnitTests
                     $"Your tests can only assert either a 'word_value' or a 'byte_value' but not both. Failed on test '{test.Name}' assertion '{Description}'");
             }
 
-            return expr.Evaluate(!WordValue.Empty() ? WordValue : ByteValue);
+            return expr.Evaluate(!WordValue.Empty() ? WordValue : ByteValue, test, this);
         }
 
         /// <summary>

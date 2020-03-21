@@ -27,6 +27,7 @@ using System.Data;
 using System.Text.RegularExpressions;
 using NCalc;
 using NLog;
+using sim6502.UnitTests;
 
 // ReSharper disable UnusedMember.Local
 
@@ -84,20 +85,41 @@ namespace sim6502
         /// Evaluate an expression containing functions and symbols
         /// </summary>
         /// <param name="expression">The expression that we'd like to evaluate</param>
+        /// <param name="test">The current test running</param>
+        /// <param name="assertion">The current assertion being evaluated. Can be null</param>
         /// <returns>The integer value of the entire expression</returns>
-        public int Evaluate(string expression)
+        public int Evaluate(string expression, TestUnitTest test, TestAssertion assertion)
         {
-            Logger.Trace($"Evaluating raw expression '{expression}'");
-            var replaceSymbols = ReplaceSymbols(expression);
-            Logger.Trace($"After symbol substitution '{replaceSymbols}'");
-            var replaceHex = ReplaceHexStrings(replaceSymbols);
-            Logger.Trace($"After hex substitution '{replaceHex}'");
-            var expr = new Expression(replaceHex);
-            var f = expr.ToLambda<ExpressionContext, int>();
-            var context = new ExpressionContext {Processor = _proc};
-            var val = Convert.ToInt32(f(context));
-            Logger.Trace($"Final expression value = {val.ToString()}");
-            return val;
+            try
+            {
+                Logger.Trace($"Evaluating raw expression '{expression}'");
+                var replaceSymbols = ReplaceSymbols(expression);
+                Logger.Trace($"After symbol substitution '{replaceSymbols}'");
+                var replaceHex = ReplaceHexStrings(replaceSymbols);
+                Logger.Trace($"After hex substitution '{replaceHex}'");
+                var expr = new Expression(replaceHex);
+                var f = expr.ToLambda<ExpressionContext, int>();
+                var context = new ExpressionContext {Processor = _proc};
+                var val = Convert.ToInt32(f(context));
+                Logger.Trace($"Final expression value = {val.ToString()}");
+                return val;   
+            }
+            catch (InvalidExpressionException iex)
+            {
+                if (test == null && assertion == null)
+                {
+                    Logger.Fatal(iex, $"{iex.Message}");
+                }else if (test != null && assertion == null)
+                {
+                    Logger.Fatal(iex, $"{iex.Message} in test '{test.Name}'");
+                }
+                else
+                {
+                    Logger.Fatal(iex, $"{iex.Message} in assertion '{assertion.Description}' of test '{test.Name}'");
+                }
+
+                return -1;
+            }
         }
 
         /// <summary>
@@ -114,7 +136,7 @@ namespace sim6502
                 if (_syms.SymbolExists(symbol))
                     value = _syms.SymbolToAddress(symbol);
                 else
-                    throw new InvalidExpressionException($"The symbol '{symbol}' does not exist in the symbol file.");
+                    throw new InvalidExpressionException($"The symbol '{symbol}' does not exist in the symbol file");
 
                 var capture = match.Groups[0].Value;
 

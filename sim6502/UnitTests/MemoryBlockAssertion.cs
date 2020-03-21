@@ -42,9 +42,13 @@ namespace sim6502.UnitTests
         {
             var passed = true;
 
-            var assertionAddress = expr.Evaluate(assertion.Address);
-            var byteCount = expr.Evaluate(assertion.ByteCount);
+            var assertionAddress = expr.Evaluate(assertion.Address, test, assertion);
+            var byteCount = expr.Evaluate(assertion.ByteCount, test, assertion);
             var assertValue = assertion.AssertionValue(expr, test);
+
+            if (assertValue == -1 || assertionAddress == -1 || byteCount == -1)
+                return false;
+
             var badMemoryValues = 0;
 
             for (var i = assertionAddress; i < assertionAddress + byteCount; i++)

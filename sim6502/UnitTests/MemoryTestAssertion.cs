@@ -38,7 +38,7 @@ namespace sim6502.UnitTests
         /// <returns>True if the assertion passed, False otherwise</returns>
         public override bool PerformAssertion(Processor proc, ExpressionParser expr, TestUnitTest test, TestAssertion assertion)
         {
-            var actualValue = assertion.ActualValue(proc, expr);
+            var actualValue = assertion.ActualValue(proc, expr, test);
             var assertValue = assertion.AssertionValue(expr, test);
 
             var res = assertion.CompareValues(actualValue, assertValue, test);
