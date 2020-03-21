@@ -70,7 +70,7 @@ namespace sim6502tests
             bytes[0] = 0;
             bytes[1] = 192;
 
-            var address = sim6502.Utility.GetProgramLoadAddress(bytes);
+            var address = Utility.GetProgramLoadAddress(bytes);
             Assert.AreEqual(0xc000.ToString(), address.ToString());
         }
 

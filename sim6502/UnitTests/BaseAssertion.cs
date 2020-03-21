@@ -38,7 +38,7 @@ namespace sim6502.UnitTests
         /// </summary>
         /// <param name="level">The log level to use for the message</param>
         /// <param name="message">The message to write</param>
-        private void WriteMessage(LogLevel level, string message)
+        private static void WriteMessage(LogLevel level, string message)
         {
             Logger.Log(level, message);
         }
@@ -49,7 +49,7 @@ namespace sim6502.UnitTests
         /// <param name="message">The message to display</param>
         /// <param name="test">The test that's currently running</param>
         /// <param name="assertion">The assertion within the test that's running</param>
-        protected void WriteFailureMessage(string message, TestUnitTest test, TestAssertion assertion)
+        protected static void WriteFailureMessage(string message, TestUnitTest test, TestAssertion assertion)
         {
             WriteMessage(LogLevel.Fatal, $"{message} for '{assertion.Description}' assertion of test '{test.Name}'");
         }
