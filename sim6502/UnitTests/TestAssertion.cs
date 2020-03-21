@@ -48,6 +48,9 @@ namespace sim6502.UnitTests
         [YamlMember(Alias = "description", ApplyNamingConventions = false)]
         public string Description { get; set; }
 
+        [YamlMember(Alias = "target", ApplyNamingConventions = false)]
+        public string Target { get; set; }
+        
         [YamlMember(Alias = "address", ApplyNamingConventions = false)]
         public string Address { get; set; }
 

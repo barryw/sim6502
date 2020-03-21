@@ -132,6 +132,14 @@ Memory block assertion: check an entire block of memory to make sure it's set to
   byte_value: "$00"
 ```
 
+Memory block compare assertion: compare 2 blocks of memory to ensure that they're identical
+```yaml
+- description: Memory copied successfully
+  address: "$e000"
+  target: "$4000"
+  byte_count: "$2000"
+```
+
 Processor register assertion (A, X, Y, PC, S, N, V, D, I, Z, C): ensures that the processor's registers and flags contain what we expect
 ```yaml
 - description: Check A register's value

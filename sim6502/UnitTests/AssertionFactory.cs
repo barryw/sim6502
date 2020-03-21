@@ -37,6 +37,12 @@ namespace sim6502.UnitTests
         /// <returns>The correct assertion implementation based on the values on the assertion</returns>
         public static BaseAssertion GetAssertionClass(TestAssertion assertion)
         {
+            if (!assertion.Target.Empty() && !assertion.Address.Empty() && !assertion.ByteCount.Empty())
+            {
+                Logger.Trace($"Using MemoryBlockCompareAssertion for {assertion.Description}");
+                return new MemoryBlockCompareAssertion();
+            }
+            
             if (!assertion.Address.Empty() && assertion.ByteCount.Empty())
             {
                 Logger.Trace($"Using MemoryTestAssertion for {assertion.Description}");

@@ -35,6 +35,7 @@
           <e p="ComparisonResult.cs" t="Include" />
           <e p="CycleCountAssertion.cs" t="Include" />
           <e p="MemoryBlockAssertion.cs" t="Include" />
+          <e p="MemoryBlockCompareAssertion.cs" t="Include" />
           <e p="MemoryTestAssertion.cs" t="Include" />
           <e p="ProcessorRegisterAssertion.cs" t="Include" />
           <e p="TestAssertion.cs" t="Include" />
