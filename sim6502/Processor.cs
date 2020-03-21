@@ -21,10 +21,6 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-The views and conclusions contained in the software and documentation are those
-of the authors and should not be interpreted as representing official policies, 
-either expressed or implied, of the FreeBSD Project.
 */
 
 using NLog;
@@ -59,17 +55,17 @@ namespace sim6502
         /// The Accumulator. This value is implemented as an integer instead of a byte.
         /// This is done so we can detect wrapping of the value and set the correct number of cycles.
         /// </summary>
-        public int Accumulator { get; protected set; }
+        public int Accumulator { get; set; }
 
         /// <summary>
         /// The X Index Register
         /// </summary>
-        public int XRegister { get; private set; }
+        public int XRegister { get; set; }
 
         /// <summary>
         /// The Y Index Register
         /// </summary>
-        public int YRegister { get; private set; }
+        public int YRegister { get; set; }
 
         /// <summary>
         /// The Current Op Code being executed by the system
@@ -98,7 +94,7 @@ namespace sim6502
         public int StackPointer
         {
             get => _stackPointer;
-            private set
+            set
             {
                 if (value > 0xFF)
                     _stackPointer = value - 0x100;
@@ -119,25 +115,25 @@ namespace sim6502
         /// This is the carry flag. when adding, if the result is greater than 255 or 99 in BCD Mode, then this bit is enabled. 
         /// In subtraction this is reversed and set to false if a borrow is required IE the result is less than 0
         /// </summary>
-        public bool CarryFlag { get; protected set; }
+        public bool CarryFlag { get; set; }
 
         /// <summary>
         /// Is true if one of the registers is set to zero.
         /// </summary>
-        public bool ZeroFlag { get; private set; }
+        public bool ZeroFlag { get; set; }
 
         /// <summary>
         /// This determines if Interrupts are currently disabled.
         /// This flag is turned on during a reset to prevent an interrupt from occuring during startup/Initialization.
         /// If this flag is true, then the IRQ pin is ignored.
         /// </summary>
-        public bool DisableInterruptFlag { get; private set; }
+        public bool DisableInterruptFlag { get; set; }
 
         /// <summary>
         /// Binary Coded Decimal Mode is set/cleared via this flag.
         /// when this mode is in effect, a byte represents a number from 0-99. 
         /// </summary>
-        public bool DecimalFlag { get; private set; }
+        public bool DecimalFlag { get; set; }
 
         /// <summary>
         /// This property is set when an overflow occurs. An overflow happens if the high bit(7) changes during the operation. Remember that values from 128-256 are negative values
@@ -146,14 +142,14 @@ namespace sim6502
         /// 64 + 64 = -128 
         /// -128 + -128 = 0
         /// </summary>
-        public bool OverflowFlag { get; protected set; }
+        public bool OverflowFlag { get; set; }
 
         /// <summary>
         /// Set to true if the result of an operation is negative in ADC and SBC operations. 
         /// Remember that 128-256 represent negative numbers when doing signed math.
         /// In shift operations the sign holds the carry.
         /// </summary>
-        public bool NegativeFlag { get; private set; }
+        public bool NegativeFlag { get; set; }
 
         /// <summary>
         /// Set to true when an NMI should occur
