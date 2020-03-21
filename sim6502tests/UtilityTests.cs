@@ -10,57 +10,57 @@ namespace sim6502tests
         public void TestParseHexWithDollarSign()
         {
             var hex1 = "$ffff";
-            Assert.AreEqual(65535, hex1.ParseNumber());
+            Assert.AreEqual(0xffff.ToString(), hex1.ParseNumber().ToString());
 
             hex1 = "$fff";
-            Assert.AreEqual(4095, hex1.ParseNumber());
+            Assert.AreEqual(0xfff.ToString(), hex1.ParseNumber().ToString());
 
             hex1 = "$ff";
-            Assert.AreEqual(255, hex1.ParseNumber());
+            Assert.AreEqual(0xff.ToString(), hex1.ParseNumber().ToString());
 
             hex1 = "$f";
-            Assert.AreEqual(15, hex1.ParseNumber());
+            Assert.AreEqual(0xf.ToString(), hex1.ParseNumber().ToString());
 
             hex1 = "$abcd";
-            Assert.AreEqual(43981, hex1.ParseNumber());
+            Assert.AreEqual(0xabcd.ToString(), hex1.ParseNumber().ToString());
         }
 
         [Test]
         public void TestParseWithZeroX()
         {
             var hex1 = "0xffff";
-            Assert.AreEqual(65535, hex1.ParseNumber());
+            Assert.AreEqual(0xffff.ToString(), hex1.ParseNumber().ToString());
 
             hex1 = "0xfff";
-            Assert.AreEqual(4095, hex1.ParseNumber());
+            Assert.AreEqual(0xfff.ToString(), hex1.ParseNumber().ToString());
 
             hex1 = "0xff";
-            Assert.AreEqual(255, hex1.ParseNumber());
+            Assert.AreEqual(0xff.ToString(), hex1.ParseNumber().ToString());
 
             hex1 = "0xf";
-            Assert.AreEqual(15, hex1.ParseNumber());
+            Assert.AreEqual(0xf.ToString(), hex1.ParseNumber().ToString());
 
             hex1 = "0xabcd";
-            Assert.AreEqual(43981, hex1.ParseNumber());
+            Assert.AreEqual(0xabcd.ToString(), hex1.ParseNumber().ToString());
         }
 
         [Test]
         public void TestPlainIntegers()
         {
             var int1 = "65535";
-            Assert.AreEqual(65535, int1.ParseNumber());
+            Assert.AreEqual(0xffff.ToString(), int1.ParseNumber().ToString());
 
             int1 = "4095";
-            Assert.AreEqual(4095, int1.ParseNumber());
+            Assert.AreEqual(0xfff.ToString(), int1.ParseNumber().ToString());
 
             int1 = "255";
-            Assert.AreEqual(255, int1.ParseNumber());
+            Assert.AreEqual(0xff.ToString(), int1.ParseNumber().ToString());
 
             int1 = "15";
-            Assert.AreEqual(15, int1.ParseNumber());
+            Assert.AreEqual(0xf.ToString(), int1.ParseNumber().ToString());
 
             int1 = "43981";
-            Assert.AreEqual(43981, int1.ParseNumber());
+            Assert.AreEqual(0xabcd.ToString(), int1.ParseNumber().ToString());
         }
 
         [Test]
@@ -71,7 +71,7 @@ namespace sim6502tests
             bytes[1] = 192;
 
             var address = sim6502.Utility.GetProgramLoadAddress(bytes);
-            Assert.AreEqual(49152, address);
+            Assert.AreEqual(0xc000.ToString(), address.ToString());
         }
 
         [Test]
