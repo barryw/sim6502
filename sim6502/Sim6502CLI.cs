@@ -73,6 +73,7 @@ namespace sim6502
             cli._processor.Reset();
             Logger.Debug("6502 simulator initialized and reset.");
             Logger.Info("6502 Simulator Test Runner CLI Copyright © 2020 Barry Walker. All Rights Reserved.");
+            Logger.Info("https://github.com/barryw/sim6502");
 
             return Parser.Default
                 .ParseArguments<Options>(args)
