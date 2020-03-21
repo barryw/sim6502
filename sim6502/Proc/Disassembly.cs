@@ -25,7 +25,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using System;
 
-namespace sim6502
+namespace sim6502.Proc
 {
     /// <summary>
     /// Used to help simulating. This class contains the disassembly properties.

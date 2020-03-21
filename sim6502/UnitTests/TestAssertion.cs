@@ -24,6 +24,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using System.IO;
 using NLog;
+using sim6502.Expressions;
+using sim6502.Proc;
+using sim6502.Utilities;
 using YamlDotNet.Serialization;
 
 // ReSharper disable MemberCanBePrivate.Global

@@ -24,7 +24,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using System;
 
-namespace sim6502
+namespace sim6502.Utilities
 {
     /// <summary>
     /// Let's us easily provide plural forms of things within our formatted strings

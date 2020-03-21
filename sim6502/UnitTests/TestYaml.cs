@@ -24,6 +24,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using System.IO;
 using NLog;
+using sim6502.Utilities;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 

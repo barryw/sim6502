@@ -21,6 +21,10 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
+
+using sim6502.Expressions;
+using sim6502.Proc;
+
 namespace sim6502.UnitTests
 {
     public class ProcessorRegisterAssertion : BaseAssertion
@@ -33,7 +37,8 @@ namespace sim6502.UnitTests
         /// <param name="test">The current test that's running</param>
         /// <param name="assertion">The current assertion within the test that we'd like to test</param>
         /// <returns>True if the assertion passed, False otherwise</returns>
-        public override bool PerformAssertion(Processor proc, ExpressionParser expr, TestUnitTest test, TestAssertion assertion)
+        public override bool PerformAssertion(Processor proc, ExpressionParser expr, TestUnitTest test,
+            TestAssertion assertion)
         {
             var register = assertion.Register.ToLower();
             

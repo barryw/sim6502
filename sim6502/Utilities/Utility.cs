@@ -26,8 +26,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using NLog;
+using sim6502.Proc;
 
-namespace sim6502
+namespace sim6502.Utilities
 {
     public static class Utility
     {

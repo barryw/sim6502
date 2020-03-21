@@ -28,7 +28,7 @@ using System;
 using System.ComponentModel;
 using System.Globalization;
 
-namespace sim6502
+namespace sim6502.Proc
 {
     /// <summary>
     /// An Implementation of a 6502 Processor

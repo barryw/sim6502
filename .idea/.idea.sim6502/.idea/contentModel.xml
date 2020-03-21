@@ -12,10 +12,10 @@
     <e p="$PROJECT_DIR$" t="IncludeFlat">
       <e p="packages" t="ExcludeRecursive" />
       <e p="sim6502" t="IncludeRecursive">
-        <e p="AddressingMode.cs" t="Include" />
         <e p="bin" t="ExcludeRecursive" />
-        <e p="Disassembly.cs" t="Include" />
-        <e p="ExpressionParser.cs" t="Include" />
+        <e p="Expressions" t="Include">
+          <e p="ExpressionParser.cs" t="Include" />
+        </e>
         <e p="nlog.config" t="Include" />
         <e p="obj" t="ExcludeRecursive">
           <e p="Release" t="Include">
@@ -24,11 +24,13 @@
             </e>
           </e>
         </e>
-        <e p="PluralFormatProvider.cs" t="Include" />
-        <e p="Processor.cs" t="Include" />
+        <e p="Proc" t="Include">
+          <e p="AddressingMode.cs" t="Include" />
+          <e p="Disassembly.cs" t="Include" />
+          <e p="Processor.cs" t="Include" />
+        </e>
         <e p="sim6502.csproj" t="IncludeRecursive" />
         <e p="Sim6502CLI.cs" t="Include" />
-        <e p="SymbolFile.cs" t="Include" />
         <e p="UnitTests" t="Include">
           <e p="AssertionFactory.cs" t="Include" />
           <e p="BaseAssertion.cs" t="Include" />
@@ -48,7 +50,11 @@
           <e p="TestUnitTestSetMemory.cs" t="Include" />
           <e p="TestYaml.cs" t="Include" />
         </e>
-        <e p="Utility.cs" t="Include" />
+        <e p="Utilities" t="Include">
+          <e p="PluralFormatProvider.cs" t="Include" />
+          <e p="SymbolFile.cs" t="Include" />
+          <e p="Utility.cs" t="Include" />
+        </e>
       </e>
       <e p="sim6502.sln" t="IncludeFlat" />
       <e p="sim6502tests" t="IncludeRecursive">

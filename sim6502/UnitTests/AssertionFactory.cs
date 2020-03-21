@@ -24,6 +24,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using System.ComponentModel;
 using NLog;
+using sim6502.Utilities;
 
 namespace sim6502.UnitTests
 {

@@ -1,3 +1,7 @@
+using sim6502.Expressions;
+using sim6502.Proc;
+using sim6502.Utilities;
+
 namespace sim6502.UnitTests
 {
     /// <summary>
@@ -5,7 +9,6 @@ namespace sim6502.UnitTests
     /// </summary>
     public class MemoryBlockCompareAssertion : BaseAssertion
     {
-        
         /// <summary>
         /// Test a memory location or a memory word and compare it to an expected value
         /// </summary>
@@ -14,7 +17,8 @@ namespace sim6502.UnitTests
         /// <param name="test">The current test that's running</param>
         /// <param name="assertion">The current assertion within the test that we'd like to test</param>
         /// <returns>True if the assertion passed, False otherwise</returns>
-        public override bool PerformAssertion(Processor proc, ExpressionParser expr, TestUnitTest test, TestAssertion assertion)
+        public override bool PerformAssertion(Processor proc, ExpressionParser expr, TestUnitTest test,
+            TestAssertion assertion)
         {
             var passed = true;
 

@@ -27,11 +27,13 @@ using System.Data;
 using System.Text.RegularExpressions;
 using NCalc;
 using NLog;
+using sim6502.Proc;
 using sim6502.UnitTests;
+using sim6502.Utilities;
 
 // ReSharper disable UnusedMember.Local
 
-namespace sim6502
+namespace sim6502.Expressions
 {
     /// <summary>
     /// Let's us express our assertions in a much nicer way
@@ -40,6 +42,9 @@ namespace sim6502
     {
         private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
 
+        private const string HexSearchString = "(\\$[0-9a-f]+)";
+        private const string SymbolSearchString = "{([0-9a-zA-Z_.]+)}";
+        
         /// <summary>
         /// Allow us to have functions in our expressions
         /// </summary>
@@ -129,7 +134,7 @@ namespace sim6502
         /// <returns>The same expression with symbols replaced</returns>
         private string ReplaceSymbols(string expression)
         {
-            foreach (Match match in Regex.Matches(expression, "{([0-9a-zA-Z_.]+)}"))
+            foreach (Match match in GetMatches(expression, SymbolSearchString))
             {
                 var symbol = match.Groups[1].Value;
                 int value;
@@ -151,9 +156,9 @@ namespace sim6502
         /// </summary>
         /// <param name="expression">The expression to process</param>
         /// <returns>The expression with hex values converted to integer</returns>
-        private string ReplaceHexStrings(string expression)
+        private static string ReplaceHexStrings(string expression)
         {
-            foreach (Match match in Regex.Matches(expression, "(\\$[0-9a-f]+)", RegexOptions.IgnoreCase))
+            foreach (Match match in GetMatches(expression, HexSearchString))
             {
                 var hex = match.Groups[1].Value;
                 var value = hex.ParseNumber();
@@ -163,6 +168,17 @@ namespace sim6502
             }
 
             return expression;
+        }
+
+        /// <summary>
+        /// Perform a regex search in expression for pattern
+        /// </summary>
+        /// <param name="expression">The expression to search</param>
+        /// <param name="pattern">The pattern to search for</param>
+        /// <returns></returns>
+        private static MatchCollection GetMatches(string expression, string pattern)
+        {
+            return Regex.Matches(expression, pattern, RegexOptions.IgnoreCase);
         }
     }
 }

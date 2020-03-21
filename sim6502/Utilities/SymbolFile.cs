@@ -27,7 +27,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
 
-namespace sim6502
+namespace sim6502.Utilities
 {
     public class SymbolFile
     {

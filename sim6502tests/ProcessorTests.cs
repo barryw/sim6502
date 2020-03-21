@@ -26,6 +26,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 using System;
 using NUnit.Framework;
 using sim6502;
+using sim6502.Proc;
 
 namespace sim6502tests
 {

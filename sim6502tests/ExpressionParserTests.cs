@@ -1,5 +1,8 @@
 using NUnit.Framework;
 using sim6502;
+using sim6502.Expressions;
+using sim6502.Proc;
+using sim6502.Utilities;
 
 namespace sim6502tests
 {

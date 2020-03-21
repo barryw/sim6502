@@ -23,6 +23,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 using NLog;
+using sim6502.Expressions;
+using sim6502.Proc;
 
 namespace sim6502.UnitTests
 {
