@@ -9,6 +9,8 @@ namespace sim6502.UnitTests.Assertions
         public override bool PerformAssertion(Processor proc, ExpressionParser expr, TestUnitTest test,
             TestAssertion assertion)
         {
+            Logger.Trace($"Using MemoryBlockCompareAssertion for {assertion.Description}");
+            
             var passed = true;
 
             var sourceAddress = expr.Evaluate(assertion.Address, test, assertion);

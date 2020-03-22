@@ -32,6 +32,8 @@ namespace sim6502.UnitTests.Assertions
         public override bool PerformAssertion(Processor proc, ExpressionParser expr, TestUnitTest test,
             TestAssertion assertion)
         {
+            Logger.Trace($"Using CycleCountAssertion for {assertion.Description}");
+            
             var actualValue = proc.CycleCount;
             var assertValue = expr.Evaluate(assertion.CycleCount, test, assertion);
             if (assertValue == -1)

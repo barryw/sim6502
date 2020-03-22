@@ -32,6 +32,8 @@ namespace sim6502.UnitTests.Assertions
         public override bool PerformAssertion(Processor proc, ExpressionParser expr, TestUnitTest test,
             TestAssertion assertion)
         {
+            Logger.Trace($"Using ProcessorRegisterAssertion for {assertion.Description}");
+            
             var register = assertion.Register.ToLower();
 
             var registerValue = 0;

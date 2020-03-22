@@ -38,32 +38,16 @@ namespace sim6502.UnitTests.Assertions
 
             var assertionType = assertion.AssertionType.ToLower();
 
-            switch (assertionType)
+            return assertionType switch
             {
-                case "memory_block_compare":
-                    Logger.Trace($"Using MemoryBlockCompareAssertion for {assertion.Description}");
-                    return new MemoryBlockCompareAssertion();
-
-                case "memory_test":
-                    Logger.Trace($"Using MemoryTestAssertion for {assertion.Description}");
-                    return new MemoryTestAssertion();
-
-                case "memory_block":
-                    Logger.Trace($"Using MemoryBlockAssertion for {assertion.Description}");
-                    return new MemoryBlockAssertion();
-
-                case "processor_register":
-                    Logger.Trace($"Using ProcessorRegisterAssertion for {assertion.Description}");
-                    return new ProcessorRegisterAssertion();
-
-                case "cycle_count":
-                    Logger.Trace($"Using CycleCountAssertion for {assertion.Description}");
-                    return new CycleCountAssertion();
-
-                default:
-                    throw new InvalidEnumArgumentException(
-                        $"Invalid assertion type '{assertionType}' found for assertion '{assertion.Description}'");
-            }
+                "memory_block_compare" => (BaseAssertion) new MemoryBlockCompareAssertion(),
+                "memory_test" => new MemoryTestAssertion(),
+                "memory_block" => new MemoryBlockAssertion(),
+                "processor_register" => new ProcessorRegisterAssertion(),
+                "cycle_count" => new CycleCountAssertion(),
+                _ => throw new InvalidEnumArgumentException(
+                    $"Invalid assertion type '{assertionType}' found for assertion '{assertion.Description}'")
+            };
         }
     }
 }
