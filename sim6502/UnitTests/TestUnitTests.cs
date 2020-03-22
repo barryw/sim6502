@@ -51,7 +51,7 @@ namespace sim6502.UnitTests
         public List<TestUnitTest> UnitTests { get; set; }
 
         public int AddressParsed => Address.ParseNumber();
-        
+
         public bool RunUnitTests(Processor proc, ExpressionParser expr, IEnumerable<TestInitLoadFile> roms)
         {
             var allPassed = true;
@@ -78,7 +78,7 @@ namespace sim6502.UnitTests
 
             return allPassed;
         }
-        
+
         private void LoadProgram(Processor proc)
         {
             var address = "".Equals(Address) || Address == null
@@ -86,13 +86,10 @@ namespace sim6502.UnitTests
                 : AddressParsed;
             Utility.LoadFileIntoProcessor(proc, address, Program, true);
         }
-        
+
         private static void LoadRoms(Processor proc, ExpressionParser expr, IEnumerable<TestInitLoadFile> roms)
         {
-            foreach (var rom in roms)
-            {
-                Utility.LoadFileIntoProcessor(proc, rom.AddressParsed, rom.Filename);
-            }
+            foreach (var rom in roms) Utility.LoadFileIntoProcessor(proc, rom.AddressParsed, rom.Filename);
         }
     }
 }

@@ -34,12 +34,12 @@ namespace sim6502.UnitTests.Assertions
 
         public abstract bool PerformAssertion(Processor proc, ExpressionParser expr, TestUnitTest test,
             TestAssertion assertion);
-        
+
         private static void WriteMessage(LogLevel level, string message)
         {
             Logger.Log(level, message);
         }
-        
+
         protected static void WriteFailureMessage(string message, TestUnitTest test, TestAssertion assertion)
         {
             WriteMessage(LogLevel.Fatal, $"{message} for '{assertion.Description}' assertion of test '{test.Name}'");

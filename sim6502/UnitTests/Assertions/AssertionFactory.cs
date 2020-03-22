@@ -31,16 +31,13 @@ namespace sim6502.UnitTests.Assertions
     public static class AssertionFactory
     {
         private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
-        
+
         public static BaseAssertion GetAssertionClass(TestAssertion assertion)
         {
-            if (assertion.AssertionType.Empty())
-            {
-                return new NullAssertion();
-            }
-            
+            if (assertion.AssertionType.Empty()) return new NullAssertion();
+
             var assertionType = assertion.AssertionType.ToLower();
-            
+
             switch (assertionType)
             {
                 case "memory_block_compare":
@@ -50,21 +47,22 @@ namespace sim6502.UnitTests.Assertions
                 case "memory_test":
                     Logger.Trace($"Using MemoryTestAssertion for {assertion.Description}");
                     return new MemoryTestAssertion();
-                
+
                 case "memory_block":
                     Logger.Trace($"Using MemoryBlockAssertion for {assertion.Description}");
                     return new MemoryBlockAssertion();
-                
+
                 case "processor_register":
                     Logger.Trace($"Using ProcessorRegisterAssertion for {assertion.Description}");
                     return new ProcessorRegisterAssertion();
-                
+
                 case "cycle_count":
                     Logger.Trace($"Using CycleCountAssertion for {assertion.Description}");
                     return new CycleCountAssertion();
 
                 default:
-                    throw new InvalidEnumArgumentException($"Invalid assertion type '{assertionType}' found for assertion '{assertion.Description}'");
+                    throw new InvalidEnumArgumentException(
+                        $"Invalid assertion type '{assertionType}' found for assertion '{assertion.Description}'");
             }
         }
     }

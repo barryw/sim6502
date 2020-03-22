@@ -58,7 +58,7 @@ namespace sim6502
             [Option('y', "yaml", Required = true, HelpText = "The path to your yaml test spec file.")]
             public string TestYaml { get; set; }
         }
-        
+
         private static int Main(string[] args)
         {
             var cli = new Sim6502Cli();
@@ -76,7 +76,7 @@ namespace sim6502
                     opts => cli.RunCli(opts),
                     errs => 1);
         }
-        
+
         private int RunCli(Options opts)
         {
             SetLogLevel(opts);
@@ -107,7 +107,7 @@ namespace sim6502
                 return 1;
             }
         }
-        
+
         private static void SetLogLevel(Options opts)
         {
             LogManager.Configuration.Variables["cliLogLevel"] = LogLevel.Info.Name;

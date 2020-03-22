@@ -112,7 +112,9 @@ namespace sim6502tests
                 processor.NextStep();
             }
             else
+            {
                 processor.LoadProgram(0, new byte[] {0xA9, accumulatorInitialValue, 0x69, amountToAdd}, 0x00);
+            }
 
             processor.NextStep();
             Assert.That(processor.Accumulator, Is.EqualTo(accumulatorInitialValue));
@@ -137,7 +139,9 @@ namespace sim6502tests
                 processor.NextStep();
             }
             else
+            {
                 processor.LoadProgram(0, new byte[] {0xF8, 0xA9, accumulatorInitialValue, 0x69, amountToAdd}, 0x00);
+            }
 
             processor.NextStep();
             processor.NextStep();
@@ -165,7 +169,9 @@ namespace sim6502tests
                 processor.NextStep();
             }
             else
+            {
                 processor.LoadProgram(0, new byte[] {0xA9, accumulatorInitialValue, 0x69, amountToAdd}, 0x00);
+            }
 
             processor.NextStep();
             Assert.That(processor.Accumulator, Is.EqualTo(accumulatorInitialValue));
@@ -279,7 +285,9 @@ namespace sim6502tests
                 processor.NextStep();
             }
             else
+            {
                 processor.LoadProgram(0, new byte[] {0xA9, accumulatorInitialValue, 0x69, amountToAdd}, 0x00);
+            }
 
             processor.NextStep();
             Assert.That(processor.Accumulator, Is.EqualTo(accumulatorInitialValue));
@@ -2146,7 +2154,9 @@ namespace sim6502tests
                 processor.NextStep();
             }
             else
+            {
                 processor.LoadProgram(0, new byte[] {0xA9, accumulatorInitialValue, 0xE9, amountToSubtract}, 0x00);
+            }
 
             processor.NextStep();
             Assert.That(processor.Accumulator, Is.EqualTo(accumulatorInitialValue));
@@ -2170,7 +2180,9 @@ namespace sim6502tests
                 processor.NextStep();
             }
             else
+            {
                 processor.LoadProgram(0, new byte[] {0xF8, 0xA9, accumulatorInitialValue, 0xE9, amountToAdd}, 0x00);
+            }
 
             processor.NextStep();
             processor.NextStep();
@@ -2204,7 +2216,9 @@ namespace sim6502tests
                 processor.NextStep();
             }
             else
+            {
                 processor.LoadProgram(0, new byte[] {0xA9, accumulatorInitialValue, 0xE9, amountToSubtract}, 0x00);
+            }
 
             processor.NextStep();
             Assert.That(processor.Accumulator, Is.EqualTo(accumulatorInitialValue));
@@ -2233,8 +2247,10 @@ namespace sim6502tests
                 processor.NextStep();
             }
             else
+            {
                 processor.LoadProgram(0, new byte[] {0xF8, 0xA9, accumulatorInitialValue, 0xE9, amountToSubtract},
                     0x00);
+            }
 
 
             processor.NextStep();

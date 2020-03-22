@@ -34,7 +34,7 @@ namespace sim6502.UnitTests
     public class TestYaml
     {
         private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
-        
+
         public static Tests DeserializeTestsYaml(string testYamlFilename)
         {
             Tests tests;

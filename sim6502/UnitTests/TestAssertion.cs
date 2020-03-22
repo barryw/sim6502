@@ -39,10 +39,10 @@ namespace sim6502.UnitTests
     public class TestAssertion
     {
         private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
-        
+
         [YamlMember(Alias = "type", ApplyNamingConventions = false)]
         public string AssertionType { get; set; }
-        
+
         [YamlMember(Alias = "cycle_count", ApplyNamingConventions = false)]
         public string CycleCount { get; set; }
 
@@ -57,7 +57,7 @@ namespace sim6502.UnitTests
 
         [YamlMember(Alias = "target", ApplyNamingConventions = false)]
         public string Target { get; set; }
-        
+
         [YamlMember(Alias = "address", ApplyNamingConventions = false)]
         public string Address { get; set; }
 
@@ -69,7 +69,7 @@ namespace sim6502.UnitTests
 
         [YamlMember(Alias = "byte_value", ApplyNamingConventions = false)]
         public string ByteValue { get; set; }
-        
+
         public bool PerformAssertion(Processor proc, ExpressionParser expr, TestUnitTest test)
         {
             return AssertionFactory.GetAssertionClass(this).PerformAssertion(proc, expr, test, this);
@@ -80,33 +80,32 @@ namespace sim6502.UnitTests
             var address = expr.Evaluate(Address, test, this);
             if (address == -1)
                 return -1;
-            
+
             return !WordValue.Empty()
                 ? proc.ReadMemoryWordWithoutCycle(address)
                 : proc.ReadMemoryValueWithoutCycle(address);
         }
-        
+
         public int AssertionValue(ExpressionParser expr, TestUnitTest test)
         {
             if (!WordValue.Empty() && !ByteValue.Empty())
-            {
                 throw new InvalidDataException(
                     $"Your tests can only assert either a 'word_value' or a 'byte_value' but not both. Failed on test '{test.Name}' assertion '{Description}'");
-            }
 
             return expr.Evaluate(!WordValue.Empty() ? WordValue : ByteValue, test, this);
         }
-        
+
         public ComparisonResult CompareValues(int actualValue, int assertValue, TestUnitTest test)
         {
             var res = new ComparisonResult();
 
             if (Op.Empty())
             {
-                Logger.Warn($"The 'op' attribute is unset for assertion '{Description}' on test '{test.Name}'. Assuming 'eq' (equal)");
+                Logger.Warn(
+                    $"The 'op' attribute is unset for assertion '{Description}' on test '{test.Name}'. Assuming 'eq' (equal)");
                 Op = "eq";
             }
-            
+
             switch (Op.ToLower())
             {
                 case "eq":

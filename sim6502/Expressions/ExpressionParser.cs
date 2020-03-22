@@ -41,18 +41,18 @@ namespace sim6502.Expressions
 
         private const string HexSearchString = "(\\$[0-9a-f]+)";
         private const string SymbolSearchString = "{([0-9a-zA-Z_.]+)}";
-        
+
         private class ExpressionContext
         {
             public Processor Processor { get; set; }
-            
+
             public byte Peekbyte(int address)
             {
                 var val = Processor.ReadMemoryValueWithoutCycle(address);
                 Logger.Trace($"peekbyte({address.ToString()}) = {val.ToString()}");
                 return val;
             }
-            
+
             public int Peekword(int address)
             {
                 var val = Processor.ReadMemoryWordWithoutCycle(address);
@@ -69,7 +69,7 @@ namespace sim6502.Expressions
             _proc = proc;
             _syms = symbols;
         }
-        
+
         public int Evaluate(string expression, TestUnitTest test, TestAssertion assertion)
         {
             try
@@ -84,26 +84,21 @@ namespace sim6502.Expressions
                 var context = new ExpressionContext {Processor = _proc};
                 var val = Convert.ToInt32(f(context));
                 Logger.Trace($"Final expression value = {val.ToString()}");
-                return val;   
+                return val;
             }
             catch (InvalidExpressionException iex)
             {
                 if (test == null && assertion == null)
-                {
                     Logger.Fatal(iex, $"{iex.Message}");
-                }else if (test != null && assertion == null)
-                {
+                else if (test != null && assertion == null)
                     Logger.Fatal(iex, $"{iex.Message} in test '{test.Name}'");
-                }
                 else
-                {
                     Logger.Fatal(iex, $"{iex.Message} in assertion '{assertion.Description}' of test '{test.Name}'");
-                }
 
                 return -1;
             }
         }
-        
+
         private string ReplaceSymbols(string expression)
         {
             foreach (Match match in GetMatches(expression, SymbolSearchString))
@@ -122,7 +117,7 @@ namespace sim6502.Expressions
 
             return expression;
         }
-        
+
         private static string ReplaceHexStrings(string expression)
         {
             foreach (Match match in GetMatches(expression, HexSearchString))
@@ -136,7 +131,7 @@ namespace sim6502.Expressions
 
             return expression;
         }
-        
+
         private static MatchCollection GetMatches(string expression, string pattern)
         {
             return Regex.Matches(expression, pattern, RegexOptions.IgnoreCase);

@@ -33,7 +33,7 @@ namespace sim6502.UnitTests.Assertions
             TestAssertion assertion)
         {
             var register = assertion.Register.ToLower();
-            
+
             var registerValue = 0;
 
             switch (register)
@@ -72,18 +72,20 @@ namespace sim6502.UnitTests.Assertions
                     registerValue = FlagToInt(proc.CarryFlag);
                     break;
                 default:
-                    WriteFailureMessage($"{register} is not a valid register value. Valid values are a, x, y, pc, s, n, v, d, i, z, c", test, assertion);
+                    WriteFailureMessage(
+                        $"{register} is not a valid register value. Valid values are a, x, y, pc, s, n, v, d, i, z, c",
+                        test, assertion);
                     return false;
             }
 
             var assertValue = assertion.AssertionValue(expr, test);
             var res = assertion.CompareValues(registerValue, assertValue, test);
-            if(!res.ComparisonPassed)
+            if (!res.ComparisonPassed)
                 WriteFailureMessage(res.FailureMessage, test, assertion);
 
             return res.ComparisonPassed;
         }
-        
+
         private static int FlagToInt(bool flag)
         {
             return flag ? 1 : 0;

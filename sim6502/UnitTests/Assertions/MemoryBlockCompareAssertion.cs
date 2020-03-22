@@ -22,8 +22,10 @@ namespace sim6502.UnitTests.Assertions
                 var targetValue = proc.ReadMemoryValueWithoutCycle(targetAddress + i);
 
                 if (sourceValue == targetValue) continue;
-                
-                WriteFailureMessage($"Expected '{sourceValue.ToString()}' at location '{(targetAddress + i).ToString()}', but got '{sourceValue.ToString()}'", test,
+
+                WriteFailureMessage(
+                    $"Expected '{sourceValue.ToString()}' at location '{(targetAddress + i).ToString()}', but got '{sourceValue.ToString()}'",
+                    test,
                     assertion);
                 badMemoryValues++;
                 passed = false;

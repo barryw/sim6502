@@ -61,37 +61,32 @@ namespace sim6502.UnitTests
 
         [YamlMember(Alias = "fail_on_brk", ApplyNamingConventions = false)]
         public bool FailOnBrk { get; set; } = true;
-        
+
         public bool RunUnitTest(Processor proc, ExpressionParser expr)
         {
             var jumpAddress = expr.Evaluate(JumpAddress, this, null);
             if (jumpAddress == -1)
                 return false;
-            
+
             Logger.Debug($"Running routine located at {jumpAddress.ToHex()}");
             var testPassed = proc.RunRoutine(jumpAddress, StopOn, FailOnBrk);
-            
+
             foreach (var unused in Assertions.Select(assertion => assertion.PerformAssertion(proc, expr, this))
                 .Where(assertionPassed => !assertionPassed))
-            {
                 testPassed = false;
-            }
 
             var disposition = testPassed ? "PASSED" : "FAILED";
             Logger.Log(testPassed ? LogLevel.Info : LogLevel.Fatal, $"{Name} : {Description} : {disposition}");
 
             return testPassed;
         }
-        
+
         public void DoTestInit(Processor proc, ExpressionParser expr)
         {
             proc.ResetMemory();
             if (SetMemory == null) return;
-            
-            foreach (var mem in SetMemory)
-            {
-                mem.SetMemory(proc, expr, this);
-            }
+
+            foreach (var mem in SetMemory) mem.SetMemory(proc, expr, this);
         }
     }
 }

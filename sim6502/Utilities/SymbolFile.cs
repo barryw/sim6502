@@ -33,44 +33,38 @@ namespace sim6502.Utilities
     {
         private readonly string[] _symbolfile;
 
-        private Dictionary<string, int> Symbols { get; } = new Dictionary<string, int>();
+        private readonly string[] _lineTerminationCharacters = {"\r\n", "\r", "\n"};
+        private const string LabelConstant = ".label";
+        private const string NamespaceConstant = ".namespace";
+        private const string LabelRegex = @".label\s+([A-Za-z0-9_]+)=([A-Fa-f0-9$]+)";
+        private const string NamespaceRegex = @".namespace ([A-Za-z0-9_]+)";
         
+        private Dictionary<string, int> Symbols { get; } = new Dictionary<string, int>();
+
         public SymbolFile(string symbolfile)
         {
             _symbolfile = symbolfile.Trim().Split(
-                new[] {"\r\n", "\r", "\n"},
+                _lineTerminationCharacters,
                 StringSplitOptions.None
             );
-            Parse();
+            ParseSymbolFile();
         }
-        
-        private void Parse()
+
+        private void ParseSymbolFile()
         {
             var currentNamespace = "";
 
-            foreach (var line in _symbolfile)
+            foreach (var currentLine in _symbolfile)
             {
-                var l = line.TrimStart();
+                var trimmedLine = currentLine.TrimStart();
 
-                if (l.StartsWith(".label"))
+                if (trimmedLine.StartsWith(LabelConstant))
                 {
-                    var m = Regex.Match(l, @".label\s+([A-Za-z0-9_]+)=([A-Fa-f0-9$]+)", RegexOptions.IgnoreCase);
-                    if (m.Success)
-                    {
-                        var label = m.Groups[1].Value;
-                        var address = m.Groups[2].Value;
-
-                        Symbols.Add("".Equals(currentNamespace) ? label : $"{currentNamespace}.{label}",
-                            address.ParseNumber());
-                    }
+                    ProcessFoundLabel(trimmedLine, currentNamespace);
                 }
-                else if (l.StartsWith(".namespace"))
+                else if (trimmedLine.StartsWith(NamespaceConstant))
                 {
-                    var m = Regex.Match(l, @".namespace ([A-Za-z0-9_]+)", RegexOptions.IgnoreCase);
-                    if (m.Success)
-                    {
-                        currentNamespace = m.Groups[1].Value;
-                    }
+                    currentNamespace = ProcessFoundNamespace(trimmedLine);
                 }
                 else
                 {
@@ -78,17 +72,35 @@ namespace sim6502.Utilities
                 }
             }
         }
-        
+
+        private void ProcessFoundLabel(string currentLine, string currentNamespace)
+        {
+            var labelMatch = Regex.Match(currentLine, LabelRegex, RegexOptions.IgnoreCase);
+            if (!labelMatch.Success) return;
+            
+            var label = labelMatch.Groups[1].Value;
+            var address = labelMatch.Groups[2].Value;
+
+            Symbols.Add(currentNamespace.Empty() ? label : $"{currentNamespace}.{label}",
+                address.ParseNumber());
+        }
+
+        private static string ProcessFoundNamespace(string currentLine)
+        {
+            var namespaceMatch = Regex.Match(currentLine, NamespaceRegex, RegexOptions.IgnoreCase);
+            return !namespaceMatch.Success ? null : namespaceMatch.Groups[1].Value;
+        }
+
         public bool SymbolExists(string symbol)
         {
             return Symbols.ContainsKey(symbol);
         }
-        
+
         public int SymbolToAddress(string symbol)
         {
             return Symbols[symbol];
         }
-        
+
         public string AddressToSymbol(int address, bool asHex = true)
         {
             var symbol = asHex ? address.ToHex() : address.ToString();
@@ -102,7 +114,7 @@ namespace sim6502.Utilities
 
             return symbol;
         }
-        
+
         public static SymbolFile LoadSymbolFile(string symbolFilename)
         {
             if ("".Equals(symbolFilename) || symbolFilename == null)

@@ -48,7 +48,9 @@ namespace sim6502.UnitTests.Assertions
             {
                 var actualValue = proc.ReadMemoryValueWithoutCycle(i);
                 if (actualValue == assertValue) continue;
-                WriteFailureMessage($"Expected '{assertValue.ToString()}' at location '{i.ToString()}', but got '{actualValue.ToString()}'", test,
+                WriteFailureMessage(
+                    $"Expected '{assertValue.ToString()}' at location '{i.ToString()}', but got '{actualValue.ToString()}'",
+                    test,
                     assertion);
                 badMemoryValues++;
                 passed = false;

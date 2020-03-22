@@ -17,7 +17,8 @@ namespace sim6502tests
         {
             Proc = new Processor();
             Proc.Reset();
-            const string symbols = ".label test1=$0001\n.label test2=$fffe\n.label test3=$8000\n.namespace vic {\n.label SP0X=$d000\n}";
+            const string symbols =
+                ".label test1=$0001\n.label test2=$fffe\n.label test3=$8000\n.namespace vic {\n.label SP0X=$d000\n}";
             Syms = new SymbolFile(symbols);
 
             Proc.WriteMemoryValue(0x0001, 0xcd);

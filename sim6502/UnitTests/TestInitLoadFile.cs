@@ -34,6 +34,7 @@ namespace sim6502.UnitTests
     {
         [YamlMember(Alias = "filename", ApplyNamingConventions = false)]
         public string Filename { get; set; }
+
         [YamlMember(Alias = "address", ApplyNamingConventions = false)]
         public string Address { get; set; }
 

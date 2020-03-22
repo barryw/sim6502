@@ -46,13 +46,13 @@ namespace sim6502.UnitTests
 
         [YamlMember(Alias = "word_value", ApplyNamingConventions = false)]
         public string WordValue { get; set; }
-        
+
         public void SetMemory(Processor proc, ExpressionParser expr, TestUnitTest test)
         {
             var location = expr.Evaluate(Address, test, null);
             if (location == -1)
                 return;
-            
+
             if (!WordValue.Empty())
             {
                 var wordValue = expr.Evaluate(WordValue, test, null);

@@ -33,12 +33,12 @@ namespace sim6502.Utilities
     public static class Utility
     {
         private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
-        
+
         public static bool Empty(this string str)
         {
             return string.IsNullOrEmpty(str);
         }
-        
+
         public static string ToHex(this int number)
         {
             var numDigits = 1;
@@ -72,7 +72,7 @@ namespace sim6502.Utilities
 
             return retval;
         }
-        
+
         public static int GetProgramLoadAddress(string filename)
         {
             var buffer = new byte[2];
@@ -83,12 +83,12 @@ namespace sim6502.Utilities
 
             return GetProgramLoadAddress(buffer);
         }
-        
+
         public static int GetProgramLoadAddress(byte[] program)
         {
             return program[1] * 256 + program[0];
         }
-        
+
         public static void LoadFileIntoProcessor(Processor proc, int address, string filename, bool stripHeader = false)
         {
             Logger.Debug($"Loading {filename} @ {address.ToHex()}");
@@ -104,14 +104,14 @@ namespace sim6502.Utilities
 
             proc.LoadProgram(address, program.ToArray());
         }
-        
+
         private static IEnumerable<byte> StreamToBytes(Stream stream)
         {
             using var ms = new MemoryStream();
             stream.CopyTo(ms);
             return ms.ToArray();
         }
-        
+
         public static void FileExists(string filename)
         {
             if (File.Exists(filename)) return;

@@ -204,7 +204,7 @@ namespace sim6502.Proc
             // Set the Program Counter to the Reset Vector Address.
             ProgramCounter = 0xFFFC;
             // Reset the Program Counter to the Address contained in the Reset Vector
-            ProgramCounter = (Memory[ProgramCounter] | (Memory[ProgramCounter + 1] << 8));
+            ProgramCounter = Memory[ProgramCounter] | (Memory[ProgramCounter + 1] << 8);
 
             CurrentOpCode = Memory[ProgramCounter];
 
@@ -345,10 +345,7 @@ namespace sim6502.Proc
                 throw new InvalidOperationException(
                     $"Program Size '{program.Length}' Cannot be Larger than Memory Size '{Memory.Length}' plus offset '{offset}'");
 
-            for (var i = 0; i < program.Length; i++)
-            {
-                Memory[i + offset] = program[i];
-            }
+            for (var i = 0; i < program.Length; i++) Memory[i + offset] = program[i];
 
             Reset();
         }
@@ -450,7 +447,7 @@ namespace sim6502.Proc
             CycleCountIncrementedAction();
 
             _previousInterrupt = _interrupt;
-            _interrupt = TriggerNmi || (TriggerIrq && !DisableInterruptFlag);
+            _interrupt = TriggerNmi || TriggerIrq && !DisableInterruptFlag;
         }
 
         /// <summary>
@@ -1605,9 +1602,9 @@ namespace sim6502.Proc
             int highByte;
             switch (addressingMode)
             {
-                case (AddressingMode.Absolute):
+                case AddressingMode.Absolute:
                 {
-                    return (ReadMemoryValue(ProgramCounter++) | (ReadMemoryValue(ProgramCounter++) << 8));
+                    return ReadMemoryValue(ProgramCounter++) | (ReadMemoryValue(ProgramCounter++) << 8);
                 }
                 case AddressingMode.AbsoluteX:
                 {
@@ -1620,7 +1617,6 @@ namespace sim6502.Proc
                     //We crossed a page boundary, so an extra read has occurred.
                     //However, if this is an ASL, LSR, DEC, INC, ROR, ROL or STA operation, we do not decrease it by 1.
                     if (address + XRegister > 0xFF)
-                    {
                         switch (CurrentOpCode)
                         {
                             case 0x1E:
@@ -1632,17 +1628,16 @@ namespace sim6502.Proc
                             case 0x9D:
                             {
                                 //This is a Read Fetch Write Operation, so we don't make the extra read.
-                                return ((highByte << 8 | address) + XRegister) & 0xFFFF;
+                                return (((highByte << 8) | address) + XRegister) & 0xFFFF;
                             }
                             default:
                             {
-                                ReadMemoryValue((((highByte << 8 | address) + XRegister) - 0xFF) & 0xFFFF);
+                                ReadMemoryValue((((highByte << 8) | address) + XRegister - 0xFF) & 0xFFFF);
                                 break;
                             }
                         }
-                    }
 
-                    return ((highByte << 8 | address) + XRegister) & 0xFFFF;
+                    return (((highByte << 8) | address) + XRegister) & 0xFFFF;
                 }
                 case AddressingMode.AbsoluteY:
                 {
@@ -1654,12 +1649,10 @@ namespace sim6502.Proc
 
                     //We crossed a page boundary, so decrease the number of cycles by 1 if the operation is not STA
                     if (address + YRegister > 0xFF && CurrentOpCode != 0x99)
-                    {
-                        ReadMemoryValue((((highByte << 8 | address) + YRegister) - 0xFF) & 0xFFFF);
-                    }
+                        ReadMemoryValue((((highByte << 8) | address) + YRegister - 0xFF) & 0xFFFF);
 
                     //Bitshift the high byte into place, AND with $FFFF to handle wrapping.
-                    return ((highByte << 8 | address) + YRegister) & 0xFFFF;
+                    return (((highByte << 8) | address) + YRegister) & 0xFFFF;
                 }
                 case AddressingMode.Immediate:
                 {
@@ -1674,7 +1667,7 @@ namespace sim6502.Proc
                     address += XRegister;
 
                     //Now get the final Address. The is not a zero page address either.
-                    var finalAddress = ReadMemoryValue((address & 0xFF)) | (ReadMemoryValue((address + 1) & 0xFF) << 8);
+                    var finalAddress = ReadMemoryValue(address & 0xFF) | (ReadMemoryValue((address + 1) & 0xFF) << 8);
                     return finalAddress;
                 }
                 case AddressingMode.IndirectY:
@@ -1684,9 +1677,7 @@ namespace sim6502.Proc
                     var finalAddress = ReadMemoryValue(address) + (ReadMemoryValue((address + 1) & 0xFF) << 8);
 
                     if ((finalAddress & 0xFF) + YRegister > 0xFF && CurrentOpCode != 0x91)
-                    {
                         ReadMemoryValue((finalAddress + YRegister - 0xFF) & 0xFFFF);
-                    }
 
                     return (finalAddress + YRegister) & 0xFFFF;
                 }
@@ -1694,12 +1685,12 @@ namespace sim6502.Proc
                 {
                     return ProgramCounter;
                 }
-                case (AddressingMode.ZeroPage):
+                case AddressingMode.ZeroPage:
                 {
                     address = ReadMemoryValue(ProgramCounter++);
                     return address;
                 }
-                case (AddressingMode.ZeroPageX):
+                case AddressingMode.ZeroPageX:
                 {
                     address = ReadMemoryValue(ProgramCounter++);
                     ReadMemoryValue(address);
@@ -1716,7 +1707,7 @@ namespace sim6502.Proc
 
                     return address;
                 }
-                case (AddressingMode.ZeroPageY):
+                case AddressingMode.ZeroPageY:
                 {
                     address = ReadMemoryValue(ProgramCounter++);
                     ReadMemoryValue(address);
@@ -1737,7 +1728,7 @@ namespace sim6502.Proc
         /// </summary>
         private void MoveProgramCounterByRelativeValue(byte valueToMove)
         {
-            var movement = valueToMove > 127 ? (valueToMove - 255) : valueToMove;
+            var movement = valueToMove > 127 ? valueToMove - 255 : valueToMove;
 
             var newProgramCounter = ProgramCounter + movement;
 
@@ -1746,10 +1737,7 @@ namespace sim6502.Proc
                 newProgramCounter++;
 
             //We Crossed a Page Boundary. So we increment the cycle counter by one. The +1 is because we always check from the end of the instruction not the beginning
-            if (((ProgramCounter + 1 ^ newProgramCounter) & 0xff00) != 0x0000)
-            {
-                IncrementCycleCount();
-            }
+            if ((((ProgramCounter + 1) ^ newProgramCounter) & 0xff00) != 0x0000) IncrementCycleCount();
 
             ProgramCounter = newProgramCounter;
             ReadMemoryValue(ProgramCounter);
@@ -1802,7 +1790,7 @@ namespace sim6502.Proc
             currentProgramCounter = WrapProgramCounter(++currentProgramCounter);
             int? address2 = Memory[currentProgramCounter];
 
-            string disassembledStep = string.Empty;
+            var disassembledStep = string.Empty;
 
             switch (addressMode)
             {
@@ -1867,7 +1855,7 @@ namespace sim6502.Proc
                 case AddressingMode.Relative:
                 {
                     var valueToMove = (byte) address1.Value;
-                    var movement = valueToMove > 127 ? (valueToMove - 255) : valueToMove;
+                    var movement = valueToMove > 127 ? valueToMove - 255 : valueToMove;
                     var newProgramCounter = ProgramCounter + movement + 1;
 
                     //This makes sure that we always land on the correct spot for a positive number
@@ -2154,7 +2142,7 @@ namespace sim6502.Proc
             var newValue = memoryValue + Accumulator + (CarryFlag ? 1 : 0);
 
 
-            OverflowFlag = (((Accumulator ^ newValue) & 0x80) != 0) && (((Accumulator ^ memoryValue) & 0x80) == 0);
+            OverflowFlag = ((Accumulator ^ newValue) & 0x80) != 0 && ((Accumulator ^ memoryValue) & 0x80) == 0;
 
             if (DecimalFlag)
             {
@@ -2224,13 +2212,10 @@ namespace sim6502.Proc
             }
 
             // Dummy Write
-            if (addressingMode != AddressingMode.Accumulator)
-            {
-                WriteMemoryValue(memoryAddress, (byte) value);
-            }
+            if (addressingMode != AddressingMode.Accumulator) WriteMemoryValue(memoryAddress, (byte) value);
 
             // If the 7th bit is set, then we have a carry
-            CarryFlag = ((value & 0x80) != 0);
+            CarryFlag = (value & 0x80) != 0;
 
             // The And here ensures that if the value is greater than 255 it wraps properly.
             value = (value << 1) & 0xFE;
@@ -2242,9 +2227,7 @@ namespace sim6502.Proc
             if (addressingMode == AddressingMode.Accumulator)
                 Accumulator = value;
             else
-            {
                 WriteMemoryValue(memoryAddress, (byte) value);
-            }
         }
 
         /// <summary>
@@ -2383,25 +2366,20 @@ namespace sim6502.Proc
             }
 
             // Dummy Write
-            if (addressingMode != AddressingMode.Accumulator)
-            {
-                WriteMemoryValue(memoryAddress, (byte) value);
-            }
+            if (addressingMode != AddressingMode.Accumulator) WriteMemoryValue(memoryAddress, (byte) value);
 
             NegativeFlag = false;
 
             // If the Zero bit is set, we have a carry
             CarryFlag = (value & 0x01) != 0;
 
-            value = (value >> 1);
+            value = value >> 1;
 
             SetZeroFlag(value);
             if (addressingMode == AddressingMode.Accumulator)
                 Accumulator = value;
             else
-            {
                 WriteMemoryValue(memoryAddress, (byte) value);
-            }
         }
 
         /// <summary>
@@ -2437,10 +2415,7 @@ namespace sim6502.Proc
             }
 
             // Dummy Write
-            if (addressingMode != AddressingMode.Accumulator)
-            {
-                WriteMemoryValue(memoryAddress, (byte) value);
-            }
+            if (addressingMode != AddressingMode.Accumulator) WriteMemoryValue(memoryAddress, (byte) value);
 
             // Store the carry flag before shifting it
             var newCarry = (0x80 & value) != 0;
@@ -2460,9 +2435,7 @@ namespace sim6502.Proc
             if (addressingMode == AddressingMode.Accumulator)
                 Accumulator = value;
             else
-            {
                 WriteMemoryValue(memoryAddress, (byte) value);
-            }
         }
 
         /// <summary>
@@ -2486,15 +2459,12 @@ namespace sim6502.Proc
             }
 
             // Dummy Write
-            if (addressingMode != AddressingMode.Accumulator)
-            {
-                WriteMemoryValue(memoryAddress, (byte) value);
-            }
+            if (addressingMode != AddressingMode.Accumulator) WriteMemoryValue(memoryAddress, (byte) value);
 
             // Store the carry flag before shifting it
             var newCarry = (0x01 & value) != 0;
 
-            value = (value >> 1);
+            value = value >> 1;
 
             // If the carry flag is set then 0x
             if (CarryFlag)
@@ -2508,9 +2478,7 @@ namespace sim6502.Proc
             if (addressingMode == AddressingMode.Accumulator)
                 Accumulator = value;
             else
-            {
                 WriteMemoryValue(memoryAddress, (byte) value);
-            }
         }
 
         /// <summary>
@@ -2535,7 +2503,7 @@ namespace sim6502.Proc
             }
             else
             {
-                OverflowFlag = (((Accumulator ^ newValue) & 0x80) != 0) && (((Accumulator ^ memoryValue) & 0x80) != 0);
+                OverflowFlag = ((Accumulator ^ newValue) & 0x80) != 0 && ((Accumulator ^ memoryValue) & 0x80) != 0;
 
                 if (newValue < 0)
                     newValue += 256;
@@ -2619,12 +2587,12 @@ namespace sim6502.Proc
 
             // Put the high value on the stack
             // When we RTI the address will be incremented by one, and the address after a break will not be used.
-            PokeStack((byte) (((ProgramCounter) >> 8) & 0xFF));
+            PokeStack((byte) ((ProgramCounter >> 8) & 0xFF));
             StackPointer--;
             IncrementCycleCount();
 
             // Put the low value on the stack
-            PokeStack((byte) ((ProgramCounter) & 0xFF));
+            PokeStack((byte) (ProgramCounter & 0xFF));
             StackPointer--;
             IncrementCycleCount();
 
@@ -2666,7 +2634,7 @@ namespace sim6502.Proc
             var highBit = PeekStack() << 8;
             IncrementCycleCount();
 
-            ProgramCounter = (highBit | lowBit);
+            ProgramCounter = highBit | lowBit;
         }
 
         /// <summary>
