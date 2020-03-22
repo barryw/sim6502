@@ -23,15 +23,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 using System.ComponentModel;
-using NLog;
 using sim6502.Utilities;
 
 namespace sim6502.UnitTests.Assertions
 {
     public static class AssertionFactory
     {
-        private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
-
         public static BaseAssertion GetAssertionClass(TestAssertion assertion)
         {
             if (assertion.AssertionType.Empty()) return new NullAssertion();
