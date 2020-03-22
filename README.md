@@ -212,6 +212,9 @@ docker run -v ${PWD}:/code -it barrywalker71/sim6502cli:latest -y /code/{your te
 
 That would mount the current directory to a directory in the container called `/code` and would expect to see all of your artifacts there, unless you've given them absolute paths. Just make sure you update your tests yaml to point to the correct location of any roms and programs.
 
+If you'd like to see a larger example of this tool in action, run `make` from the `example` folder. It's the test suite from my c64lib project.
+
+
 #### Thanks
 
 Thanks to Aaron Mell for building the 6502 simulator (https://github.com/aaronmell/6502Net). It was a tremendous help in building this tool.
