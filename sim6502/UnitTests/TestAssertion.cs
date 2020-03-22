@@ -109,37 +109,21 @@ namespace sim6502.UnitTests
             switch (Op.ToLower())
             {
                 case "eq":
-                    if (actualValue != assertValue)
-                    {
-                        res.ComparisonPassed = false;
-                        res.FailureMessage = $"Expected '{assertValue.ToString()}', but got '{actualValue.ToString()}'";
-                    }
-
+                    res.ComparisonPassed = PerformEquals(actualValue, assertValue, res);
                     break;
+                
                 case "gt":
-                    if (actualValue < assertValue)
-                    {
-                        res.ComparisonPassed = false;
-                        res.FailureMessage = $"Expected '{actualValue.ToString()}' > '{assertValue.ToString()}'";
-                    }
-
+                    res.ComparisonPassed = PerformGreaterThan(actualValue, assertValue, res);
                     break;
+                
                 case "lt":
-                    if (actualValue > assertValue)
-                    {
-                        res.ComparisonPassed = false;
-                        res.FailureMessage = $"Expected '{actualValue.ToString()}' < '{assertValue.ToString()}'";
-                    }
-
+                    res.ComparisonPassed = PerformLessThan(actualValue, assertValue, res);
                     break;
+                
                 case "ne":
-                    if (actualValue == assertValue)
-                    {
-                        res.ComparisonPassed = false;
-                        res.FailureMessage = $"Expected '{assertValue.ToString()}' != '{actualValue.ToString()}'";
-                    }
-
+                    res.ComparisonPassed = PerformNotEqual(actualValue, assertValue, res);
                     break;
+                
                 default:
                     res.ComparisonPassed = false;
                     res.FailureMessage = $"Invalid comparison operator '{Op}'. Valid operators are eq, ne, gt and lt";
@@ -147,6 +131,34 @@ namespace sim6502.UnitTests
             }
 
             return res;
+        }
+
+        private static bool PerformEquals(int actualValue, int assertValue, ComparisonResult res)
+        {
+            if (actualValue == assertValue) return true;
+            res.FailureMessage = $"Expected '{assertValue.ToString()}', but got '{actualValue.ToString()}'";
+            return false;
+        }
+
+        private static bool PerformGreaterThan(int actualValue, int assertValue, ComparisonResult res)
+        {
+            if (actualValue > assertValue) return true;
+            res.FailureMessage = $"Expected '{actualValue.ToString()}' > '{assertValue.ToString()}'";
+            return false;
+        }
+
+        private static bool PerformLessThan(int actualValue, int assertValue, ComparisonResult res)
+        {
+            if (actualValue < assertValue) return true;
+            res.FailureMessage = $"Expected '{actualValue.ToString()}' < '{assertValue.ToString()}'";
+            return false;
+        }
+
+        private static bool PerformNotEqual(int actualValue, int assertValue, ComparisonResult res)
+        {
+            if (actualValue != assertValue) return true;
+            res.FailureMessage = $"Expected '{assertValue.ToString()}' != '{actualValue.ToString()}'";
+            return false;
         }
     }
 }

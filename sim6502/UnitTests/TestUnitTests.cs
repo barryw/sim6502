@@ -89,6 +89,7 @@ namespace sim6502.UnitTests
 
         private static void LoadRoms(Processor proc, ExpressionParser expr, IEnumerable<TestInitLoadFile> roms)
         {
+            if (roms == null) return;
             foreach (var rom in roms) Utility.LoadFileIntoProcessor(proc, rom.AddressParsed, rom.Filename);
         }
     }
