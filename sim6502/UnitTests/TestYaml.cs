@@ -34,12 +34,7 @@ namespace sim6502.UnitTests
     public class TestYaml
     {
         private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
-
-        /// <summary>
-        /// Deserialize our test yaml into a graph of objects
-        /// </summary>
-        /// <param name="testYamlFilename">The path to the test yaml</param>
-        /// <returns>An object graph for the tests that we want to run</returns>
+        
         public static Tests DeserializeTestsYaml(string testYamlFilename)
         {
             Tests tests;

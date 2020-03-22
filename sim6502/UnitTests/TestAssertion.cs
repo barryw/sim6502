@@ -69,26 +69,12 @@ namespace sim6502.UnitTests
 
         [YamlMember(Alias = "byte_value", ApplyNamingConventions = false)]
         public string ByteValue { get; set; }
-
-        /// <summary>
-        /// Run one of a unit test's assertions
-        /// </summary>
-        /// <param name="proc">A reference to our running 6502</param>
-        /// <param name="expr">A reference to our expression parser</param>
-        /// <param name="test">A reference to our parent TestUnitTest object</param>
-        /// <returns>True if the assertion passed, or False otherwise</returns>
+        
         public bool PerformAssertion(Processor proc, ExpressionParser expr, TestUnitTest test)
         {
             return AssertionFactory.GetAssertionClass(this).PerformAssertion(proc, expr, test, this);
         }
 
-        /// <summary>
-        /// Return the actual value from the processor
-        /// </summary>
-        /// <param name="proc">A reference to our running 6502</param>
-        /// <param name="expr">A reference to our expression parser</param>
-        /// <param name="test">The running test</param>
-        /// <returns>The assertion's actual value (from the processor)</returns>
         public int ActualValue(Processor proc, ExpressionParser expr, TestUnitTest test)
         {
             var address = expr.Evaluate(Address, test, this);
@@ -99,13 +85,7 @@ namespace sim6502.UnitTests
                 ? proc.ReadMemoryWordWithoutCycle(address)
                 : proc.ReadMemoryValueWithoutCycle(address);
         }
-
-        /// <summary>
-        /// Return the asserted value, which is what we expect the value to be
-        /// </summary>
-        /// <param name="expr"></param>
-        /// <param name="test"></param>
-        /// <returns>The asserted value</returns>
+        
         public int AssertionValue(ExpressionParser expr, TestUnitTest test)
         {
             if (!WordValue.Empty() && !ByteValue.Empty())
@@ -116,14 +96,7 @@ namespace sim6502.UnitTests
 
             return expr.Evaluate(!WordValue.Empty() ? WordValue : ByteValue, test, this);
         }
-
-        /// <summary>
-        /// Do a comparison of actual and asserted values
-        /// </summary>
-        /// <param name="actualValue">The actual value from the processor</param>
-        /// <param name="assertValue">The value that we expect it to be</param>
-        /// <<param name="test">The test that's running</param>
-        /// <returns></returns>
+        
         public ComparisonResult CompareValues(int actualValue, int assertValue, TestUnitTest test)
         {
             var res = new ComparisonResult();

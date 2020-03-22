@@ -33,22 +33,12 @@ namespace sim6502.Utilities
     public static class Utility
     {
         private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
-
-        /// <summary>
-        /// Check whether a string is null or empty
-        /// </summary>
-        /// <param name="str">The string to check</param>
-        /// <returns></returns>
+        
         public static bool Empty(this string str)
         {
             return string.IsNullOrEmpty(str);
         }
-
-        /// <summary>
-        /// Convert an integer to a hex string
-        /// </summary>
-        /// <param name="number">The number to convert</param>
-        /// <returns></returns>
+        
         public static string ToHex(this int number)
         {
             var numDigits = 1;
@@ -63,11 +53,6 @@ namespace sim6502.Utilities
             return $"${hex}";
         }
 
-        /// <summary>
-        /// Parse a string and see if we can get an integer out of it
-        /// </summary>
-        /// <param name="number">The thing to parse</param>
-        /// <returns>The thing as an integer</returns>
         public static int ParseNumber(this string number)
         {
             int retval;
@@ -87,13 +72,7 @@ namespace sim6502.Utilities
 
             return retval;
         }
-
-        /// <summary>
-        /// Given an assembled .prg file, return its load address. This will be the file's
-        /// first two bytes in little endian format.
-        /// </summary>
-        /// <param name="filename">The path to the file to get the load address for. Must be a .prg</param>
-        /// <returns>16-bit load address</returns>
+        
         public static int GetProgramLoadAddress(string filename)
         {
             var buffer = new byte[2];
@@ -104,24 +83,12 @@ namespace sim6502.Utilities
 
             return GetProgramLoadAddress(buffer);
         }
-
-        /// <summary>
-        /// Given a program as a byte array, return its load address
-        /// </summary>
-        /// <param name="program">The program expressed as a byte array</param>
-        /// <returns>The 16-bit load address of the program</returns>
+        
         public static int GetProgramLoadAddress(byte[] program)
         {
             return program[1] * 256 + program[0];
         }
-
-        /// <summary>
-        /// Load a rom or program into the processor's memory
-        /// </summary>
-        /// <param name="proc"></param>
-        /// <param name="address"></param>
-        /// <param name="filename"></param>
-        /// <param name="stripHeader"></param>
+        
         public static void LoadFileIntoProcessor(Processor proc, int address, string filename, bool stripHeader = false)
         {
             Logger.Debug($"Loading {filename} @ {address.ToHex()}");
@@ -137,38 +104,19 @@ namespace sim6502.Utilities
 
             proc.LoadProgram(address, program.ToArray());
         }
-
-        /// <summary>
-        /// Convert a stream to a byte array
-        /// </summary>
-        /// <param name="stream">The stream to convert, which will be a FileStream</param>
-        /// <returns>The contents of the stream as a byte[]</returns>
+        
         private static IEnumerable<byte> StreamToBytes(Stream stream)
         {
             using var ms = new MemoryStream();
             stream.CopyTo(ms);
             return ms.ToArray();
         }
-
-        /// <summary>
-        /// Check to see if a file exists. This is used for roms and c64 programs
-        /// </summary>
-        /// <param name="filename">The name of the file to check</param>
+        
         public static void FileExists(string filename)
         {
             if (File.Exists(filename)) return;
             Logger.Fatal($"The file '{filename}' does not exist.");
             throw new FileNotFoundException();
-        }
-
-        /// <summary>
-        /// Allow us to pluralize strings
-        /// </summary>
-        /// <param name="message"></param>
-        /// <returns></returns>
-        public static string Pluralize(string message)
-        {
-            return string.Format(new PluralFormatProvider(), message);
         }
     }
 }

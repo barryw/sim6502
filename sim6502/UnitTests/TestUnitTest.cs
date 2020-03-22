@@ -61,24 +61,16 @@ namespace sim6502.UnitTests
 
         [YamlMember(Alias = "fail_on_brk", ApplyNamingConventions = false)]
         public bool FailOnBrk { get; set; } = true;
-
-        /// <summary>
-        /// Run a single unit test
-        /// </summary>
-        /// <param name="proc">A reference to the running 6502</param>
-        /// <param name="expr">A reference to our expression parser</param>
-        /// <returns></returns>
+        
         public bool RunUnitTest(Processor proc, ExpressionParser expr)
         {
-            // Where is the code we want to test?
             var jumpAddress = expr.Evaluate(JumpAddress, this, null);
             if (jumpAddress == -1)
                 return false;
             
             Logger.Debug($"Running routine located at {jumpAddress.ToHex()}");
             var testPassed = proc.RunRoutine(jumpAddress, StopOn, FailOnBrk);
-
-            // Run the test's assertions after we've run the code under test
+            
             foreach (var unused in Assertions.Select(assertion => assertion.PerformAssertion(proc, expr, this))
                 .Where(assertionPassed => !assertionPassed))
             {
@@ -90,12 +82,7 @@ namespace sim6502.UnitTests
 
             return testPassed;
         }
-
-        /// <summary>
-        /// Called before every test to set everything back to the state that the tests expect
-        /// </summary>
-        /// <param name="proc">A reference to the running 6502</param>
-        /// <param name="expr">A reference to our expression parser</param>
+        
         public void DoTestInit(Processor proc, ExpressionParser expr)
         {
             proc.ResetMemory();

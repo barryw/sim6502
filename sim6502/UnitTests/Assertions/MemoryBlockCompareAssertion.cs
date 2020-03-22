@@ -4,19 +4,8 @@ using sim6502.Utilities;
 
 namespace sim6502.UnitTests.Assertions
 {
-    /// <summary>
-    /// Compare blocks of memory to ensure they're identical
-    /// </summary>
     public class MemoryBlockCompareAssertion : BaseAssertion
     {
-        /// <summary>
-        /// Test a memory location or a memory word and compare it to an expected value
-        /// </summary>
-        /// <param name="proc">A reference to the running 6502</param>
-        /// <param name="expr">A reference to our expression parser</param>
-        /// <param name="test">The current test that's running</param>
-        /// <param name="assertion">The current assertion within the test that we'd like to test</param>
-        /// <returns>True if the assertion passed, False otherwise</returns>
         public override bool PerformAssertion(Processor proc, ExpressionParser expr, TestUnitTest test,
             TestAssertion assertion)
         {

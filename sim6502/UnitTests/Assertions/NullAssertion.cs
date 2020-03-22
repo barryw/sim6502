@@ -3,9 +3,6 @@ using sim6502.Proc;
 
 namespace sim6502.UnitTests.Assertions
 {
-    /// <summary>
-    /// Always returns true. This is only used if an 'assertion_type' isn't specified
-    /// </summary>
     public class NullAssertion : BaseAssertion
     {
         public override bool PerformAssertion(Processor proc, ExpressionParser expr, TestUnitTest test,

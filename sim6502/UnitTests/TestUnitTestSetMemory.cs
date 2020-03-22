@@ -46,13 +46,7 @@ namespace sim6502.UnitTests
 
         [YamlMember(Alias = "word_value", ApplyNamingConventions = false)]
         public string WordValue { get; set; }
-
-        /// <summary>
-        /// Set a value on a memory location
-        /// </summary>
-        /// <param name="proc">A reference to the running 6502</param>
-        /// <param name="expr">A reference to our expression parser</param>
-        /// <param name="test">The current running test</param>
+        
         public void SetMemory(Processor proc, ExpressionParser expr, TestUnitTest test)
         {
             var location = expr.Evaluate(Address, test, null);

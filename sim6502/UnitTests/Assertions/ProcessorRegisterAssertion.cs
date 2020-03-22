@@ -29,14 +29,6 @@ namespace sim6502.UnitTests.Assertions
 {
     public class ProcessorRegisterAssertion : BaseAssertion
     {
-        /// <summary>
-        /// Compare one of the processor's registers with an expected value
-        /// </summary>
-        /// <param name="proc">A reference to the running 6502</param>
-        /// <param name="expr">A reference to our expression parser</param>
-        /// <param name="test">The current test that's running</param>
-        /// <param name="assertion">The current assertion within the test that we'd like to test</param>
-        /// <returns>True if the assertion passed, False otherwise</returns>
         public override bool PerformAssertion(Processor proc, ExpressionParser expr, TestUnitTest test,
             TestAssertion assertion)
         {
@@ -91,12 +83,7 @@ namespace sim6502.UnitTests.Assertions
 
             return res.ComparisonPassed;
         }
-
-        /// <summary>
-        /// Convert a flag to an integer value
-        /// </summary>
-        /// <param name="flag">The flag's value</param>
-        /// <returns>1 if the flag is true, 0 otherwise</returns>
+        
         private static int FlagToInt(bool flag)
         {
             return flag ? 1 : 0;

@@ -34,11 +34,7 @@ namespace sim6502.Utilities
         private readonly string[] _symbolfile;
 
         private Dictionary<string, int> Symbols { get; } = new Dictionary<string, int>();
-
-        /// <summary>
-        /// Pass in the contents of the symbol file - not the path to it
-        /// </summary>
-        /// <param name="symbolfile">The contents of the symbolfile</param>
+        
         public SymbolFile(string symbolfile)
         {
             _symbolfile = symbolfile.Trim().Split(
@@ -47,10 +43,7 @@ namespace sim6502.Utilities
             );
             Parse();
         }
-
-        /// <summary>
-        /// Parse the symbol file
-        /// </summary>
+        
         private void Parse()
         {
             var currentNamespace = "";
@@ -85,33 +78,17 @@ namespace sim6502.Utilities
                 }
             }
         }
-
-        /// <summary>
-        /// Determine whether a symbol exists in the symbol table
-        /// </summary>
-        /// <param name="symbol">The symbol to check</param>
-        /// <returns>True if the symbol exists, False otherwise</returns>
+        
         public bool SymbolExists(string symbol)
         {
             return Symbols.ContainsKey(symbol);
         }
-
-        /// <summary>
-        /// Use the symbol file to translate a symbol to a 16-bit address
-        /// </summary>
-        /// <param name="symbol">The symbol to translate</param>
-        /// <returns>The 16-bit address if found. An exception is thrown if it's not found</returns>
+        
         public int SymbolToAddress(string symbol)
         {
             return Symbols[symbol];
         }
-
-        /// <summary>
-        /// Try and translate an address to a symbol if one exists. If not, just return the address as a string
-        /// </summary>
-        /// <param name="address">The address to try and get a symbol for</param>
-        /// <param name="asHex">If set to true, will return the address as a hex string if the symbol isn't found</param>
-        /// <returns></returns>
+        
         public string AddressToSymbol(int address, bool asHex = true)
         {
             var symbol = asHex ? address.ToHex() : address.ToString();
@@ -125,12 +102,7 @@ namespace sim6502.Utilities
 
             return symbol;
         }
-
-        /// <summary>
-        /// Load the Kickassembler generated symbol file.
-        /// </summary>
-        /// <param name="symbolFilename">The path to the symbol file</param>
-        /// <returns>A SymbolFile object that makes it easier to work with the symbols</returns>
+        
         public static SymbolFile LoadSymbolFile(string symbolFilename)
         {
             if ("".Equals(symbolFilename) || symbolFilename == null)

@@ -35,9 +35,6 @@ using sim6502.Utilities;
 
 namespace sim6502.Expressions
 {
-    /// <summary>
-    /// Let's us express our assertions in a much nicer way
-    /// </summary>
     public class ExpressionParser
     {
         private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
@@ -45,30 +42,17 @@ namespace sim6502.Expressions
         private const string HexSearchString = "(\\$[0-9a-f]+)";
         private const string SymbolSearchString = "{([0-9a-zA-Z_.]+)}";
         
-        /// <summary>
-        /// Allow us to have functions in our expressions
-        /// </summary>
         private class ExpressionContext
         {
             public Processor Processor { get; set; }
-
-            /// <summary>
-            /// Peek a byte from the 6502's memory
-            /// </summary>
-            /// <param name="address">The address to peek from</param>
-            /// <returns>The byte stored in address</returns>
+            
             public byte Peekbyte(int address)
             {
                 var val = Processor.ReadMemoryValueWithoutCycle(address);
                 Logger.Trace($"peekbyte({address.ToString()}) = {val.ToString()}");
                 return val;
             }
-
-            /// <summary>
-            /// Peek a word from the 6502's memory
-            /// </summary>
-            /// <param name="address">The low byte address to peek from</param>
-            /// <returns>The word stored in address and address + 1</returns>
+            
             public int Peekword(int address)
             {
                 var val = Processor.ReadMemoryWordWithoutCycle(address);
@@ -85,14 +69,7 @@ namespace sim6502.Expressions
             _proc = proc;
             _syms = symbols;
         }
-
-        /// <summary>
-        /// Evaluate an expression containing functions and symbols
-        /// </summary>
-        /// <param name="expression">The expression that we'd like to evaluate</param>
-        /// <param name="test">The current test running</param>
-        /// <param name="assertion">The current assertion being evaluated. Can be null</param>
-        /// <returns>The integer value of the entire expression</returns>
+        
         public int Evaluate(string expression, TestUnitTest test, TestAssertion assertion)
         {
             try
@@ -126,12 +103,7 @@ namespace sim6502.Expressions
                 return -1;
             }
         }
-
-        /// <summary>
-        /// Replace all {} symbols with their values from the symbol table
-        /// </summary>
-        /// <param name="expression">The expression we want to replace symbols in</param>
-        /// <returns>The same expression with symbols replaced</returns>
+        
         private string ReplaceSymbols(string expression)
         {
             foreach (Match match in GetMatches(expression, SymbolSearchString))
@@ -150,12 +122,7 @@ namespace sim6502.Expressions
 
             return expression;
         }
-
-        /// <summary>
-        /// Replace all hex strings starting with $ with their int equivalent
-        /// </summary>
-        /// <param name="expression">The expression to process</param>
-        /// <returns>The expression with hex values converted to integer</returns>
+        
         private static string ReplaceHexStrings(string expression)
         {
             foreach (Match match in GetMatches(expression, HexSearchString))
@@ -169,13 +136,7 @@ namespace sim6502.Expressions
 
             return expression;
         }
-
-        /// <summary>
-        /// Perform a regex search in expression for pattern
-        /// </summary>
-        /// <param name="expression">The expression to search</param>
-        /// <param name="pattern">The pattern to search for</param>
-        /// <returns></returns>
+        
         private static MatchCollection GetMatches(string expression, string pattern)
         {
             return Regex.Matches(expression, pattern, RegexOptions.IgnoreCase);

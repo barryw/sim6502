@@ -28,19 +28,8 @@ using sim6502.Utilities;
 
 namespace sim6502.UnitTests.Assertions
 {
-    /// <summary>
-    /// Check a block of memory to make sure it's set to the specified value
-    /// </summary>
     public class MemoryBlockAssertion : BaseAssertion
     {
-        /// <summary>
-        /// Perform a check of a block of memory and compare the entire range with a single value
-        /// </summary>
-        /// <param name="proc">A reference to the running 6502</param>
-        /// <param name="expr">A reference to our expression parser</param>
-        /// <param name="test">The current test that's running</param>
-        /// <param name="assertion">The current assertion within the test that we'd like to test</param>
-        /// <returns>True if the assertion passed, False otherwise</returns>
         public override bool PerformAssertion(Processor proc, ExpressionParser expr, TestUnitTest test,
             TestAssertion assertion)
         {
