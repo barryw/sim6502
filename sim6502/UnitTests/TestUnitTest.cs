@@ -47,6 +47,9 @@ namespace sim6502.UnitTests
         [YamlMember(Alias = "description", ApplyNamingConventions = false)]
         public string Description { get; set; }
 
+        [YamlMember(Alias = "set_registers", ApplyNamingConventions = false)]
+        public List<TestUnitTestSetRegisters> SetRegisters { get; set; }
+        
         [YamlMember(Alias = "set_memory", ApplyNamingConventions = false)]
         public List<TestUnitTestSetMemory> SetMemory { get; set; }
 
@@ -83,10 +86,22 @@ namespace sim6502.UnitTests
 
         public void DoTestInit(Processor proc, ExpressionParser expr)
         {
+            DoSetMemory(proc, expr);
+            DoSetRegisters(proc, expr);
+        }
+
+        private void DoSetMemory(Processor proc, ExpressionParser expr)
+        {
             proc.ResetMemory();
             if (SetMemory == null) return;
 
             foreach (var mem in SetMemory) mem.SetMemory(proc, expr, this);
+        }
+
+        private void DoSetRegisters(Processor proc, ExpressionParser expr)
+        {
+            if (SetRegisters == null) return;
+            foreach(var reg in SetRegisters) reg.SetRegisters(proc, expr, this);
         }
     }
 }

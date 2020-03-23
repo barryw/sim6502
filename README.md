@@ -214,6 +214,11 @@ That would mount the current directory to a directory in the container called `/
 
 If you'd like to see a larger example of this tool in action, run `make` from the `example` folder. It's the test suite from my c64lib project.
 
+#### What's missing?
+
+There is absolutely no concept of hardware other than the 6502. There's no VIC, SID, CIA, etc, so testing against programs that use these hardware devices is pretty limited. You CAN, and the `example` test suite shows this, test to make sure sprite registers are set properly since it's just memory.
+
+This is a vanilla 6502 with no concept of any C64 specific hardware. I would LOVE to have a full c64 simulator, but that's not where we are right now.
 
 #### Thanks
 
