@@ -1,0 +1,41 @@
+suites {
+  suite("Test Suite 7") {
+    ; Load the program under test
+    symbols("TestPrograms/include_me_full.sym")
+    load("TestPrograms/include_me_full.prg", strip_header = true)
+
+    test("test-1", "Make sure all registers are settable") {
+        a = $f0
+        x = $f1
+        y = $f2
+        
+        [dick] = $10
+        
+        assert(a == $f0, "Make sure accumulator is $f0")
+        assert(x == $f1, "Make sure accumulator is $f1")
+        assert(y == $f2, "Make sure accumulator is $f2")
+    }
+    
+    test("memory-fill-1", "Fill an uneven block of memory") {
+          [r0L] = $bd   ; Stuff $bd into our memory locations. Odd number, right?
+          [r1] = $1234  ; Start at $1234
+          [r2] = $12c   ; and do 300 bytes
+    
+          jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
+    
+          assert(cycles < 85, "We can fill this block in fewer than 85 cycles")
+          assert(memchk($1234, $12c, $bd), "Memory was filled properly")
+    }
+    
+    test("memory-copy-1", "Ensure memory copy works") {
+          [r0] = $e000  ; Copy the KERNAL rom
+          [r1] = $4000  ; into $4000
+          [r2] = $2000  ; Copy all 8k of it
+    
+          jsr([CopyMemory], stop_on_rts = true, fail_on_brk = true)
+    
+          assert(cycles < 200000, "Ensure that we run in fewer than 200000 cycles")
+          assert(memcmp($e000, $4000, $2000), "Ensure that KERNAL was copied correctly")
+    }
+  }
+}

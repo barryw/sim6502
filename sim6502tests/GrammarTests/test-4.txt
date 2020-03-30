@@ -1,0 +1,14 @@
+suites {
+  suite("Test Suite 4") {
+    ; Load the program under test
+    load("TestPrograms/include_me_full.prg", strip_header = true)
+
+    test("test-1", "Quick test of assignments") {
+        c = 1
+        n = false
+        z = true
+        v = 0
+        d = [FALSE]
+    }
+  }
+}

@@ -1,0 +1,13 @@
+suites {
+  suite("Test Suite 2") {
+    ; Load the program under test
+    load("TestPrograms/include_me_full.prg", strip_header = true)
+
+    test("test-1", "Quick test of assignments") {
+      ; Make sure we can assign symbol values to all 3 registers      
+      x = [Val1]
+      a = [Val2]
+      y = [Val3]
+    }
+  }
+}

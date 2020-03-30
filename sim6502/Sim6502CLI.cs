@@ -23,12 +23,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 using System;
+using System.Diagnostics;
+using System.IO;
+using System.Reflection;
+using Antlr4.Runtime;
+using Antlr4.Runtime.Tree;
 using CommandLine;
 using NLog;
-using sim6502.Expressions;
-using sim6502.Proc;
-using sim6502.UnitTests;
-using sim6502.Utilities;
+using sim6502.Grammar;
+using sim6502.Grammar.Generated;
+using Parser = CommandLine.Parser;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Local
 
@@ -37,9 +41,6 @@ namespace sim6502
     internal class Sim6502Cli
     {
         private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
-
-        private Processor _processor;
-        private ExpressionParser _expr;
 
         // ReSharper disable once ClassNeverInstantiated.Local
         private class Options
@@ -52,60 +53,55 @@ namespace sim6502
                 HelpText = "Enable or disable debug mode")]
             public bool Debug { get; set; }
 
-            [Option('s', "symbolfile", Required = false, HelpText = "The path to the generated symbols file")]
-            public string SymbolFile { get; set; }
-
-            [Option('y', "yaml", Required = true, HelpText = "The path to your yaml test spec file.")]
-            public string TestYaml { get; set; }
+            [Option('s', "suitefile", Required = true, HelpText = "The path to your suite file which contains your test suites")]
+            public string SuiteFile { get; set; }
         }
 
         private static int Main(string[] args)
         {
-            var cli = new Sim6502Cli();
-
-            Logger.Debug("Initializing 6502 simulator.");
-            cli._processor = new Processor();
-            cli._processor.Reset();
-            Logger.Debug("6502 simulator initialized and reset.");
-            Logger.Info("6502 Simulator Test Runner CLI Copyright © 2020 Barry Walker. All Rights Reserved.");
+            var versionInfo = FileVersionInfo.GetVersionInfo(Assembly.GetEntryAssembly()?.Location);
+            
+            Logger.Info($"{versionInfo.ProductName} v{versionInfo.ProductVersion} {versionInfo.LegalCopyright}");
             Logger.Info("https://github.com/barryw/sim6502");
 
             return Parser.Default
                 .ParseArguments<Options>(args)
                 .MapResult(
-                    opts => cli.RunCli(opts),
+                    RunCli,
                     errs => 1);
         }
 
-        private int RunCli(Options opts)
+        private static int RunCli(Options opts)
         {
             SetLogLevel(opts);
 
             try
             {
-                var symbols = SymbolFile.LoadSymbolFile(opts.SymbolFile);
-                var tests = TestYaml.DeserializeTestsYaml(opts.TestYaml);
-                _expr = new ExpressionParser(_processor, symbols);
-
-                var allPassed = tests.UnitTests.RunUnitTests(_processor, _expr, tests.Init.LoadFiles);
-                var numPassed = tests.UnitTests.TotalTestsPassed;
-                var numFailed = tests.UnitTests.TotalTestsFailed;
-                var numRun = tests.UnitTests.TotalTestsRan;
-
-                var disposition = allPassed ? "PASSED" : "FAILED";
-                Logger.Info(
-                    string.Format(new PluralFormatProvider(),
-                        "{0:test;tests} passed, {1:test;tests} failed, {2:test;tests} total.", numPassed, numFailed,
-                        numRun));
-                Logger.Log(allPassed ? LogLevel.Info : LogLevel.Fatal, $"Complete Test Suite : {disposition}");
-
-                return allPassed ? 0 : 1;
+                if(!File.Exists(opts.SuiteFile))
+                    throw new FileNotFoundException($"The suite file {opts.SuiteFile} could not be found.");
+                
+                return RunTests(opts);
             }
             catch (Exception ex)
             {
                 Logger.Fatal(ex, $"Failed to run tests: {ex.Message}, {ex.StackTrace}");
                 return 1;
             }
+        }
+
+        private static int RunTests(Options opts)
+        {
+            var afs = new AntlrFileStream(opts.SuiteFile);
+            var lexer = new sim6502Lexer(afs);
+            var tokens = new CommonTokenStream(lexer);
+            var parser = new sim6502Parser(tokens) {BuildParseTree = true};
+            var tree = parser.suites();
+            var walker = new ParseTreeWalker();
+            var sbl = new SimBaseListener();
+
+            walker.Walk(sbl, tree);
+
+            return sbl.TotalSuitesFailed == 0 ? 0 : 1;
         }
 
         private static void SetLogLevel(Options opts)

@@ -1,0 +1,27 @@
+suites {
+  suite("Test Suite 6") {
+    ; Load the program under test
+    symbols("TestPrograms/include_me_full.sym")
+    load("TestPrograms/include_me_full.prg", strip_header = true)
+
+    test("test-1", "Assert test 1") {
+        [r0L] = $bd     ; Write the value $bd
+        [r1] = $1234    ; Write to location $1234
+        [r2] = $12c     ; Write 300 bytes
+        
+        $4000 = peekbyte([r0L])
+        $4001 = peekword([r1])
+        $4003 = peekword([r2])
+        
+        jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
+        
+        a = $00
+        c = false
+        
+        assert(memchk(peekword($4001), peekword($4003), peekbyte($4000)), "Make sure memory was set correctly")
+        assert($4000 == $bd, "Make sure $4000 contains the byte we're writing")
+        assert(a == $00, "Make sure accumulator is zero")
+        assert(c == false, "Make sure carry flag clear")
+    }
+  }
+}

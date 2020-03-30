@@ -1,0 +1,13 @@
+suites {
+   suite("Test Suite 9") {
+     ; Load the program under test
+     load("TestPrograms/include_me_full.prg", strip_header = true)
+ 
+     test("test-1", "Make sure we can access lo/hi bytes in assert compares") {
+       [Loc1] = $abcd
+       
+       assert([Loc1].w == $abcd, "Compare a memory word")
+       ;assert([Loc1] + $01 == $abcd.h, "HI byte")
+     }
+   }
+ }

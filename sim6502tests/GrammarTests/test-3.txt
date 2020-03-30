@@ -1,0 +1,12 @@
+suites {
+  suite("Test Suite 3") {
+    ; Load the program under test
+    load("TestPrograms/include_me_full.prg", strip_header = true)
+
+    test("test-1", "Quick test of assignments") {     
+      [Loc1] = [Val1]
+      [Loc2] = [Val2]
+      [Loc3] = [Val3]
+    }
+  }
+}

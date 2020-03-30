@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ANTLRGenerationPreferences">
+    <option name="perGrammarGenerationSettings">
+      <list>
+        <PerGrammarGenerationSettings>
+          <option name="fileName" value="$PROJECT_DIR$/sim6502/Grammar/sim6502.g4" />
+          <option name="outputDir" value="$PROJECT_DIR$/sim6502/Grammar/Generated" />
+          <option name="libDir" value="" />
+          <option name="encoding" value="" />
+          <option name="pkg" value="sim6502.Grammar.Generated" />
+          <option name="language" value="CSharp" />
+        </PerGrammarGenerationSettings>
+      </list>
+    </option>
+  </component>
+</project>

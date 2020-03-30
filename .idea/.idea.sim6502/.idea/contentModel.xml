@@ -14,7 +14,25 @@
       <e p="sim6502" t="IncludeRecursive">
         <e p="bin" t="ExcludeRecursive" />
         <e p="Expressions" t="Include">
-          <e p="ExpressionParser.cs" t="Include" />
+          <e p="BaseCompare.cs" t="Include" />
+          <e p="ComparisonResult.cs" t="Include" />
+          <e p="MemoryCompare.cs" t="Include" />
+          <e p="RegisterCompare.cs" t="Include" />
+        </e>
+        <e p="Grammar" t="Include">
+          <e p="Generated" t="Include">
+            <e p="sim6502.interp" t="Include" />
+            <e p="sim6502.tokens" t="Include" />
+            <e p="sim6502BaseListener.cs" t="Include" />
+            <e p="sim6502Lexer.cs" t="Include" />
+            <e p="sim6502Lexer.interp" t="Include" />
+            <e p="sim6502Lexer.tokens" t="Include" />
+            <e p="sim6502Listener.cs" t="Include" />
+            <e p="sim6502Parser.cs" t="Include" />
+          </e>
+          <e p="sim6502.g4" t="Include" />
+          <e p="SimBaseListener.cs" t="Include" />
+          <e p="SimErrorListener.cs" t="Include" />
         </e>
         <e p="nlog.config" t="Include" />
         <e p="obj" t="ExcludeRecursive">
@@ -27,32 +45,11 @@
         <e p="Proc" t="Include">
           <e p="AddressingMode.cs" t="Include" />
           <e p="Disassembly.cs" t="Include" />
+          <e p="LoadableResource.cs" t="Include" />
           <e p="Processor.cs" t="Include" />
         </e>
         <e p="sim6502.csproj" t="IncludeRecursive" />
         <e p="Sim6502CLI.cs" t="Include" />
-        <e p="UnitTests" t="Include">
-          <e p="Assertions" t="Include">
-            <e p="AssertionFactory.cs" t="Include" />
-            <e p="BaseAssertion.cs" t="Include" />
-            <e p="CycleCountAssertion.cs" t="Include" />
-            <e p="MemoryBlockAssertion.cs" t="Include" />
-            <e p="MemoryBlockCompareAssertion.cs" t="Include" />
-            <e p="MemoryTestAssertion.cs" t="Include" />
-            <e p="NullAssertion.cs" t="Include" />
-            <e p="ProcessorRegisterAssertion.cs" t="Include" />
-          </e>
-          <e p="ComparisonResult.cs" t="Include" />
-          <e p="TestAssertion.cs" t="Include" />
-          <e p="TestInit.cs" t="Include" />
-          <e p="TestInitLoadFile.cs" t="Include" />
-          <e p="Tests.cs" t="Include" />
-          <e p="TestUnitTest.cs" t="Include" />
-          <e p="TestUnitTests.cs" t="Include" />
-          <e p="TestUnitTestSetMemory.cs" t="Include" />
-          <e p="TestUnitTestSetRegisters.cs" t="Include" />
-          <e p="TestYaml.cs" t="Include" />
-        </e>
         <e p="Utilities" t="Include">
           <e p="PluralFormatProvider.cs" t="Include" />
           <e p="SymbolFile.cs" t="Include" />
@@ -62,7 +59,19 @@
       <e p="sim6502.sln" t="IncludeFlat" />
       <e p="sim6502tests" t="IncludeRecursive">
         <e p="bin" t="ExcludeRecursive" />
-        <e p="ExpressionParserTests.cs" t="Include" />
+        <e p="GrammarTests" t="Include">
+          <e p="test-1.txt" t="Include" />
+          <e p="test-10.txt" t="Include" />
+          <e p="test-2.txt" t="Include" />
+          <e p="test-3.txt" t="Include" />
+          <e p="test-4.txt" t="Include" />
+          <e p="test-5.txt" t="Include" />
+          <e p="test-6.txt" t="Include" />
+          <e p="test-7.txt" t="Include" />
+          <e p="test-8.txt" t="Include" />
+          <e p="test-9.txt" t="Include" />
+        </e>
+        <e p="nlog.config" t="Include" />
         <e p="obj" t="ExcludeRecursive">
           <e p="Release" t="Include">
             <e p="netcoreapp3.0" t="Include">
@@ -74,6 +83,11 @@
         <e p="RegisterMode.cs" t="Include" />
         <e p="sim6502tests.csproj" t="IncludeRecursive" />
         <e p="SymbolFileTests.cs" t="Include" />
+        <e p="TestPrograms" t="Include">
+          <e p="include_me_full.prg" t="Include" />
+          <e p="include_me_full.sym" t="Include" />
+        </e>
+        <e p="TestSuiteParser.cs" t="Include" />
         <e p="UtilityTests.cs" t="Include" />
       </e>
     </e>
