@@ -51,7 +51,6 @@
         <e p="sim6502.csproj" t="IncludeRecursive" />
         <e p="Sim6502CLI.cs" t="Include" />
         <e p="Utilities" t="Include">
-          <e p="PluralFormatProvider.cs" t="Include" />
           <e p="SymbolFile.cs" t="Include" />
           <e p="Utility.cs" t="Include" />
         </e>

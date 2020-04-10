@@ -20,8 +20,8 @@ namespace sim6502.Expressions
                 if (sourceValue == targetValue) continue;
                 
                 res.FailureMessage = $"Expected values at memory locations {(source + i).ToString()} and " +
-                    "{(target + i).ToString()} to match, but {(source + i).ToString()} contains " +
-                    "{sourceValue.ToString()} and {(target + i).ToString()} contains {targetValue.ToString()}";
+                    $"{(target + i).ToString()} to match, but {(source + i).ToString()} contains " +
+                    $"{sourceValue.ToString()} and {(target + i).ToString()} contains {targetValue.ToString()}";
                 res.ComparisonPassed = false;
                 break;
             }
