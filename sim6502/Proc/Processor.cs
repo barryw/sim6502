@@ -195,6 +195,8 @@ namespace sim6502.Proc
         /// </summary>
         public void Reset()
         {
+            Logger.Debug("Initializing 6502 simulator.");
+            
             ResetCycleCount();
 
             CycleCount = 0;
@@ -212,6 +214,8 @@ namespace sim6502.Proc
             _previousInterrupt = false;
             TriggerNmi = false;
             TriggerIrq = false;
+            
+            Logger.Debug("6502 simulator initialized and reset.");
         }
 
         /// <summary>
@@ -245,10 +249,11 @@ namespace sim6502.Proc
         /// Used for the 6502 sim tester CLI to execute and test routines
         /// </summary>
         /// <param name="address">The address of the routine to test.</param>
-        /// <param name="stopOn">What should we stop on? RTS is the only thing allowed right now.</param>
+        /// <param name="stopOnAddress">If > 0, this is the address we should stop at</param>
+        /// <param name="stopOnRts">True if we should stop on RTS. Won't stop on any RTS encountered during subroutines</param>
         /// <param name="failOnBrk">True if an encountered BRK instruction should fail the associated test.</param>
         /// <returns>True if we're exiting cleanly, False otherwise</returns>
-        public bool RunRoutine(int address, string stopOn, bool failOnBrk)
+        public bool RunRoutine(int address, int stopOnAddress, bool stopOnRts = true, bool failOnBrk = true)
         {
             var keepRunning = true;
             var subroutineCount = 1;
@@ -264,7 +269,7 @@ namespace sim6502.Proc
                 {
                     subroutineCount--;
 
-                    if (subroutineCount == 0 && "rts".Equals(stopOn.ToLower()))
+                    if (subroutineCount == 0 && stopOnRts)
                         keepRunning = false;
                 }
 
@@ -275,6 +280,11 @@ namespace sim6502.Proc
                         exitCleanly = false;
                 }
 
+                if (ProgramCounter == stopOnAddress && stopOnAddress > 0)
+                {
+                    keepRunning = false;
+                }
+                
                 NextStep();
             } while (keepRunning);
 
@@ -317,16 +327,17 @@ namespace sim6502.Proc
         /// <param name="offset">The offset in memory when loading the program.</param>
         /// <param name="program">The program to be loaded</param>
         /// <param name="initialProgramCounter">The initial PC value, this is the entry point of the program</param>
-        public void LoadProgram(int offset, byte[] program, int initialProgramCounter)
+        /// <param name="reset">Should the processor be reset after load? Defaults to false</param>
+        public void LoadProgram(int offset, byte[] program, int initialProgramCounter, bool reset = true)
         {
             LoadProgram(offset, program);
-
             var bytes = BitConverter.GetBytes(initialProgramCounter);
+            if (!reset) return;
 
             // Write the initialProgram Counter to the reset vector
             WriteMemoryValue(0xFFFC, bytes[0]);
             WriteMemoryValue(0xFFFD, bytes[1]);
-
+                
             // Reset the CPU
             Reset();
         }
@@ -343,11 +354,9 @@ namespace sim6502.Proc
 
             if (program.Length > Memory.Length + offset)
                 throw new InvalidOperationException(
-                    $"Program Size '{program.Length}' Cannot be Larger than Memory Size '{Memory.Length}' plus offset '{offset}'");
+                    $"Program Size '{program.Length.ToString()}' Cannot be Larger than Memory Size '{Memory.Length.ToString()}' plus offset '{offset.ToString()}'");
 
             for (var i = 0; i < program.Length; i++) Memory[i + offset] = program[i];
-
-            Reset();
         }
 
         /// <summary>
@@ -387,6 +396,9 @@ namespace sim6502.Proc
         public virtual byte ReadMemoryValueWithoutCycle(int address)
         {
             var value = Memory[address];
+            
+            Logger.Trace($"Read BYTE value {value.ToString()} from location {address.ToString()}");
+            
             return value;
         }
 
@@ -399,8 +411,11 @@ namespace sim6502.Proc
         {
             var lobyte = ReadMemoryValueWithoutCycle(address);
             var hibyte = ReadMemoryValueWithoutCycle(address + 1);
-
-            return hibyte * 256 + lobyte;
+            var value = hibyte * 256 + lobyte;
+            
+            Logger.Trace($"Read WORD value {value.ToString()} from location {address.ToString()} and {(address + 1).ToString()}");
+            
+            return value;
         }
 
         /// <summary>
@@ -421,6 +436,8 @@ namespace sim6502.Proc
         /// <param name="data">The data to write</param>
         public virtual void WriteMemoryValueWithoutIncrement(int address, byte data)
         {
+            Logger.Trace($"Writing BYTE {data.ToString()} to address {address.ToString()}");
+            
             Memory[address] = data;
         }
 
@@ -434,8 +451,22 @@ namespace sim6502.Proc
             var page = Convert.ToByte(word / 256);
             var b = Convert.ToByte(word - page * 256);
 
+            Logger.Trace($"Writing WORD {word.ToString()} to address {address.ToString()} and {(address + 1).ToString()}");
+            
             Memory[address] = b;
             Memory[address + 1] = page;
+        }
+
+        public virtual void WriteMemoryValue(int address, int value)
+        {
+            if (value > 255)
+            {
+                WriteMemoryWord(address, value);
+            }
+            else
+            {
+                WriteMemoryValueWithoutIncrement(address, (byte)value);
+            }
         }
 
         /// <summary>
@@ -1566,7 +1597,7 @@ namespace sim6502.Proc
                 }
 
                 default:
-                    throw new NotSupportedException($"The OpCode {CurrentOpCode} is not supported");
+                    throw new NotSupportedException($"The OpCode {CurrentOpCode.ToString()} @ address {ProgramCounter.ToString()} is not supported.");
             }
         }
 
@@ -1905,7 +1936,7 @@ namespace sim6502.Proc
                 DisassemblyOutput = disassembledStep
             };
 
-            Logger.Debug(
+            Logger.Trace(
                 "${0} : {1}{2}{3} {4} {5} A: {6} X: {7} Y: {8} SP {9} N: {10} V: {11} B: {12} D: {13} I: {14} Z: {15} C: {16}",
                 ProgramCounter.ToString("X").PadLeft(4, '0'),
                 CurrentOpCode.ToString("X").PadLeft(2, '0'),
@@ -2125,7 +2156,7 @@ namespace sim6502.Proc
                     return AddressingMode.ZeroPageX;
                 }
                 default:
-                    throw new NotSupportedException($"Opcode {CurrentOpCode} is not supported");
+                    throw new NotSupportedException($"The OpCode {CurrentOpCode.ToString()} @ address {ProgramCounter.ToString()} is not supported.");
             }
         }
 

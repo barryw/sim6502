@@ -65,6 +65,11 @@ namespace sim6502.Utilities
             {
                 retval = Convert.ToInt32(number, 16);
             }
+            else if (number.StartsWith("%"))
+            {
+                number = number.Replace("%", "");
+                retval = Convert.ToInt32(number, 2);
+            }
             else
             {
                 retval = int.Parse(number);
@@ -91,18 +96,19 @@ namespace sim6502.Utilities
 
         public static void LoadFileIntoProcessor(Processor proc, int address, string filename, bool stripHeader = false)
         {
-            Logger.Debug($"Loading {filename} @ {address.ToHex()}");
+            Logger.Trace($"Loading {filename} @ {address.ToHex()}");
             FileExists(filename);
             using var file = new FileStream(filename, FileMode.Open, FileAccess.Read);
             var program = new List<byte>(StreamToBytes(file));
 
             if (stripHeader)
             {
+                Logger.Trace($"Stripping header bytes before load.");
                 program.RemoveAt(0);
                 program.RemoveAt(0);
             }
 
-            proc.LoadProgram(address, program.ToArray());
+            proc.LoadProgram(address, program.ToArray(), address, false);
         }
 
         private static IEnumerable<byte> StreamToBytes(Stream stream)

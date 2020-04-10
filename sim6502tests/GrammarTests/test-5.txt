@@ -1,0 +1,15 @@
+suites {
+  suite("Test Suite 5") {
+    ; Load the program under test
+    symbols("TestPrograms/include_me_full.sym")
+    load("TestPrograms/include_me_full.prg", strip_header = true)
+
+    test("test-1", "Test JSR function") {
+        [r0L] = $bd     ; Write the value $bd
+        [r1] = $1234    ; Write to location $1234
+        [r2] = $12c     ; Write 300 bytes
+        
+        jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
+    }
+  }
+}

@@ -22,19 +22,11 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-using YamlDotNet.Serialization;
-
-// ReSharper disable UnusedAutoPropertyAccessor.Global
-
-namespace sim6502.UnitTests
+namespace sim6502.Expressions
 {
-    // ReSharper disable once ClassNeverInstantiated.Global
-    public class Tests
+    public class ComparisonResult
     {
-        [YamlMember(Alias = "init", ApplyNamingConventions = false)]
-        public TestInit Init { get; set; }
-
-        [YamlMember(Alias = "unit_tests", ApplyNamingConventions = false)]
-        public TestUnitTests UnitTests { get; set; }
+        public string FailureMessage { get; set; }
+        public bool ComparisonPassed { get; set; } = true;
     }
 }

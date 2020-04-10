@@ -41,6 +41,8 @@ namespace sim6502.Utilities
         
         private Dictionary<string, int> Symbols { get; } = new Dictionary<string, int>();
 
+        public int SymbolCount => Symbols.Count;
+
         public SymbolFile(string symbolfile)
         {
             _symbolfile = symbolfile.Trim().Split(
@@ -48,6 +50,11 @@ namespace sim6502.Utilities
                 StringSplitOptions.None
             );
             ParseSymbolFile();
+        }
+
+        public SymbolFile(Dictionary<string, int> symbols)
+        {
+            Symbols = symbols;
         }
 
         private void ParseSymbolFile()

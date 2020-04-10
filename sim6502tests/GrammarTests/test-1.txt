@@ -1,0 +1,16 @@
+suites {
+  suite("Test Suite 1") {
+    ; Load the program under test
+    load("TestPrograms/include_me_full.prg", strip_header = true)
+
+    test("test-1", "Quick test of assignments") {
+      ; Test to make sure we can resolve symbols
+      [Loc1] = $abcd
+      [Loc2] = $d0
+            
+      ; Make sure we can write to ZP and non-ZP addresses
+      $c002 = $dcba
+      $81 = $0d
+    }
+  }
+}
