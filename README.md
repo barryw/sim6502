@@ -16,51 +16,202 @@ It works by running your assembled programs with a 6502 simulator and then allow
 
 A minimal test suite looks like this:
 
-```yaml
-init:
-  load:
-  - filename: kernal.rom
-    address: $e000
-  - filename: basic.rom
-    address: $a000
-  - filename: character.rom
-    address: $d000
-unit_tests:
-  program: my_awesome_program.prg
-  tests:
-  - name: timer-single-disables-on-update
-    description: Single shot timer disables when it hits 0
-    set_memory:
-    - description: Enable timer 0
-      address: "{c64lib_timers}"
-      byte_value: "{ENABLE}"
-    - description: This is a single-shot timer
-      address: "{c64lib_timers} + 1"
-      byte_value: "{TIMER_SINGLE}"
-    - description: Current value
-      address: "{c64lib_timers} + 2"
-      word_value: "$01"
-    - description: Frequency
-      address: "{c64lib_timers} + 4"
-      word_value: "{TIMER_ONE_SECOND}"
-    - description: Timer call address
-      address: "{c64lib_timers} + 6"
-      word_value: "{UpdateScreen}"
-    jump_address: "{UpdateTimers}"
-    stop_on: rts
-    fail_on_brk: true
-    assert:
-    - description: Timer is disabled
-      address: "{c64lib_timers}"
-      op: eq
-      byte_value: "{DISABLE}"
+```
+suites {
+  suite("Tests against hardware register library") {
+    ; Load the program under test
+    symbols("/code/include_me_full_r.sym")
+    load("/code/include_me_full_r.prg")
+    load("/code/kernal.rom", address = $e000)
+
+    test("sprites-positions-correctly-without-msb","Sprite X pos < 256 sets MSB to 0") {
+      x = $00
+      a = $ff
+      y = $00
+      $02 = $40
+      [vic.MSIGX] = $00
+
+      jsr([PositionSprite], stop_on_rts = true, fail_on_brk = true)
+
+      assert([vic.SP0X]   == $ff, "Sprite 0's X pos is at ff")
+      assert([vic.SP0Y]   == $40, "Sprite 0's Y pos is at $40")
+      assert([vic.MSIGX]  == $00, "And sprite 0's MSB is set to 0")
+    }
+  }
+
+  suite("Tests against pseudo register library") {
+    ; Load the program under test
+    symbols("/code/include_me_full.sym")
+    load("/code/include_me_full.prg", strip_header = true)
+    load("/code/kernal.rom", address = $e000)
+
+    test("memory-fill-1", "Fill an uneven block of memory") {
+      [r0L] = $bd   ; Stuff $bd into our memory locations. Odd number, right?
+      [r1] = $1234  ; Start at $1234
+      [r2] = $12c   ; and do 300 bytes
+
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
+
+      assert(cycles < 11541, "We can fill this block in fewer than 11541 cycles")
+      assert(memchk($1234, $12c, $bd), "Memory was filled properly")
+    }
+  }
+}
+
 ```
 
-If your code requires kernal, basic or character roms, you will need to provide them and place them in the same directory as the rest of your files.
+Each file can contain one or more `suite`s and each suite can contain one more more `test`s. Each suite is tied to a set of binary object files that are the subjects to be tested.
 
-You'll also notice things like this: `{UpdateTimers}`. These are symbols referenced from a generated Kickassembler symbol file. These are very handy and allow you to reference symbols from your source in your test suite so that you don't have to hard-code values. If you're creating constants in your source, use the Kickassembler directive `.label` to define them, and they will show up in your symbol file.
+Start your suite by giving it a name. Call it whatever you'd like since the name isn't significant. It's used to identify the suite in output.
 
-The symbol file for the above snippet might look like this:
+```
+suites {
+  suite("My awesome new test suite! Sweet!") {
+  }
+}
+```
+
+Inside the suite you'll first need to define the programs that you'd like to test. You can also load other things that your test code may need. You can include things like the C64 KERNAL, BASIC, etc.
+
+```
+suites {
+  suite("My awesome new test suite! Sweet!") {
+    load("/code/include_me_full.prg", strip_header = true)
+    load("/code/kernal.rom", address = $e000)
+  }
+}
+```
+
+If you don't specify the binary file's `address`, it will be inferred by looking at the first 2 bytes of the file. These will be the 16-bit load address. If you don't specify `address`, then you'll need to specify `strip_header = true` so that those 2 bytes are removed before loading to memory.
+
+You can also include a kickassembler symbol file so that you can use symbol references instead of hardcoded values and addresses.
+
+```
+suites {
+  suite("My awesome new test suite! Sweet!") {
+    symbols("/code/include_me_full.sym")
+    load("/code/include_me_full.prg", strip_header = true)
+    load("/code/kernal.rom", address = $e000)
+  }
+}
+```
+
+Next, start writing your tests. Tests have 3 main blocks: memory assignment, calling subroutines, assertions. You use the memory assignment area to set things up to test your code. Once memory is set up, you can then call subroutines in the code you want to test. When the subroutine's exit condition is reached, assertions will be performed to make sure your code did what it was supposed to. Here's an example:
+
+```
+suites {
+  suite("My awesome new test suite! Sweet!") {
+    ; Any line that starts with a semi-colon is treated as a comment
+    symbols("/code/include_me_full.sym")
+    load("/code/include_me_full.prg", strip_header = true)
+    load("/code/kernal.rom", address = $e000)
+
+    test("memory-fill-1", "Fill an uneven block of memory") {
+      [r0L] = $bd   ; Stuff $bd into our memory locations. Odd number, right?
+      [r1] = $1234  ; Start at $1234
+      [r2] = $12c   ; and do 300 bytes
+
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
+
+      assert(cycles < 11541, "We can fill this block in fewer than 11541 cycles")
+      assert(memchk($1234, $12c, $bd), "Memory was filled properly")
+    }
+  }
+}
+```
+
+This code contains a single test in a single suite. The test is named `memory-fill-1` and has a description of `Fill an uneven block of memory`. These are not significant and are only used to identify the test in output.
+
+The first 3 lines of the test are memory assignment lines. They refer to symbols contained in the symbol file `include_me_full.sym`, which must exist or the test fails.
+
+Once these symbols are resolved to a location, the value to the right of the equals sign is placed in that memory location. If the value is > 255, then a 16-bit word is placed at the symbol location and symbol location +1 ([r1] & [r1] + 1).
+
+The `jsr` line will start executing code starting at the address given, which in this case is a symbol called `FillMemory`. The `jsr` function can take 3 parameters:
+
+- stop_on_rts = true|false : Whether to stop executing when a `rts` instruction is encountered. The code will only return if the `rts` instruction exists at the same level as the subroutine. For example, if your subroutine calls other routines, those `rts` calls won't trigger the jsr to exit.
+- stop_on_address = address : If specified, the jsr call will return when the program counter reaches this address.
+- fail_on_brk = true|false : Whether to fail the test if a `brk` instruction is encountered.
+
+
+Once your subroutine exits, the assertions will be run in order. You can assert any of these things:
+
+- memory location values using either the address or a symbol reference (eg. `[vic.SP0X] == $01` or `$3000 == $80`)
+- processor cycle counts to ensure that code performs as expected (eg. `cycles < 80`)
+- memory compares to verify that copy operations work correctly (eg. `assert(memcmp($e000, $4000, $2000), "Ensure that KERNAL was copied correctly")`)
+- memory check to verify that fill operations work correctly (eg. `assert(memchk($1234, $12c, $bd), "Memory was filled properly")`)
+
+The expression syntax is very flexible so that you can do things like this:
+
+```
+assert([c64lib_timers] + $00 + peekbyte([r2H]) * 8 == [ENABLE], "Timer enabled")
+assert([c64lib_timers] + $01 + peekbyte([r2H]) * 8 == [TIMER_SINGLE], "Timer type is single")
+assert(([c64lib_timers] + $02 + peekbyte([r2H]) * 8).w == $1000, "Timer's current value")
+assert(([c64lib_timers] + $04 + peekbyte([r2H]) * 8).w == $1000, "Timer's frequency")
+assert(([c64lib_timers] + $06 + peekbyte([r2H]) * 8).w == [ReadJoysticks], "Timer's callback address")
+```
+
+You can tell the CLI whether to return a byte or a word from a memory location by using the `.b` and `.w` suffix on the address expression. By default, a byte will be returned. (eg. `[MyVector].w`)
+
+You can also return the hi and lo byte for 16-bit number by using the `.l` and `.h` suffix (eg. `[MyVector].h`)
+
+#### Running
+
+You'll need to have the following things available to the test CLI:
+
+- Your assembled 6502 program in .prg format. If the first 2 bytes don't contain the load address, then you'll need to specify the address with the `address` parameter.
+- Your Kickassembler symbol file. While not required, makes testing a LOT easier!
+- Your test file
+
+Run the CLI with:
+
+```bash
+dotnet Sim6502TestRunner.dll -s {path to your test script}
+```
+
+If all of your tests pass, the CLI will exit with a return code of 0. If any tests fail, it will return with a 1.
+
+If you'd like to see the assembly language instructions that it executes while running your tests, add the `-t` flag:
+
+```bash
+dotnet Sim6502TestRunner.dll -t -s {path to your test script}
+```
+
+There is also a docker image if you'd like to not have to mess with installing the .NET Core framework. You can run it like this:
+
+```bash
+docker run -v ${PWD}:/code -it barrywalker71/sim6502cli:latest -s /code/{your test script} -t
+```
+
+That would mount the current directory to a directory in the container called `/code` and would expect to see all of your artifacts there, unless you've given them absolute paths. Just make sure you update your test script to point to the correct location of any roms and programs.
+
+If you'd like to see a larger example of this tool in action, run `make` from the `example` folder. It's the test suite from my c64lib project.
+
+
+##### Function Reference
+
+- memcmp(source, target, size): Compare 2 blocks of memory
+- memchk(source, size, value): Ensure that a block of memory contains `value`
+- peekbyte(address): Return the 8-bit value at `address`
+- peekword(address): Return the 16-bit value at `address` and `address + 1`
+
+
+##### Symbol File Reference
+
+The only supported symbol file right now is Kickassembler's. To load symbols from a symbol file, load it from the top of your suite with the `symbols` function:
+
+```
+symbols("/code/include_me_full.sym")
+```
+
+You can reference symbols within your tests by wrapping the symbol name in brackets:
+
+```
+[MySymbol]
+```
+
+The symbol must exist, or the test will fail.
+
+The format of the symbol file looks like this:
 
 ```
 .label ENABLE=$80
@@ -98,123 +249,10 @@ The CLI also supports symbol files containing namespaces:
 }
 ```
 
-If you wanted to reference the symbol `SP0X` inside of the `vic` namespace, you'd reference it as `{vic.SP0X}`.
+If you wanted to reference the symbol `SP0X` inside of the `vic` namespace, you'd reference it as `[vic.SP0X]`.
 
-You can also perform simple expressions like `{UpdateTimers} + 1` or `peekword({r0L})` in both `set_memory` and in your `assert` expressions.
+You can also perform simple expressions like `[UpdateTimers] + 1` or `peekword([r0L])`.
 
-The CLI's expression parser understands these functions:
-
-- `peekword(address)`: returns the 16-bit word starting at location `address`
-- `peekbyte(address)`: returns the byte at location `address`
-
-The `6502tests` project is a good place to look to see what the expression parser supports.
-
-Currently, you can perform the following assertions:
-
-Cycle count assertion: makes sure that the code executes within the specified number of clock cycles
-```yaml
-- description: Make sure we're executing within 85 cycles
-  type: cycle_count
-  op: lt
-  cycle_count: 85
-```
-
-Memory test assertion: makes sure that the memory values contain what we expect
-```yaml
-- description: Enabled
-  type: memory_test
-  address: "{c64lib_timers} + 0 + peekbyte({r2H}) * 8"
-  op: eq
-  byte_value: "{ENABLE}"
-```
-
-Memory block assertion: check an entire block of memory to make sure it's set to a single value
-```yaml
-- description: Timer memory is cleared
-  type: memory_block
-  address: "{c64lib_timers}"
-  byte_count: "{TIMER_STRUCT_BYTES}"
-  byte_value: "$00"
-```
-
-Memory block compare assertion: compare 2 blocks of memory to ensure that they're identical
-```yaml
-- description: Memory copied successfully
-  type: memory_block_compare
-  address: "$e000"
-  target: "$4000"
-  byte_count: "$2000"
-```
-
-Processor register assertion (A, X, Y, PC, S, N, V, D, I, Z, C): ensures that the processor's registers and flags contain what we expect
-```yaml
-- description: Check A register's value
-  type: processor_register
-  register: a
-  op: eq
-  byte_value: "$21"
-```
-
-If you're checking one of the processor flags (N, V, D, I, Z, C), then specify the `byte_value` as `1` for `enabled` and `0` for `disabled`.
-```yaml
-- description: Ensure the carry flag is set
-  type: processor_register
-  register: c
-  op: eq
-  byte_value: "1"
-```
-
-The `type` attribute can be one of:
-
-- memory_block_compare: compare 2 blocks of memory to ensure they're the same
-- memory_block: make sure a block of memory contains the same byte value
-- memory_test: make sure a memory location contains what you expect
-- processor_register: make sure one of the processor registers contains what you expect
-- cycle_count: make sure the number of cycles it takes to execute a routine are what you expect
-
-If the `type` attribute isn't specified, a warning will be displayed and a null assertion will be performed which always returns `true`.
-
-The `op` attribute can be one of:
-
-- eq: equal to
-- gt: greater than
-- lt: less than
-- ne: not equal to
-
-If the `op` attribute isn't specified, a warning will be displayed and the default of `eq` will be used.
-
-
-#### Running
-
-You'll need to have the following things available to the test CLI:
-
-- Your assembled 6502 program in .prg format. If the first 2 bytes don't contain the load address, then you'll need to specify the address as `unit_tests.address`
-- Your Kickassembler symbol file. While not required, makes testing a LOT easier!
-- Your test YAML
-
-Run the CLI with:
-
-```bash
-dotnet Sim6502TestRunner.dll -s {path to your symbolfile} -y {path to your test yaml}
-```
-
-If all of your tests pass, the CLI will exit with a return code of 0. If any tests fail, it will return with a 1.
-
-If you'd like to see the assembly language instructions that it executes while running your tests, add the `-d` flag:
-
-```bash
-dotnet Sim6502TestRunner.dll -d -s {path to your symbolfile} -y {path to your test yaml}
-```
-
-There is also a docker image if you'd like to not have to mess with installing the .NET Core framework. You can run it like this:
-
-```bash
-docker run -v ${PWD}:/code -it barrywalker71/sim6502cli:latest -y /code/{your test yaml} -s /code/{your symbol file} -d
-```
-
-That would mount the current directory to a directory in the container called `/code` and would expect to see all of your artifacts there, unless you've given them absolute paths. Just make sure you update your tests yaml to point to the correct location of any roms and programs.
-
-If you'd like to see a larger example of this tool in action, run `make` from the `example` folder. It's the test suite from my c64lib project.
 
 #### What's missing?
 

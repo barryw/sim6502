@@ -13,4 +13,4 @@ This directory contains a decent sized test suite on my c64lib project (https://
 
 The 6502 Unit Test CLI is run as a Docker container, so you will need to have Docker running.
 
-Run the tests by running `make` in this directory. The test definitions are in `tests.yaml` and the code under test is `include_me_full.prg`
+Run the tests by running `make` in this directory. The test definitions are in `tests.6502` and the code under test is `include_me_full.prg`
