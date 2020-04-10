@@ -17,7 +17,7 @@ jobs:
       with:
         image: barrywalker71/sim6502cli
         tag: latest
-        registry: index.docker.io
+        registry: registry.hub.docker.com
         dockerfile: Dockerfile
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
