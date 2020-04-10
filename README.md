@@ -6,6 +6,8 @@
       \___/____/ \___/____|  \____/|_| |_|_|\__|    |_|\___||___/\__|  \_____|______|_____|
 
 
+![.NET Core](https://github.com/barryw/sim6502/workflows/.NET%20Core/badge.svg)
+
 #### Introduction
 
 This is a tool to help you unit test your 6502 assembly language programs. There's no valid reason why your 6502 programs shouldn't receive the same DevOps treatment as the rest of your modern applications.

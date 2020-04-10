@@ -59,7 +59,8 @@ namespace sim6502
 
         private static int Main(string[] args)
         {
-            var versionInfo = FileVersionInfo.GetVersionInfo(Assembly.GetEntryAssembly()?.Location);
+            var assembly = Assembly.GetEntryAssembly()?.Location;
+            var versionInfo = FileVersionInfo.GetVersionInfo(assembly);
             
             Logger.Info($"{versionInfo.ProductName} v{versionInfo.ProductVersion} {versionInfo.LegalCopyright}");
             Logger.Info("https://github.com/barryw/sim6502");
