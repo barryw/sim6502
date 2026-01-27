@@ -3875,5 +3875,162 @@ namespace sim6502tests
         }
 
         #endregion
+
+        #region RunRoutine Tests - stop_on_rts, fail_on_brk, stop_on_address
+
+        [Fact]
+        public void RunRoutine_StopOnRts_Stops_On_Rts()
+        {
+            var processor = new Processor();
+            // Set up a proper return address on the stack so RTS works correctly
+            // Stack at 0x01FF-0x0100, SP starts at 0xFF
+            // Push return address 0x1FFF (will return to 0x2000)
+            processor.WriteMemoryValue(0x01FF, 0x1F);  // High byte
+            processor.WriteMemoryValue(0x01FE, 0xFF);  // Low byte
+            processor.StackPointer = 0xFD;  // Point below the pushed address
+
+            // Simple routine: NOP, NOP, RTS
+            processor.LoadProgram(0x1000, new byte[] { 0xEA, 0xEA, 0x60 }, 0x1000, reset: false);
+
+            var result = processor.RunRoutine(0x1000, 0, stopOnRts: true, failOnBrk: true);
+
+            result.Should().BeTrue("routine should exit cleanly on RTS");
+            // RTS pops 0x1FFF and adds 1, so PC = 0x2000
+            processor.ProgramCounter.Should().Be(0x2000, "PC should be at return address + 1");
+        }
+
+        [Fact]
+        public void RunRoutine_StopOnRts_False_Does_Not_Stop_On_Rts()
+        {
+            var processor = new Processor();
+            // Routine: NOP, RTS, BRK (should hit BRK if stop_on_rts is false)
+            processor.LoadProgram(0x1000, new byte[] { 0xEA, 0x60, 0x00 }, 0x1000);
+
+            var result = processor.RunRoutine(0x1000, 0, stopOnRts: false, failOnBrk: true);
+
+            result.Should().BeFalse("routine should fail because it hit BRK after ignoring RTS");
+        }
+
+        [Fact]
+        public void RunRoutine_StopOnRts_Tracks_Subroutine_Depth()
+        {
+            var processor = new Processor();
+            // Set up stack for the final RTS to return cleanly
+            processor.WriteMemoryValue(0x01FF, 0x2F);  // High byte - return to 0x3000
+            processor.WriteMemoryValue(0x01FE, 0xFF);  // Low byte
+            processor.StackPointer = 0xFD;
+
+            // Main routine at 0x1000: JSR 0x2000, NOP, RTS
+            // Subroutine at 0x2000: NOP, RTS
+            processor.LoadProgram(0x1000, new byte[] { 0x20, 0x00, 0x20, 0xEA, 0x60 }, 0x1000, reset: false);
+            processor.LoadProgram(0x2000, new byte[] { 0xEA, 0x60 }, 0x2000, reset: false);
+
+            var result = processor.RunRoutine(0x1000, 0, stopOnRts: true, failOnBrk: true);
+
+            result.Should().BeTrue("routine should exit cleanly");
+            // JSR pushes return addr, subroutine RTS returns to 0x1003,
+            // NOP executes, main RTS pops our setup address and goes to 0x3000
+            processor.ProgramCounter.Should().Be(0x3000, "PC should be at the return address we set up");
+        }
+
+        [Fact]
+        public void RunRoutine_FailOnBrk_True_Fails_On_Brk()
+        {
+            var processor = new Processor();
+            // Routine: NOP, BRK
+            processor.LoadProgram(0x1000, new byte[] { 0xEA, 0x00 }, 0x1000);
+
+            var result = processor.RunRoutine(0x1000, 0, stopOnRts: true, failOnBrk: true);
+
+            result.Should().BeFalse("routine should fail when hitting BRK with fail_on_brk=true");
+        }
+
+        [Fact]
+        public void RunRoutine_FailOnBrk_False_Does_Not_Fail_On_Brk()
+        {
+            var processor = new Processor();
+            // Routine: NOP, BRK
+            processor.LoadProgram(0x1000, new byte[] { 0xEA, 0x00 }, 0x1000);
+
+            var result = processor.RunRoutine(0x1000, 0, stopOnRts: true, failOnBrk: false);
+
+            result.Should().BeTrue("routine should exit cleanly when hitting BRK with fail_on_brk=false");
+        }
+
+        [Fact]
+        public void RunRoutine_StopOnAddress_Stops_At_Address()
+        {
+            var processor = new Processor();
+            // Routine: NOP, NOP, NOP, NOP (we want to stop at 0x1002)
+            processor.LoadProgram(0x1000, new byte[] { 0xEA, 0xEA, 0xEA, 0xEA }, 0x1000);
+
+            var result = processor.RunRoutine(0x1000, stopOnAddress: 0x1002, stopOnRts: true, failOnBrk: true);
+
+            result.Should().BeTrue("routine should exit cleanly when stopping at address");
+            processor.ProgramCounter.Should().Be(0x1003, "PC should be one past the stop address after NextStep");
+        }
+
+        [Fact]
+        public void RunRoutine_StopOnAddress_Zero_Does_Not_Trigger()
+        {
+            var processor = new Processor();
+            // Set up stack for RTS
+            processor.WriteMemoryValue(0x01FF, 0x2F);
+            processor.WriteMemoryValue(0x01FE, 0xFF);
+            processor.StackPointer = 0xFD;
+
+            // Routine: NOP, RTS (stop_on_address=0 should be ignored)
+            processor.LoadProgram(0x1000, new byte[] { 0xEA, 0x60 }, 0x1000, reset: false);
+
+            var result = processor.RunRoutine(0x1000, stopOnAddress: 0, stopOnRts: true, failOnBrk: true);
+
+            result.Should().BeTrue("routine should exit cleanly on RTS");
+            processor.ProgramCounter.Should().Be(0x3000, "PC should be at return address");
+        }
+
+        [Fact]
+        public void RunRoutine_StopOnAddress_Executes_Instruction_At_Stop_Address()
+        {
+            // NOTE: Current implementation executes the instruction at stop_on_address
+            // before stopping. This test documents that behavior.
+            var processor = new Processor();
+            // Routine: NOP at 0x1000, NOP at 0x1001, NOP at 0x1002
+            processor.LoadProgram(0x1000, new byte[] { 0xEA, 0xEA, 0xEA }, 0x1000);
+
+            var result = processor.RunRoutine(0x1000, stopOnAddress: 0x1001, stopOnRts: true, failOnBrk: true);
+
+            result.Should().BeTrue("routine should exit cleanly");
+            // PC is at 0x1002 because we execute the instruction at 0x1001 before stopping
+            processor.ProgramCounter.Should().Be(0x1002, "instruction at stop address is executed");
+        }
+
+        [Fact]
+        public void RunRoutine_StopOnAddress_With_BRK_At_Address_Still_Triggers_FailOnBrk()
+        {
+            // This documents current behavior: instruction at stop_on_address is executed
+            // So BRK at that address will still trigger fail_on_brk
+            var processor = new Processor();
+            processor.LoadProgram(0x1000, new byte[] { 0xEA, 0x00 }, 0x1000);
+
+            var result = processor.RunRoutine(0x1000, stopOnAddress: 0x1001, stopOnRts: true, failOnBrk: true);
+
+            result.Should().BeFalse("BRK at stop address is still executed and triggers failure");
+        }
+
+        [Fact]
+        public void RunRoutine_Accumulator_Is_Set_After_Routine()
+        {
+            var processor = new Processor();
+            // Routine: LDA #$42, RTS
+            // 0xA9 0x42 = LDA #$42, 0x60 = RTS
+            processor.LoadProgram(0x1000, new byte[] { 0xA9, 0x42, 0x60 }, 0x1000);
+
+            var result = processor.RunRoutine(0x1000, 0, stopOnRts: true, failOnBrk: true);
+
+            result.Should().BeTrue();
+            processor.Accumulator.Should().Be(0x42, "accumulator should be set by the routine");
+        }
+
+        #endregion
     }
 }

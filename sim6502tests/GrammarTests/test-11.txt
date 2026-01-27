@@ -1,0 +1,50 @@
+suites {
+  suite("Test Suite 11 - stop_on_address feature") {
+    ; Load the program and symbols
+    symbols("TestPrograms/include_me_full.sym")
+    load("TestPrograms/include_me_full.prg", strip_header = true)
+
+    test("stop-on-address-numeric", "Test stop_on_address with numeric address") {
+        ; Set up FillMemory parameters
+        [r0L] = $00     ; Fill value
+        [r1] = $1000    ; Start address
+        [r2] = $10      ; Size (16 bytes)
+
+        ; Start at FillMemory ($2195) and stop at CopyMemory address ($21b8) numerically
+        ; This verifies stop_on_address works with numeric addresses
+        jsr($2195, stop_on_address = $21b8, fail_on_brk = true)
+    }
+
+    test("stop-on-address-symbol-target", "Test stop_on_address with symbol reference for stop address") {
+        ; Set up FillMemory parameters
+        [r0L] = $00     ; Fill value
+        [r1] = $1000    ; Start address
+        [r2] = $10      ; Size (16 bytes)
+
+        ; Start at FillMemory (numeric) and stop at CopyMemory (symbol)
+        ; This verifies the grammar accepts symbols in stop_on_address position
+        jsr($2195, stop_on_address = [CopyMemory], fail_on_brk = true)
+    }
+
+    test("stop-on-address-both-symbols", "Test stop_on_address with symbols for both jsr target and stop address") {
+        ; Set up FillMemory parameters
+        [r0L] = $00     ; Fill value
+        [r1] = $1000    ; Start address
+        [r2] = $10      ; Size (16 bytes)
+
+        ; Both jsr target and stop_on_address use symbols
+        ; This is the full grammar test for symbol support
+        jsr([FillMemory], stop_on_address = [CopyMemory], fail_on_brk = true)
+    }
+
+    test("stop-on-address-nested-symbol", "Test stop_on_address with nested symbol (namespace.label)") {
+        ; Set up simple state
+        [r0L] = $00
+        [r1] = $1000
+        [r2] = $08
+
+        ; Use a nested symbol like Keyboard.Return
+        jsr([FillMemory], stop_on_address = [Keyboard.Return], fail_on_brk = true)
+    }
+  }
+}

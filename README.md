@@ -177,10 +177,10 @@ If you'd like to see the assembly language instructions that it executes while r
 dotnet Sim6502TestRunner.dll -t -s {path to your test script}
 ```
 
-There is also a docker image if you'd like to not have to mess with installing the .NET Core framework. You can run it like this:
+There is also a Docker image if you'd like to not have to mess with installing the .NET Core framework. You can run it like this:
 
 ```bash
-docker run -v ${PWD}:/code -it barrywalker71/sim6502cli:latest -s /code/{your test script} -t
+docker run -v ${PWD}:/code -it ghcr.io/barryw/sim6502:latest -s /code/{your test script} -t
 ```
 
 That would mount the current directory to a directory in the container called `/code` and would expect to see all of your artifacts there, unless you've given them absolute paths. Just make sure you update your test script to point to the correct location of any roms and programs.
@@ -188,13 +188,440 @@ That would mount the current directory to a directory in the container called `/
 If you'd like to see a larger example of this tool in action, run `make` from the `example` folder. It's the test suite from my c64lib project.
 
 
-##### Function Reference
+---
 
-- memcmp(source, target, size): Compare 2 blocks of memory
-- memchk(source, size, value): Ensure that a block of memory contains `value`
-- peekbyte(address): Return the 8-bit value at `address`
-- peekword(address): Return the 16-bit value at `address` and `address + 1`
+## Complete DSL Reference
 
+### File Structure
+
+Test files use a hierarchical structure:
+
+```
+suites {
+  suite("Suite Name") {
+    ; Suite-level configuration
+    symbols("path/to/symbols.sym")
+    load("path/to/program.prg", strip_header = true)
+
+    test("test-id", "Test Description") {
+      ; Test contents: assignments, jsr calls, assertions
+    }
+
+    test("another-test", "Another Test") {
+      ; ...
+    }
+  }
+
+  suite("Another Suite") {
+    ; ...
+  }
+}
+```
+
+### Comments
+
+Lines starting with `;` are comments and are ignored:
+
+```
+; This is a comment
+[r0L] = $ff  ; This is an inline comment
+```
+
+### Suite-Level Functions
+
+#### symbols(filename)
+Loads a KickAssembler symbol file. Must be called before symbols can be referenced.
+
+```
+symbols("path/to/program.sym")
+```
+
+#### load(filename, [address = addr], [strip_header = true|false])
+Loads a binary program into memory.
+
+| Parameter | Description |
+|-----------|-------------|
+| `filename` | Path to the .prg file |
+| `address` | Optional. Load address (overrides file header) |
+| `strip_header` | Optional. If `true`, skips the first 2 bytes (load address header) |
+
+```
+; Load with embedded address header (first 2 bytes)
+load("program.prg", strip_header = true)
+
+; Load at specific address
+load("kernal.rom", address = $e000)
+
+; Load with header intact (uses embedded load address)
+load("program.prg")
+```
+
+### Number Formats
+
+| Format | Syntax | Example |
+|--------|--------|---------|
+| Hexadecimal | `$xxxx` or `0xXXXX` | `$d020`, `0xFF` |
+| Decimal | Plain digits | `1234`, `255` |
+| Binary | `%xxxxxxxx` | `%10101010`, `%11110000` |
+
+### Boolean Values
+
+```
+true
+false
+```
+
+### Symbol References
+
+Symbols from loaded symbol files are referenced with square brackets:
+
+```
+[SymbolName]           ; Simple symbol
+[namespace.symbol]     ; Namespaced symbol (e.g., [vic.SP0X])
+```
+
+### Memory Addresses
+
+Addresses can be specified as numbers or symbol references:
+
+```
+$d020                  ; Hexadecimal address
+8192                   ; Decimal address
+[vic.SP0X]             ; Symbol reference
+```
+
+### Registers
+
+The 6502 registers can be read and written:
+
+| Register | Syntax |
+|----------|--------|
+| Accumulator | `a` or `A` |
+| X Index | `x` or `X` |
+| Y Index | `y` or `Y` |
+
+```
+a = $ff     ; Set accumulator to 255
+x = 0       ; Set X register to 0
+y = [r0L]   ; Set Y register from symbol value
+```
+
+### Processor Flags
+
+The processor status flags can be read and written:
+
+| Flag | Syntax | Description |
+|------|--------|-------------|
+| Carry | `c` or `C` | Carry flag |
+| Negative | `n` or `N` | Negative flag |
+| Zero | `z` or `Z` | Zero flag |
+| Decimal | `d` or `D` | Decimal mode flag |
+| Overflow | `v` or `V` | Overflow flag |
+
+```
+c = true    ; Set carry flag
+n = false   ; Clear negative flag
+z = 1       ; Set zero flag (1 = true)
+d = 0       ; Clear decimal flag (0 = false)
+v = [FALSE] ; Set from symbol
+```
+
+### Assignments
+
+#### Memory Assignment
+
+Write values to memory addresses:
+
+```
+$d020 = $0e              ; Write byte to address
+$c000 = $1234            ; Write word (2 bytes, little-endian)
+[vic.EXTCOL] = $00       ; Write to symbol address
+[r1] = $4000             ; Write word to symbol address
+```
+
+#### Expression Assignment
+
+Write to computed addresses:
+
+```
+[Loc1] + $02 = $d0       ; Write to symbol + offset
+$4000 + 8 = $ff          ; Write to address + offset
+```
+
+#### Register Assignment
+
+```
+a = $ff
+x = peekbyte($c000)
+y = [r0L] + 1
+```
+
+#### Flag Assignment
+
+```
+c = true
+n = false
+z = 1
+```
+
+### Expressions
+
+Expressions can combine values with operators:
+
+#### Arithmetic Operators
+
+| Operator | Description |
+|----------|-------------|
+| `+` | Addition |
+| `-` | Subtraction |
+| `*` | Multiplication |
+| `/` | Division |
+
+#### Bitwise Operators
+
+| Operator | Description |
+|----------|-------------|
+| `&` | Bitwise AND |
+| `\|` | Bitwise OR |
+| `^` | Bitwise XOR |
+
+#### Byte/Word Modifiers
+
+| Modifier | Description |
+|----------|-------------|
+| `.b` | Read/compare as byte (8-bit) - default |
+| `.w` | Read/compare as word (16-bit) |
+| `.l` | Low byte of 16-bit value |
+| `.h` | High byte of 16-bit value |
+
+```
+[MyVector].w             ; Read as 16-bit word
+[MyValue].b              ; Read as 8-bit byte (default)
+$1234.l                  ; Low byte = $34
+$1234.h                  ; High byte = $12
+```
+
+#### Expression Examples
+
+```
+[r0L] + 1
+$4000 + peekbyte([offset])
+[base] + peekbyte([index]) * 8
+([c64lib_timers] + $02).w
+peekword([r1]) & $ff00
+```
+
+### Built-in Functions
+
+#### peekbyte(address)
+Returns the 8-bit value at the specified address.
+
+```
+peekbyte($c000)
+peekbyte([r0L])
+```
+
+#### peekword(address)
+Returns the 16-bit value at address and address+1 (little-endian).
+
+```
+peekword($c000)          ; Returns value at $c000 (low) and $c001 (high)
+peekword([vector])
+```
+
+#### memchk(address, size, value)
+Returns `true` if all bytes in the memory range equal the specified value.
+
+```
+memchk($1234, $100, $00)           ; Check if 256 bytes are zero
+memchk([buffer], $40, $ff)         ; Check if 64 bytes are $ff
+```
+
+#### memcmp(source, target, size)
+Returns `true` if the two memory regions are identical.
+
+```
+memcmp($e000, $4000, $2000)        ; Compare 8KB regions
+memcmp([src], [dst], peekword([size]))
+```
+
+### JSR Function (Subroutine Execution)
+
+The `jsr` function executes code starting at the specified address:
+
+```
+jsr(address, stop_condition, fail_on_brk = true|false)
+```
+
+#### Stop Conditions
+
+You must specify ONE of these stop conditions:
+
+| Option | Description |
+|--------|-------------|
+| `stop_on_rts = true\|false` | Stop when RTS is executed at the original call level |
+| `stop_on_address = address` | Stop when program counter reaches this address |
+
+**Note:** When using `stop_on_address`, RTS instructions do NOT stop execution. The code continues until the specified address is reached.
+
+#### fail_on_brk Option
+
+| Value | Behavior |
+|-------|----------|
+| `true` | Test fails if BRK instruction is executed |
+| `false` | BRK stops execution but test continues |
+
+#### JSR Examples
+
+```
+; Stop when the subroutine returns
+jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
+
+; Stop at a specific address (numeric)
+jsr($2000, stop_on_address = $2100, fail_on_brk = true)
+
+; Stop at a specific address (symbol)
+jsr([FillMemory], stop_on_address = [CopyMemory], fail_on_brk = true)
+
+; Using namespaced symbol for stop address
+jsr([FillMemory], stop_on_address = [Keyboard.Return], fail_on_brk = false)
+```
+
+### Assertions
+
+Assertions verify that your code behaved correctly:
+
+```
+assert(comparison, "Description of what's being tested")
+```
+
+#### Comparison Operators
+
+| Operator | Description |
+|----------|-------------|
+| `==` | Equal to |
+| `!=` or `<>` | Not equal to |
+| `>` | Greater than |
+| `<` | Less than |
+| `>=` | Greater than or equal |
+| `<=` | Less than or equal |
+
+#### Assertion Types
+
+**Memory Value Assertions:**
+```
+assert($d020 == $0e, "Border color is light blue")
+assert([vic.SP0X] == $ff, "Sprite 0 X position is 255")
+assert(([MyVector].w) == $1000, "Vector points to $1000")
+```
+
+**Register Assertions:**
+```
+assert(a == $00, "Accumulator is zero")
+assert(x >= 8, "X register is at least 8")
+assert(y != $ff, "Y register is not $ff")
+```
+
+**Flag Assertions:**
+```
+assert(c == true, "Carry flag is set")
+assert(z == false, "Zero flag is clear")
+assert(n == true, "Negative flag is set")
+```
+
+**Cycle Count Assertions:**
+```
+assert(cycles < 1000, "Routine completed in under 1000 cycles")
+assert(cycles <= 500, "Routine is fast enough")
+```
+
+**Memory Check Assertions:**
+```
+assert(memchk($1234, $100, $bd), "Memory filled with $bd")
+assert(memcmp($e000, $4000, $2000), "Memory regions match")
+```
+
+**Complex Expression Assertions:**
+```
+assert([c64lib_timers] + $00 + peekbyte([r2H]) * 8 == [ENABLE], "Timer enabled")
+assert(([base] + $02).w == $1000, "Word value matches")
+```
+
+### Complete Test Example
+
+```
+suites {
+  suite("Memory Operations Test Suite") {
+    ; Load symbol file for symbolic references
+    symbols("c64lib.sym")
+
+    ; Load the program under test
+    load("c64lib.prg", strip_header = true)
+
+    ; Load C64 KERNAL ROM for any KERNAL calls
+    load("kernal.rom", address = $e000)
+
+    test("fill-memory-basic", "Fill 256 bytes with a pattern") {
+      ; Setup: Configure parameters for FillMemory routine
+      [r0L] = $aa          ; Fill value
+      [r1] = $4000         ; Start address
+      [r2] = $100          ; Size (256 bytes)
+
+      ; Clear destination first
+      a = $00
+      x = $00
+
+      ; Execute the routine
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
+
+      ; Verify results
+      assert(memchk($4000, $100, $aa), "Memory filled correctly")
+      assert(cycles < 5000, "Completed efficiently")
+    }
+
+    test("copy-memory-kernal", "Copy KERNAL ROM to RAM") {
+      ; Setup copy parameters
+      [r0] = $e000         ; Source: KERNAL ROM
+      [r1] = $4000         ; Destination
+      [r2] = $2000         ; Size: 8KB
+
+      ; Execute
+      jsr([CopyMemory], stop_on_rts = true, fail_on_brk = true)
+
+      ; Verify
+      assert(memcmp($e000, $4000, $2000), "KERNAL copied correctly")
+    }
+
+    test("sprite-position", "Position sprite without MSB") {
+      ; Setup sprite 0 position
+      x = $00              ; Sprite number
+      a = $ff              ; X position (< 256)
+      y = $40              ; Y position
+      $02 = $40            ; Y position in ZP
+      [vic.MSIGX] = $00    ; Clear MSB register
+
+      ; Execute sprite positioning
+      jsr([PositionSprite], stop_on_rts = true, fail_on_brk = true)
+
+      ; Verify sprite registers
+      assert([vic.SP0X] == $ff, "X position set correctly")
+      assert([vic.SP0Y] == $40, "Y position set correctly")
+      assert([vic.MSIGX] == $00, "MSB not set for X < 256")
+    }
+  }
+}
+```
+
+---
+
+##### Function Reference (Quick Reference)
+
+- `memcmp(source, target, size)`: Compare 2 blocks of memory
+- `memchk(source, size, value)`: Ensure that a block of memory contains `value`
+- `peekbyte(address)`: Return the 8-bit value at `address`
+- `peekword(address)`: Return the 16-bit value at `address` and `address + 1`
+
+---
 
 ##### Symbol File Reference
 

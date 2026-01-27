@@ -203,4 +203,17 @@ public class TestSuiteParser
 
         walker.Walk(sbl, tree);
     }
+
+    [Fact]
+    public void TestSuite11_StopOnAddressWithSymbols()
+    {
+        // This test validates that stop_on_address works with symbol references
+        // The grammar should accept both numeric and symbol forms for stop_on_address
+        var tree = GetContext("GrammarTests/test-11.txt");
+
+        var walker = new ParseTreeWalker();
+        var sbl = new SimBaseListener();
+
+        walker.Walk(sbl, tree);
+    }
 }
