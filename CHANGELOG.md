@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.3.1 - 2026-01-27
+#### Bug Fixes
+- (**grammar**) correct operator precedence and improve portability - (e5c2036) - Barry Walker
+
+- - -
+
 ## v3.3.0 - 2026-01-27
 #### Features
 - add stop_on_address tests and comprehensive DSL documentation - (fec8fa4) - Barry Walker
