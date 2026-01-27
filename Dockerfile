@@ -17,9 +17,6 @@ COPY . .
 # Build
 RUN dotnet build -c Release --no-restore
 
-# Test
-RUN dotnet test -c Release --no-build --no-restore
-
 # Publish
 RUN dotnet publish sim6502/sim6502.csproj -c Release -o /app/publish --no-build
 

@@ -1,6 +1,8 @@
 when:
   - event: push
     branch: main
+    # Skip version bump commits to prevent infinite loop
+    evaluate: 'not (CI_COMMIT_MESSAGE starts with "chore(version):")'
 
 labels:
   platform: linux/amd64
