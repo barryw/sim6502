@@ -6,104 +6,50 @@ labels:
   platform: linux/amd64
 
 steps:
-  # Determine next version based on conventional commits
-  - name: calculate-version
-    image: alpine
-    commands:
-      - apk add --no-cache git
-      - |
-        set -e
-        git fetch --tags --unshallow 2>/dev/null || git fetch --tags || true
-
-        # Get latest tag
-        LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-        echo "Latest tag: $LATEST_TAG"
-
-        # Parse current version
-        VERSION=$(echo "$LATEST_TAG" | sed 's/^v//')
-        MAJOR=$(echo "$VERSION" | cut -d. -f1)
-        MINOR=$(echo "$VERSION" | cut -d. -f2)
-        PATCH=$(echo "$VERSION" | cut -d. -f3)
-
-        # Get commits since last tag
-        if [ "$LATEST_TAG" = "v0.0.0" ]; then
-          COMMITS=$(git log --pretty=format:"%s" HEAD)
-        else
-          COMMITS=$(git log --pretty=format:"%s" "$LATEST_TAG..HEAD")
-        fi
-
-        if [ -z "$COMMITS" ]; then
-          echo "No commits since last tag"
-          echo "none" > .bump-type
-          exit 0
-        fi
-
-        # Determine bump type
-        BUMP="none"
-        if echo "$COMMITS" | grep -qE '^[a-z]+(\(.+\))?!:|BREAKING CHANGE:'; then
-          BUMP="major"
-        elif echo "$COMMITS" | grep -qE '^feat(\(.+\))?:'; then
-          BUMP="minor"
-        elif echo "$COMMITS" | grep -qE '^(fix|perf|refactor|build|ci|docs|style|test|chore)(\(.+\))?:'; then
-          BUMP="patch"
-        fi
-
-        echo "Bump type: $BUMP"
-
-        if [ "$BUMP" = "none" ]; then
-          echo "No conventional commits found"
-          echo "none" > .bump-type
-          exit 0
-        fi
-
-        # Calculate new version
-        case $BUMP in
-          major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
-          minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
-          patch) PATCH=$((PATCH + 1)) ;;
-        esac
-
-        NEW_VERSION="$MAJOR.$MINOR.$PATCH"
-        echo "New version: $NEW_VERSION"
-
-        echo "$NEW_VERSION" > .version
-        echo "v$NEW_VERSION" > .tag
-        echo "$BUMP" > .bump-type
-
-  # Build and test
   - name: build-and-test
     image: mcr.microsoft.com/dotnet/sdk:10.0
     commands:
-      - |
-        if [ -f .bump-type ] && [ "$(cat .bump-type)" = "none" ]; then
-          echo "No version bump, building with current version"
-          dotnet restore
-          dotnet build -c Release
-          dotnet test -c Release
-        else
-          VERSION=$(cat .version)
-          echo "Building version $VERSION"
-          dotnet restore
-          dotnet build -c Release /p:Version=$VERSION
-          dotnet test -c Release /p:Version=$VERSION
-        fi
-    depends_on: [calculate-version]
+      - dotnet restore
+      - dotnet build -c Release
+      - dotnet test -c Release
 
-  # Build and push Docker
+  - name: release
+    image: alpine
+    when:
+      - evaluate: 'CI_COMMIT_MESSAGE not contains "chore(release):"'
+    environment:
+      GITHUB_TOKEN:
+        from_secret: github_token
+    commands:
+      - apk add --no-cache git curl perl
+      - curl -sSL https://github.com/cocogitto/cocogitto/releases/latest/download/cocogitto-6.5.0-x86_64-unknown-linux-musl.tar.gz | tar xz
+      - mv cog /usr/local/bin/
+      - git config --global user.name "Woodpecker CI"
+      - git config --global user.email "ci@woodpecker.local"
+      - git config --global --add safe.directory "$CI_WORKSPACE"
+      - git fetch --unshallow --tags || git fetch --tags
+      - git remote set-url origin "https://x-access-token:$GITHUB_TOKEN@github.com/barryw/sim6502.git"
+      - |
+        if cog bump --auto --dry-run 2>&1 | grep -qE "(No conventional commits|already on)"; then
+          echo "No version bump needed"
+          exit 0
+        fi
+      - cog bump --auto
+      - git push origin HEAD:main --tags
+    depends_on: [build-and-test]
+
   - name: docker
     image: gcr.io/kaniko-project/executor:debug
+    when:
+      - evaluate: 'CI_COMMIT_MESSAGE not contains "chore(release):"'
     environment:
       GITHUB_TOKEN:
         from_secret: github_token
     commands:
       - |
-        if [ -f .bump-type ] && [ "$(cat .bump-type)" = "none" ]; then
-          echo "No version bump, skipping docker"
-          exit 0
-        fi
-
-        VERSION=$(cat .version)
-        echo "Building Docker image v$VERSION"
+        # Get version from latest tag (cog just created it)
+        VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.0.0")
+        echo "Building Docker image: $VERSION"
         mkdir -p /kaniko/.docker
         echo "{\"auths\":{\"ghcr.io\":{\"username\":\"barryw\",\"password\":\"$GITHUB_TOKEN\"}}}" > /kaniko/.docker/config.json
         /kaniko/executor \
@@ -111,36 +57,4 @@ steps:
           --dockerfile="$CI_WORKSPACE/Dockerfile" \
           --destination="ghcr.io/barryw/sim6502:v$VERSION" \
           --destination="ghcr.io/barryw/sim6502:latest"
-    depends_on: [build-and-test]
-
-  # Create git tag and push
-  - name: git-tag
-    image: alpine/git
-    environment:
-      GITHUB_TOKEN:
-        from_secret: github_token
-    commands:
-      - |
-        if [ -f .bump-type ] && [ "$(cat .bump-type)" = "none" ]; then
-          echo "No version bump, skipping git tag"
-          exit 0
-        fi
-
-        TAG=$(cat .tag)
-        VERSION=$(cat .version)
-        echo "Creating tag $TAG"
-
-        git config user.email "ci@woodpecker.local"
-        git config user.name "Woodpecker CI"
-        git remote set-url origin "https://x-access-token:$GITHUB_TOKEN@github.com/barryw/sim6502.git"
-
-        # Update csproj with version
-        sed -i "s|<Version>[0-9]*\.[0-9]*\.[0-9]*</Version>|<Version>$VERSION</Version>|g" sim6502/sim6502.csproj
-
-        git add sim6502/sim6502.csproj
-        git diff --staged --quiet || git commit -m "chore(release): bump version to $VERSION [skip ci]"
-        git push origin HEAD:main
-
-        git tag -a "$TAG" -m "Release $VERSION"
-        git push origin "$TAG"
-    depends_on: [docker]
+    depends_on: [release]
