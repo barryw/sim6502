@@ -113,7 +113,14 @@ namespace sim6502
             var parser = new sim6502Parser(tokens) {BuildParseTree = true};
             var tree = parser.suites();
             var walker = new ParseTreeWalker();
-            var sbl = new SimBaseListener();
+            var sbl = new SimBaseListener
+            {
+                FilterPattern = opts.FilterPattern,
+                SingleTest = opts.SingleTest,
+                FilterTags = opts.FilterTags,
+                ExcludeTags = opts.ExcludeTags,
+                ListOnly = opts.ListOnly
+            };
 
             walker.Walk(sbl, tree);
 

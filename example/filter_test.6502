@@ -1,0 +1,42 @@
+suites {
+  suite("Filter Test Suite") {
+    symbols("/code/include_me_full.sym")
+    load("/code/include_me_full.prg", strip_header = true)
+
+    test("apple-test-1", "Test for apple functionality", tags = "fruit,fast") {
+      [r0L] = $01
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
+      assert(cycles < 100, "Should be fast")
+    }
+
+    test("apple-test-2", "Another apple test", tags = "fruit,slow") {
+      [r0L] = $02
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
+      assert(cycles < 200, "Can be slower")
+    }
+
+    test("banana-test-1", "Test for banana functionality", tags = "fruit,fast") {
+      [r0L] = $03
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
+      assert(cycles < 100, "Should be fast")
+    }
+
+    test("carrot-test-1", "Test for carrot functionality", tags = "vegetable,fast") {
+      [r0L] = $04
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
+      assert(cycles < 100, "Should be fast")
+    }
+
+    test("carrot-test-2", "Another carrot test", tags = "vegetable,slow") {
+      [r0L] = $05
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
+      assert(cycles < 200, "Can be slower")
+    }
+
+    test("dragon-test-1", "Test for dragon functionality", tags = "animal,mythical") {
+      [r0L] = $06
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
+      assert(cycles < 150, "Dragon magic")
+    }
+  }
+}

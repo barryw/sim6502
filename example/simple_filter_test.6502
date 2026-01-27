@@ -1,0 +1,44 @@
+suites {
+  suite("Simple Filter Test Suite") {
+    ; Create a simple program that just returns
+    setup {
+      [$c000] = $60   ; RTS
+    }
+
+    test("apple-test-1", "Test for apple functionality", tags = "fruit,fast") {
+      a = $01
+      jsr($c000, stop_on_rts = true, fail_on_brk = false)
+      assert(a == $01, "Accumulator should still be 1")
+    }
+
+    test("apple-test-2", "Another apple test", tags = "fruit,slow") {
+      a = $02
+      jsr($c000, stop_on_rts = true, fail_on_brk = false)
+      assert(a == $02, "Accumulator should still be 2")
+    }
+
+    test("banana-test-1", "Test for banana functionality", tags = "fruit,fast") {
+      a = $03
+      jsr($c000, stop_on_rts = true, fail_on_brk = false)
+      assert(a == $03, "Accumulator should still be 3")
+    }
+
+    test("carrot-test-1", "Test for carrot functionality", tags = "vegetable,fast") {
+      a = $04
+      jsr($c000, stop_on_rts = true, fail_on_brk = false)
+      assert(a == $04, "Accumulator should still be 4")
+    }
+
+    test("carrot-test-2", "Another carrot test", tags = "vegetable,slow") {
+      a = $05
+      jsr($c000, stop_on_rts = true, fail_on_brk = false)
+      assert(a == $05, "Accumulator should still be 5")
+    }
+
+    test("dragon-test-1", "Test for dragon functionality", tags = "animal,mythical") {
+      a = $06
+      jsr($c000, stop_on_rts = true, fail_on_brk = false)
+      assert(a == $06, "Accumulator should still be 6")
+    }
+  }
+}

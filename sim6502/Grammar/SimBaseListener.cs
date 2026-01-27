@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Antlr4.Runtime.Tree;
 using NLog;
 using sim6502.Expressions;
@@ -26,6 +27,58 @@ namespace sim6502.Grammar
             if (text.Length >= 2 && text.StartsWith("\"") && text.EndsWith("\""))
                 return text.Substring(1, text.Length - 2);
             return text;
+        }
+
+        /// <summary>
+        /// Check if a test should run based on --test and --filter options.
+        /// --test takes priority (exact match), --filter uses glob pattern.
+        /// </summary>
+        private bool ShouldRunTest(string testName)
+        {
+            // --test takes priority (exact match)
+            if (!string.IsNullOrEmpty(SingleTest))
+                return testName.Equals(SingleTest, StringComparison.OrdinalIgnoreCase);
+
+            // --filter glob pattern
+            if (!string.IsNullOrEmpty(FilterPattern))
+            {
+                var pattern = "^" + System.Text.RegularExpressions.Regex.Escape(FilterPattern)
+                    .Replace("\\*", ".*")
+                    .Replace("\\?", ".") + "$";
+                if (!System.Text.RegularExpressions.Regex.IsMatch(testName, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                    return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Check if a test should run based on --filter-tag and --exclude-tag options.
+        /// </summary>
+        private bool ShouldRunByTags()
+        {
+            // Parse current test tags
+            var testTags = string.IsNullOrEmpty(_currentTestTags)
+                ? new List<string>()
+                : _currentTestTags.Split(',').Select(t => t.Trim()).ToList();
+
+            // --filter-tag (OR logic - at least one tag must match)
+            if (!string.IsNullOrEmpty(FilterTags))
+            {
+                var filterList = FilterTags.Split(',').Select(t => t.Trim()).ToList();
+                if (!filterList.Any(f => testTags.Contains(f, StringComparer.OrdinalIgnoreCase)))
+                    return false;
+            }
+
+            // --exclude-tag (exclude if any tag matches)
+            if (!string.IsNullOrEmpty(ExcludeTags))
+            {
+                var excludeList = ExcludeTags.Split(',').Select(t => t.Trim()).ToList();
+                if (excludeList.Any(e => testTags.Contains(e, StringComparer.OrdinalIgnoreCase)))
+                    return false;
+            }
+
+            return true;
         }
 
         // Whether the current test has passed
@@ -61,10 +114,18 @@ namespace sim6502.Grammar
 
         // Test options
         private bool _currentTestSkipped;
+        private bool _currentTestExplicitlySkipped;  // For tests with skip = true
         private bool _currentTestTraceEnabled;
         private int _currentTestTimeout;
         private string _currentTestTags;
-        
+
+        // Filter options
+        public string? FilterPattern { get; set; }
+        public string? SingleTest { get; set; }
+        public string? FilterTags { get; set; }
+        public string? ExcludeTags { get; set; }
+        public bool ListOnly { get; set; }
+
         public Processor Proc { get; set; }
         public SymbolFile Symbols { get; set; }
 
@@ -75,6 +136,7 @@ namespace sim6502.Grammar
             _testFailureMessages.Clear();
             _didJsr = false;
             _currentTestSkipped = false;
+            _currentTestExplicitlySkipped = false;
             _currentTestTraceEnabled = false;
             _currentTestTimeout = 0;
             _currentTestTags = "";
@@ -567,6 +629,7 @@ namespace sim6502.Grammar
                     {
                         // Parse boolean directly from text since we haven't exited the context yet
                         _currentTestSkipped = opt.boolean().GetText() == "true";
+                        _currentTestExplicitlySkipped = _currentTestSkipped;
                         Logger.Trace($"Test option: skip = {_currentTestSkipped}");
                     }
                     else if (opt.Trace() != null)
@@ -588,7 +651,35 @@ namespace sim6502.Grammar
                 }
             }
 
-            // If test is skipped, don't execute setup or test contents
+            // Get test name for filtering
+            var testName = StripQuotes(context.testName().GetText());
+
+            // --list mode: just output the name if it matches filters and return
+            if (ListOnly)
+            {
+                if (ShouldRunTest(testName) && ShouldRunByTags())
+                {
+                    Console.WriteLine($"  {testName}");
+                }
+                _currentTestSkipped = true;
+                return;
+            }
+
+            // Check if test matches name/pattern filter
+            if (!ShouldRunTest(testName))
+            {
+                _currentTestSkipped = true;
+                return;
+            }
+
+            // Check if test matches tag filters
+            if (!ShouldRunByTags())
+            {
+                _currentTestSkipped = true;
+                return;
+            }
+
+            // If test is skipped via skip option, don't execute setup or test contents
             if (_currentTestSkipped)
             {
                 Logger.Info("Test marked as skipped, will not execute");
@@ -612,10 +703,14 @@ namespace sim6502.Grammar
             var test = StripQuotes(context.testName().GetText());
             var description = StripQuotes(context.testDescription().GetText());
 
-            // Handle skipped tests
+            // Handle skipped tests (including those filtered out)
             if (_currentTestSkipped)
             {
-                Logger.Warn($"'{test} - {description}' : SKIPPED");
+                // Only log if it was explicitly skipped via skip = true option
+                if (_currentTestExplicitlySkipped)
+                {
+                    Logger.Warn($"'{test} - {description}' : SKIPPED");
+                }
                 TotalTestsSkipped++;
                 return;
             }
