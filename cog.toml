@@ -9,3 +9,44 @@ path = "CHANGELOG.md"
 authors = [
     { signature = "Barry Walker", username = "barryw" }
 ]
+
+# Make all commit types trigger patch bumps
+[commit_types.feat]
+changelog_title = "Features"
+bump_minor = true
+
+[commit_types.fix]
+changelog_title = "Bug Fixes"
+bump_patch = true
+
+[commit_types.docs]
+changelog_title = "Documentation"
+bump_patch = true
+
+[commit_types.style]
+changelog_title = "Style"
+bump_patch = true
+
+[commit_types.refactor]
+changelog_title = "Refactoring"
+bump_patch = true
+
+[commit_types.perf]
+changelog_title = "Performance"
+bump_patch = true
+
+[commit_types.test]
+changelog_title = "Tests"
+bump_patch = true
+
+[commit_types.build]
+changelog_title = "Build"
+bump_patch = true
+
+[commit_types.ci]
+changelog_title = "CI/CD"
+bump_patch = true
+
+[commit_types.chore]
+changelog_title = "Chores"
+bump_patch = true
