@@ -4,14 +4,13 @@ when:
   - event: tag
     ref: refs/tags/v*
 
-variables:
-  - &dotnet_image "mcr.microsoft.com/dotnet/sdk:10.0-preview"
+labels:
+  platform: linux/amd64
 
 steps:
   # Build and test
   - name: build-and-test
-    image: *dotnet_image
-    platform: linux/amd64
+    image: mcr.microsoft.com/dotnet/sdk:10.0-preview
     commands:
       - dotnet restore
       - dotnet build -c Release --no-restore
@@ -20,7 +19,6 @@ steps:
   # Version bump with cog (only on push to main, not tags)
   - name: version-bump
     image: alpine:latest
-    platform: linux/amd64
     when:
       - event: push
         branch: main
@@ -43,7 +41,6 @@ steps:
   # Build and push Docker image on tags using kaniko
   - name: docker-build-push
     image: gcr.io/kaniko-project/executor:latest
-    platform: linux/amd64
     when:
       - event: tag
         ref: refs/tags/v*
@@ -58,7 +55,6 @@ steps:
   # Build and push latest on main push using kaniko
   - name: docker-build-push-latest
     image: gcr.io/kaniko-project/executor:latest
-    platform: linux/amd64
     when:
       - event: push
         branch: main
