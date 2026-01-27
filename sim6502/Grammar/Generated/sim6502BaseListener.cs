@@ -565,6 +565,30 @@ public partial class sim6502BaseListener : Isim6502Listener {
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitMemoryChkFunction([NotNull] sim6502Parser.MemoryChkFunctionContext context) { }
 	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.memFillFunction"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterMemFillFunction([NotNull] sim6502Parser.MemFillFunctionContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.memFillFunction"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitMemFillFunction([NotNull] sim6502Parser.MemFillFunctionContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.memDumpFunction"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterMemDumpFunction([NotNull] sim6502Parser.MemDumpFunctionContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.memDumpFunction"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitMemDumpFunction([NotNull] sim6502Parser.MemDumpFunctionContext context) { }
+	/// <summary>
 	/// Enter a parse tree produced by <see cref="sim6502Parser.sourceAddress"/>.
 	/// <para>The default implementation does nothing.</para>
 	/// </summary>

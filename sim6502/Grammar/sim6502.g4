@@ -136,6 +136,8 @@ testContents
     : assertFunction
     | assignment
     | jsrFunction
+    | memFillFunction
+    | memDumpFunction
     ;
 
 peekByteFunction
@@ -153,7 +155,15 @@ memoryCmpFunction
 memoryChkFunction
     : MemoryChk LParen sourceAddress Comma memorySize Comma memoryValue RParen
     ;
-    
+
+memFillFunction
+    : MemFill LParen expression Comma expression Comma expression RParen
+    ;
+
+memDumpFunction
+    : MemDump LParen expression Comma expression RParen
+    ;
+
 sourceAddress
     : expression
     ;
@@ -318,6 +328,8 @@ PeekByte:       'peekbyte' ;
 PeekWord:       'peekword' ;
 MemoryCmp:      'memcmp';
 MemoryChk:      'memchk';
+MemFill:        'memfill';
+MemDump:        'memdump';
 Cycles:         'cycles' ;
 Address:        'address';
 StripHeader:    'strip_header';

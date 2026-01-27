@@ -478,6 +478,26 @@ public interface Isim6502Listener : IParseTreeListener {
 	/// <param name="context">The parse tree.</param>
 	void ExitMemoryChkFunction([NotNull] sim6502Parser.MemoryChkFunctionContext context);
 	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.memFillFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterMemFillFunction([NotNull] sim6502Parser.MemFillFunctionContext context);
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.memFillFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitMemFillFunction([NotNull] sim6502Parser.MemFillFunctionContext context);
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.memDumpFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterMemDumpFunction([NotNull] sim6502Parser.MemDumpFunctionContext context);
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.memDumpFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitMemDumpFunction([NotNull] sim6502Parser.MemDumpFunctionContext context);
+	/// <summary>
 	/// Enter a parse tree produced by <see cref="sim6502Parser.sourceAddress"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
