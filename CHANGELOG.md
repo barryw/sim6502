@@ -2,6 +2,23 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## 0.0.2 - 2026-01-27
+#### Bug Fixes
+- **(ci)** fetch tags before cog bump to detect current version - (429845c) - *barryw*
+- **(ci)** configure all commit types to trigger patch bumps - (ff06d26) - *barryw*
+- **(ci)** trigger docker build on all tags, not just v* prefix - (677b179) - *barryw*
+- **(ci)** use kaniko debug image with shell support - (f0eea09) - *barryw*
+#### Chores
+- **(version)** 0.0.1 - (8491994) - Woodpecker CI
+- **(version)** 0.0.1 - (eb307ed) - Woodpecker CI
+- **(version)** 0.0.1 - (df92fd0) - Woodpecker CI
+- **(version)** 0.0.1 - (61e01de) - Woodpecker CI
+- **(version)** 0.0.1 - (b2ff709) - Woodpecker CI
+#### Documentation
+- add title header to README - (4163324) - barryw
+
+- - -
+
 ## 0.0.1 - 2026-01-27
 #### Chores
 - **(version)** 0.0.1 - (eb307ed) - Woodpecker CI
