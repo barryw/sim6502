@@ -3,7 +3,9 @@ tag_prefix = "v"
 skip_ci = "[CI SKIP]"
 
 post_bump_hooks = [
-    "perl -i -pe 's/^(\\s*)<Version>.*<\\/Version>/$1<Version>{{version}}<\\/Version>/' sim6502/sim6502.csproj",
+    "sed -i 's|<Version>.*</Version>|<Version>{{version}}</Version>|' sim6502/sim6502.csproj",
+    "sed -i 's|<AssemblyVersion>.*</AssemblyVersion>|<AssemblyVersion>{{version}}.0</AssemblyVersion>|' sim6502/sim6502.csproj",
+    "sed -i 's|<FileVersion>.*</FileVersion>|<FileVersion>{{version}}.0</FileVersion>|' sim6502/sim6502.csproj",
 ]
 
 [changelog]

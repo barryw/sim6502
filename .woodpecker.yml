@@ -61,6 +61,10 @@ steps:
     commands:
       - VERSION=$(wget -qO- https://api.github.com/repos/barryw/sim6502/releases/latest | sed -n 's/.*"tag_name".*"v\([^"]*\)".*/\1/p')
       - echo "Building version $VERSION"
+      # Update version in csproj before building (in case post_bump_hook didn't work)
+      - sed -i "s|<Version>.*</Version>|<Version>$VERSION</Version>|" sim6502/sim6502.csproj
+      - sed -i "s|<AssemblyVersion>.*</AssemblyVersion>|<AssemblyVersion>$VERSION.0</AssemblyVersion>|" sim6502/sim6502.csproj
+      - sed -i "s|<FileVersion>.*</FileVersion>|<FileVersion>$VERSION.0</FileVersion>|" sim6502/sim6502.csproj
       - mkdir -p /kaniko/.docker
       - echo "{\"auths\":{\"ghcr.io\":{\"username\":\"barryw\",\"password\":\"$GITHUB_TOKEN\"}}}" > /kaniko/.docker/config.json
       - /kaniko/executor --context="$CI_WORKSPACE" --dockerfile="$CI_WORKSPACE/Dockerfile" --destination="ghcr.io/barryw/sim6502:v$VERSION" --destination="ghcr.io/barryw/sim6502:latest"
