@@ -606,10 +606,24 @@ namespace sim6502.Grammar
             }
         }
 
-        public override void ExitFailOnBreak(sim6502Parser.FailOnBreakContext context) => SetBoolValue(context, 
+        public override void ExitFailOnBreak(sim6502Parser.FailOnBreakContext context) => SetBoolValue(context,
             GetBoolValue(context.boolean()));
 
+        public override void ExitMemFillFunction(sim6502Parser.MemFillFunctionContext ctx)
+        {
+            var address = _intValues.Get(ctx.expression(0));
+            var count = _intValues.Get(ctx.expression(1));
+            var value = _intValues.Get(ctx.expression(2));
+
+            Logger.Debug($"memfill(${address:X4}, {count}, ${value:X2})");
+
+            for (var i = 0; i < count; i++)
+            {
+                Proc.WriteMemoryValueWithoutIncrement(address + i, (byte)(value & 0xFF));
+            }
+        }
+
         #endregion
-        
+
     }
 }
