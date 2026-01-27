@@ -1,6 +1,8 @@
 when:
   - event: push
     branch: main
+  - event: tag
+    ref: refs/tags/v*
 
 variables:
   - &dotnet_image "mcr.microsoft.com/dotnet/sdk:10.0-preview"
@@ -15,9 +17,19 @@ steps:
       - dotnet build -c Release --no-restore
       - dotnet test -c Release --no-build --no-restore
 
-  # Version bump with cog
+  # Version bump with cog (only on push to main, not tags)
   - name: version-bump
     image: alpine:latest
+    when:
+      - event: push
+        branch: main
+    environment:
+      GITHUB_TOKEN:
+        from_secret: github_token
+      GIT_AUTHOR_NAME: "Woodpecker CI"
+      GIT_AUTHOR_EMAIL: "ci@barrywalker.io"
+      GIT_COMMITTER_NAME: "Woodpecker CI"
+      GIT_COMMITTER_EMAIL: "ci@barrywalker.io"
     commands:
       - apk add --no-cache git curl bash
       # Install cocogitto
@@ -26,6 +38,8 @@ steps:
       - git config --global user.email "ci@barrywalker.io"
       - git config --global user.name "Woodpecker CI"
       - git config --global --add safe.directory $CI_WORKSPACE
+      # Set up git credentials for push
+      - git remote set-url origin https://x-access-token:$GITHUB_TOKEN@github.com/barryw/sim6502.git
       # Bump version based on conventional commits
       - |
         if cog bump --auto; then
@@ -34,16 +48,14 @@ steps:
         else
           echo "No version bump needed or already at correct version"
         fi
-    secrets: [github_token]
-    environment:
-      GIT_AUTHOR_NAME: "Woodpecker CI"
-      GIT_AUTHOR_EMAIL: "ci@barrywalker.io"
-      GIT_COMMITTER_NAME: "Woodpecker CI"
-      GIT_COMMITTER_EMAIL: "ci@barrywalker.io"
 
-  # Build and push Docker image
+  # Build and push Docker image on tags
   - name: docker-build-push
     image: *docker_image
+    privileged: true
+    when:
+      - event: tag
+        ref: refs/tags/v*
     settings:
       registry: ghcr.io
       repo: ghcr.io/barryw/sim6502
@@ -56,13 +68,14 @@ steps:
       platforms:
         - linux/amd64
         - linux/arm64
-    when:
-      - event: tag
-        ref: refs/tags/v*
 
-  # Also build and push latest on main push (without tag)
+  # Build and push latest on main push
   - name: docker-build-push-latest
     image: *docker_image
+    privileged: true
+    when:
+      - event: push
+        branch: main
     settings:
       registry: ghcr.io
       repo: ghcr.io/barryw/sim6502
@@ -75,6 +88,3 @@ steps:
       platforms:
         - linux/amd64
         - linux/arm64
-    when:
-      - event: push
-        branch: main
