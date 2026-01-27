@@ -343,6 +343,11 @@ namespace sim6502.Grammar
         {
             var register = context.Register().GetText();
             var exp = GetIntValue(context.expression());
+
+            // Skip side effects during setup block definition
+            if (_inSetupBlockDefinition)
+                return;
+
             if (exp > 255)
             {
                 FailAssertion($"Cannot set the {register} register to {exp.ToString()} since it's bigger than 8 bits");
@@ -377,7 +382,11 @@ namespace sim6502.Grammar
                 expr = expr == "1" ? "true" : "false";
 
             var val = bool.Parse(expr);
-            
+
+            // Skip side effects during setup block definition
+            if (_inSetupBlockDefinition)
+                return;
+
             switch (flag)
             {
                 case "c":
@@ -390,7 +399,7 @@ namespace sim6502.Grammar
                     Proc.ZeroFlag = val;
                     break;
                 case "v":
-                    Proc.NegativeFlag = val;
+                    Proc.OverflowFlag = val;
                     break;
                 case "d":
                     Proc.DecimalFlag = val;

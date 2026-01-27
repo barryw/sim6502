@@ -38,7 +38,18 @@
       "Bash(grep:*)",
       "Bash(find:*)",
       "Bash(python3:*)",
-      "Bash(xxd:*)"
+      "Bash(xxd:*)",
+      "Bash(while read:*)",
+      "Bash(do if ! grep -q \"jsr(\" \"$f\")",
+      "Bash(then echo \"$f has assert but no jsr\")",
+      "Bash(fi)",
+      "Bash(for f in test-*.txt)",
+      "Bash(do if grep -q \"assert(\" \"$f\")",
+      "Bash(then if grep -q \"jsr(\" \"$f\")",
+      "Bash(then :)",
+      "Bash(else echo \"$f has assert but no jsr\")",
+      "Bash(NLOG_LEVEL=Trace dotnet run:*)",
+      "Bash(/Users/barry/Git/sim6502/sim6502/bin/Debug/net10.0/Sim6502TestRunner:*)"
     ]
   }
 }
