@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.0.2 - 2026-01-27
+#### Bug Fixes
+- correct evaluate condition to check for chore(version) - (4e30337) - Barry Walker
+
+- - -
+
 ## v3.0.1 - 2026-01-27
 #### Bug Fixes
 - simplify cog commit types and fix tarball extraction - (f9ec7c7) - Barry Walker
