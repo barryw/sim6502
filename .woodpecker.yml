@@ -49,17 +49,3 @@ steps:
         fi
         gh release create "$VERSION" --title "$VERSION" --notes "$NOTES"
     depends_on: [build-and-test]
-
-  - name: docker
-    image: woodpeckerci/plugin-docker-buildx
-    when:
-      - evaluate: 'CI_COMMIT_MESSAGE not contains "chore(version):"'
-    settings:
-      repo: ghcr.io/barryw/sim6502
-      registry: ghcr.io
-      username: barryw
-      password:
-        from_secret: github_token
-      dockerfile: Dockerfile
-      tag: latest
-    depends_on: [release]
