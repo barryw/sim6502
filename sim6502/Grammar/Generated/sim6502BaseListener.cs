@@ -505,6 +505,18 @@ public partial class sim6502BaseListener : Isim6502Listener {
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitTestDescription([NotNull] sim6502Parser.TestDescriptionContext context) { }
 	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.setupBlock"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterSetupBlock([NotNull] sim6502Parser.SetupBlockContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.setupBlock"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitSetupBlock([NotNull] sim6502Parser.SetupBlockContext context) { }
+	/// <summary>
 	/// Enter a parse tree produced by <see cref="sim6502Parser.testContents"/>.
 	/// <para>The default implementation does nothing.</para>
 	/// </summary>
@@ -516,6 +528,18 @@ public partial class sim6502BaseListener : Isim6502Listener {
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitTestContents([NotNull] sim6502Parser.TestContentsContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.setupContents"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterSetupContents([NotNull] sim6502Parser.SetupContentsContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.setupContents"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitSetupContents([NotNull] sim6502Parser.SetupContentsContext context) { }
 	/// <summary>
 	/// Enter a parse tree produced by <see cref="sim6502Parser.peekByteFunction"/>.
 	/// <para>The default implementation does nothing.</para>

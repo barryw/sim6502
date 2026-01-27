@@ -29,7 +29,7 @@ suites
     ;
 
 suite
-    : Suite LParen suiteName RParen LBrace (testFunction | symbolsFunction | loadFunction)+ RBrace
+    : Suite LParen suiteName RParen LBrace (testFunction | symbolsFunction | loadFunction | setupBlock)+ RBrace
     ;
     
 suiteName
@@ -122,19 +122,31 @@ stripHeader
 testFunction
     : Test LParen testName Comma testDescription RParen LBrace testContents+ RBrace
     ;
-    
+
 testName
     : StringLiteral
     ;
-    
+
 testDescription
     : StringLiteral
+    ;
+
+setupBlock
+    : Setup LBrace setupContents+ RBrace
     ;
     
 // Test contents - allow any single statement, testFunction uses + to allow multiple
 testContents
     : assertFunction
     | assignment
+    | jsrFunction
+    | memFillFunction
+    | memDumpFunction
+    ;
+
+// Setup contents - similar to test contents but without assertions
+setupContents
+    : assignment
     | jsrFunction
     | memFillFunction
     | memDumpFunction
@@ -320,6 +332,7 @@ BoolFalse:  'false' ;
 Suites:         'suites' ;
 Suite:          'suite' ;
 Test:           'test' ;
+Setup:          'setup' ;
 Load:           'load' ;
 Symbols:        'symbols' ;
 Assert:         'assert' ;

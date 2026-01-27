@@ -428,6 +428,16 @@ public interface Isim6502Listener : IParseTreeListener {
 	/// <param name="context">The parse tree.</param>
 	void ExitTestDescription([NotNull] sim6502Parser.TestDescriptionContext context);
 	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.setupBlock"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterSetupBlock([NotNull] sim6502Parser.SetupBlockContext context);
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.setupBlock"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitSetupBlock([NotNull] sim6502Parser.SetupBlockContext context);
+	/// <summary>
 	/// Enter a parse tree produced by <see cref="sim6502Parser.testContents"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
@@ -437,6 +447,16 @@ public interface Isim6502Listener : IParseTreeListener {
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	void ExitTestContents([NotNull] sim6502Parser.TestContentsContext context);
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.setupContents"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterSetupContents([NotNull] sim6502Parser.SetupContentsContext context);
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.setupContents"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitSetupContents([NotNull] sim6502Parser.SetupContentsContext context);
 	/// <summary>
 	/// Enter a parse tree produced by <see cref="sim6502Parser.peekByteFunction"/>.
 	/// </summary>
