@@ -30,7 +30,8 @@
       "Bash(tee:*)",
       "Skill(superpowers:writing-plans)",
       "Skill(superpowers:subagent-driven-development)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(dotnet run:*)"
     ]
   }
 }
