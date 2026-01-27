@@ -36,6 +36,17 @@ steps:
         fi
       - cog bump --auto
       - git push origin HEAD:main --tags
+      - |
+        # Create GitHub release with changelog
+        apk add --no-cache github-cli
+        VERSION=$(git describe --tags --abbrev=0)
+        PREV_VERSION=$(git describe --tags --abbrev=0 $VERSION^ 2>/dev/null || echo "")
+        if [ -n "$PREV_VERSION" ]; then
+          NOTES=$(git log --pretty=format:"- %s" $PREV_VERSION..$VERSION^)
+        else
+          NOTES=$(git log --pretty=format:"- %s" $VERSION^)
+        fi
+        gh release create "$VERSION" --title "$VERSION" --notes "$NOTES"
     depends_on: [build-and-test]
 
   - name: docker
