@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.1.4 - 2026-01-27
+#### Bug Fixes
+- extract docker version from csproj instead of temp file - (11bebc9) - Barry Walker
+
+- - -
+
 ## v3.1.3 - 2026-01-27
 #### Bug Fixes
 - skip entire pipeline for version commits - (5236566) - Barry Walker
