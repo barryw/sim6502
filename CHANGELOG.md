@@ -2,6 +2,14 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.1.2 - 2026-01-27
+#### Bug Fixes
+- use [CI SKIP] for Woodpecker to skip version commit pipelines - (8cf3c36) - Barry Walker
+#### Chores
+- trigger pipeline - (2be6938) - Barry Walker
+
+- - -
+
 ## v3.1.1 - 2026-01-27
 #### Bug Fixes
 - pass version via file for docker build (kaniko has no git) - (766a4a6) - Barry Walker
