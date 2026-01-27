@@ -4,10 +4,6 @@ authors = [
     { signature = "Barry Walker", username = "barryw" }
 ]
 
-[git_hooks]
-# Let pre-push verify if there are untracked or uncommitted changes
-pre-push = []
-
 [commit_types]
 feat = { changelog_title = "Features" }
 fix = { changelog_title = "Bug Fixes" }
