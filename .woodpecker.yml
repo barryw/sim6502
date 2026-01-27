@@ -51,14 +51,15 @@ steps:
     depends_on: [build-and-test]
 
   - name: docker
-    image: gcr.io/kaniko-project/executor:debug
+    image: woodpeckerci/plugin-docker-buildx
     when:
       - evaluate: 'CI_COMMIT_MESSAGE not contains "chore(version):"'
-    environment:
-      GITHUB_TOKEN:
+    settings:
+      repo: ghcr.io/barryw/sim6502
+      registry: ghcr.io
+      username: barryw
+      password:
         from_secret: github_token
-    commands:
-      - mkdir -p /kaniko/.docker
-      - echo "{\"auths\":{\"ghcr.io\":{\"username\":\"barryw\",\"password\":\"$GITHUB_TOKEN\"}}}" > /kaniko/.docker/config.json
-      - /kaniko/executor --context=/woodpecker/src --dockerfile=/woodpecker/src/Dockerfile --destination=ghcr.io/barryw/sim6502:latest
+      dockerfile: Dockerfile
+      tag: latest
     depends_on: [release]
