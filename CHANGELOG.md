@@ -2,6 +2,13 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.1.8 - 2026-01-27
+#### Bug Fixes
+- remove docker step (needs privileged mode) - (0577394) - Barry Walker
+- use woodpecker docker-buildx plugin - (16cbc22) - Barry Walker
+
+- - -
+
 ## v3.1.7 - 2026-01-27
 #### Bug Fixes
 - simplify docker step to just build latest tag - (e3de947) - Barry Walker
