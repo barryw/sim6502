@@ -2,6 +2,18 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## 0.0.3 - 2026-01-27
+#### Bug Fixes
+- **(ci)** quote commit command to avoid YAML colon parsing - (18da639) - *barryw*
+- **(ci)** remove cog pre_bump_hooks and commit csproj before cog bump - (f81aa7c) - *barryw*
+- **(ci)** use pipe delimiter in sed to avoid slash conflicts - (3aca2c3) - *barryw*
+#### Chores
+- update version in csproj - (511eb6c) - Woodpecker CI
+#### Refactoring
+- **(ci)** simplify to single pipeline with clear steps - (1bb3511) - *barryw*
+
+- - -
+
 ## 0.0.2 - 2026-01-27
 #### Bug Fixes
 - **(ci)** fetch tags before cog bump to detect current version - (429845c) - *barryw*
