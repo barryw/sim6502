@@ -1,10 +1,7 @@
-# Every commit bumps patch version
 from_latest_tag = true
 tag_prefix = "v"
 skip_ci = "[skip ci]"
-skip_untracked = false
 
-# Update csproj after bump
 post_bump_hooks = [
     "perl -i -pe 's/^(\\s*)<Version>.*<\\/Version>/$1<Version>{{version}}<\\/Version>/' sim6502/sim6502.csproj",
 ]
@@ -12,15 +9,8 @@ post_bump_hooks = [
 [changelog]
 path = "CHANGELOG.md"
 
-# ALL types bump patch
 [commit_types]
-feat = { changelog_title = "Features", bump_patch = true }
+feat = { changelog_title = "Features", bump_minor = true }
 fix = { changelog_title = "Bug Fixes", bump_patch = true }
 docs = { changelog_title = "Documentation", bump_patch = true }
-style = { changelog_title = "Style", bump_patch = true }
-refactor = { changelog_title = "Refactoring", bump_patch = true }
-perf = { changelog_title = "Performance", bump_patch = true }
-test = { changelog_title = "Tests", bump_patch = true }
-build = { changelog_title = "Build", bump_patch = true }
-ci = { changelog_title = "CI/CD", bump_patch = true }
 chore = { changelog_title = "Chores", bump_patch = true }

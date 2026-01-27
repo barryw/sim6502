@@ -22,8 +22,8 @@ steps:
         from_secret: github_token
     commands:
       - apk add --no-cache git curl perl
-      - curl -sSL https://github.com/cocogitto/cocogitto/releases/latest/download/cocogitto-6.5.0-x86_64-unknown-linux-musl.tar.gz | tar xz
-      - mv cog /usr/local/bin/
+      - curl -sSL https://github.com/cocogitto/cocogitto/releases/latest/download/cocogitto-6.5.0-x86_64-unknown-linux-musl.tar.gz | tar xz -C /tmp
+      - mv /tmp/x86_64-unknown-linux-musl/cog /usr/local/bin/
       - git config --global user.name "Woodpecker CI"
       - git config --global user.email "ci@woodpecker.local"
       - git config --global --add safe.directory "$CI_WORKSPACE"
