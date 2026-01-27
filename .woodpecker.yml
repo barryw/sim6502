@@ -10,7 +10,7 @@ labels:
 steps:
   # Build and test
   - name: build-and-test
-    image: mcr.microsoft.com/dotnet/sdk:10.0-preview
+    image: mcr.microsoft.com/dotnet/sdk:10.0
     commands:
       - dotnet restore
       - dotnet build -c Release --no-restore
