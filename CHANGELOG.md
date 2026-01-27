@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.4.2 - 2026-01-27
+#### Bug Fixes
+- (**loader**) add validation before stripping header bytes - (ac456b9) - Barry Walker
+
+- - -
+
 ## v3.4.1 - 2026-01-27
 #### Bug Fixes
 - (**ci**) update version in csproj during docker build - (b017705) - Barry Walker
