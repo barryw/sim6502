@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file. See [conven
 - - -
 ## 0.0.1 - 2026-01-27
 #### Bug Fixes
+- **(ci)** configure all commit types to trigger patch bumps - (ff06d26) - *barryw*
+
+- - -
+
+## 0.0.1 - 2026-01-27
+#### Bug Fixes
 - **(ci)** trigger docker build on all tags, not just v* prefix - (677b179) - *barryw*
 
 - - -
