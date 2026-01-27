@@ -73,4 +73,8 @@ steps:
       - git config --global --add safe.directory $CI_WORKSPACE
       - git remote set-url origin https://x-access-token:$GITHUB_TOKEN@github.com/barryw/sim6502.git
       - git fetch --tags --unshallow || git fetch --tags
+      # Clean up temp file and commit csproj
+      - rm -f $CI_WORKSPACE/.next_version
+      - git add sim6502/sim6502.csproj
+      - git commit -m "chore: update version in csproj" || true
       - cog bump --auto && git push origin main --tags || echo "Version already tagged"

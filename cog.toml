@@ -1,9 +1,3 @@
-# Hooks to update version in csproj file
-pre_bump_hooks = [
-    "sed -i 's/<Version>[0-9]*\\.[0-9]*\\.[0-9]*<\\/Version>/<Version>{{version}}<\\/Version>/g' sim6502/sim6502.csproj",
-    "git add sim6502/sim6502.csproj"
-]
-
 [changelog]
 path = "CHANGELOG.md"
 authors = [
