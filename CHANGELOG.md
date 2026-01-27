@@ -2,6 +2,24 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.3.2 - 2026-01-27
+#### Bug Fixes
+- (**processor**) remove dead code and fix incorrect comment in Addressing.cs - (3e9a062) - Barry Walker
+#### Refactoring
+- (**processor**) replace 1084-line switch with registry lookup - (dff04eb) - Barry Walker
+- (**processor**) add opcode registry with all 151 opcodes - (4b3220d) - Barry Walker
+- (**processor**) add opcode handler infrastructure - (f23c391) - Barry Walker
+- (**processor**) rename main file to Processor.Execution.cs - (e305952) - Barry Walker
+- (**processor**) extract disassembly to Processor.Disassembly.cs - (b47751f) - Barry Walker
+- (**processor**) extract CPU operations to Processor.Operations.cs - (443c879) - Barry Walker
+- (**processor**) extract addressing modes to Processor.Addressing.cs - (be39417) - Barry Walker
+- (**processor**) extract memory operations to Processor.Memory.cs - (ece3e1c) - Barry Walker
+- (**processor**) extract core state to Processor.Core.cs - (eefde50) - Barry Walker
+#### Chores
+- (**tests**) mark Klaus Dormann test as slow category - (ae2321f) - Barry Walker
+
+- - -
+
 ## v3.3.1 - 2026-01-27
 #### Bug Fixes
 - (**grammar**) correct operator precedence and improve portability - (e5c2036) - Barry Walker
