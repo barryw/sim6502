@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.1.6 - 2026-01-27
+#### Bug Fixes
+- use /woodpecker/src for version file between steps - (0b95505) - Barry Walker
+
+- - -
+
 ## v3.1.5 - 2026-01-27
 #### Bug Fixes
 - fetch docker version from GitHub releases API - (ff2d32b) - Barry Walker
