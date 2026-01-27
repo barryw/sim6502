@@ -59,8 +59,8 @@ steps:
         from_secret: github_token
     commands:
       - |
-        # Extract version from csproj file
-        VERSION=$(sed -n 's/.*<Version>\([^<]*\)<\/Version>.*/\1/p' "$CI_WORKSPACE/sim6502/sim6502.csproj" | head -1)
+        # Get latest version from GitHub releases API
+        VERSION=$(wget -qO- "https://api.github.com/repos/barryw/sim6502/releases/latest" | grep -o '"tag_name": *"[^"]*"' | sed 's/.*"v\([^"]*\)"/\1/')
         VERSION=${VERSION:-0.0.0}
         echo "Building Docker image: $VERSION"
         mkdir -p /kaniko/.docker
