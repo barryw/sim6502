@@ -38,6 +38,8 @@ steps:
       - git config --global user.name "Woodpecker CI"
       - git config --global --add safe.directory $CI_WORKSPACE
       - git remote set-url origin https://x-access-token:$GITHUB_TOKEN@github.com/barryw/sim6502.git
+      - git fetch --tags --unshallow || git fetch --tags
+      - cog get-version || echo "No version found"
       - cog bump --auto && git push origin main --tags || echo "No version bump needed"
 
   # Build and push Docker image on tags using kaniko
