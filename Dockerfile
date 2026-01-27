@@ -1,9 +1,32 @@
-FROM mcr.microsoft.com/dotnet/core/sdk:3.1
+# Build stage
+FROM mcr.microsoft.com/dotnet/sdk:10.0-preview AS build
+
+WORKDIR /src
+
+# Copy csproj files first for layer caching
+COPY sim6502/sim6502.csproj sim6502/
+COPY sim6502tests/sim6502tests.csproj sim6502tests/
+COPY sim6502.sln .
+
+# Restore dependencies
+RUN dotnet restore
+
+# Copy everything else
+COPY . .
+
+# Build
+RUN dotnet build -c Release --no-restore
+
+# Test
+RUN dotnet test -c Release --no-build --no-restore
+
+# Publish
+RUN dotnet publish sim6502/sim6502.csproj -c Release -o /app/publish --no-build
+
+# Runtime stage
+FROM mcr.microsoft.com/dotnet/runtime:10.0-preview AS runtime
 
 WORKDIR /app
+COPY --from=build /app/publish .
 
-COPY . /app/
-RUN dotnet build /app/sim6502.sln -c Release
-RUN dotnet test /app/sim6502.sln -c Release
-
-ENTRYPOINT ["dotnet","/app/sim6502/bin/Release/netcoreapp3.0/Sim6502TestRunner.dll"]
+ENTRYPOINT ["dotnet", "Sim6502TestRunner.dll"]

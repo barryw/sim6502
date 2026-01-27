@@ -1,11 +1,22 @@
+.PHONY: grammar build test clean
+
 grammar:
 	cd sim6502/Grammar && \
-	java -jar ../../dependencies/antlr-4.8-complete.jar -Dlanguage=CSharp -listener \
+	java -jar ../../dependencies/antlr-4.13.1-complete.jar -Dlanguage=CSharp -listener \
 		-o Generated -package sim6502.Grammar.Generated sim6502.g4 && \
 	cd ../..
 
 build: grammar
-	docker build . -t barrywalker71/sim6502cli:latest
+	dotnet build -c Release
 
-push: build
-	docker push barrywalker71/sim6502cli:latest
+test:
+	dotnet test -c Release
+
+clean:
+	dotnet clean
+	rm -rf sim6502/bin sim6502/obj sim6502tests/bin sim6502tests/obj
+
+# Setup git hooks for conventional commits
+setup-hooks:
+	git config core.hooksPath .githooks
+	@echo "Git hooks configured to use .githooks directory"

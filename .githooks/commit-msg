@@ -1,0 +1,51 @@
+#!/bin/bash
+# Conventional Commits validation hook
+# Validates commit messages follow the conventional commits format
+
+commit_msg_file="$1"
+commit_msg=$(cat "$commit_msg_file")
+
+# Conventional commit pattern
+# type(scope)?: description
+#
+# Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore
+# Optional scope in parentheses
+# Optional ! for breaking changes
+# Colon and space required
+# Description required
+
+pattern="^(feat|fix|docs|style|refactor|perf|test|build|ci|chore)(\([a-zA-Z0-9_-]+\))?(!)?: .+$"
+
+# Allow merge commits
+if [[ "$commit_msg" =~ ^Merge ]]; then
+    exit 0
+fi
+
+# Allow revert commits
+if [[ "$commit_msg" =~ ^Revert ]]; then
+    exit 0
+fi
+
+# Get the first line (subject)
+first_line=$(echo "$commit_msg" | head -n 1)
+
+if ! [[ "$first_line" =~ $pattern ]]; then
+    echo ""
+    echo "ERROR: Invalid commit message format!"
+    echo ""
+    echo "Your message: $first_line"
+    echo ""
+    echo "Expected format: <type>(<scope>)?: <description>"
+    echo ""
+    echo "Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore"
+    echo ""
+    echo "Examples:"
+    echo "  feat: add new 6502 instruction support"
+    echo "  fix(parser): handle edge case in symbol resolution"
+    echo "  docs: update README with CI badge"
+    echo "  feat!: breaking change to API"
+    echo ""
+    exit 1
+fi
+
+exit 0

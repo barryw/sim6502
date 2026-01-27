@@ -1,0 +1,34 @@
+[changelog]
+path = "CHANGELOG.md"
+authors = [
+    { signature = "Barry Walker", username = "barryw" }
+]
+
+[git_hooks]
+# Let pre-push verify if there are untracked or uncommitted changes
+pre-push = []
+
+[commit_types]
+feat = { changelog_title = "Features" }
+fix = { changelog_title = "Bug Fixes" }
+docs = { changelog_title = "Documentation" }
+style = { changelog_title = "Style" }
+refactor = { changelog_title = "Refactoring" }
+perf = { changelog_title = "Performance" }
+test = { changelog_title = "Tests" }
+build = { changelog_title = "Build" }
+ci = { changelog_title = "CI/CD" }
+chore = { changelog_title = "Chores", omit_from_changelog = true }
+
+[bump_profiles]
+
+[packages.sim6502]
+path = "sim6502"
+include = ["sim6502/**"]
+# Bump version in csproj file
+pre_bump_hooks = []
+post_bump_hooks = []
+
+[[packages.sim6502.bumps]]
+file = "sim6502/sim6502.csproj"
+version_regex = "<Version>(?P<version>[0-9]+\\.[0-9]+\\.[0-9]+)</Version>"

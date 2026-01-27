@@ -1,94 +1,92 @@
-using NUnit.Framework;
-using sim6502;
+using FluentAssertions;
 using sim6502.Utilities;
+using Xunit;
 
-namespace sim6502tests
+namespace sim6502tests;
+
+public class UtilityTests
 {
-    [TestFixture]
-    public class UtilityTests
+    [Fact]
+    public void TestParseHexWithDollarSign()
     {
-        [Test]
-        public void TestParseHexWithDollarSign()
-        {
-            var hex1 = "$ffff";
-            Assert.AreEqual(0xffff.ToString(), hex1.ParseNumber().ToString());
+        var hex1 = "$ffff";
+        hex1.ParseNumber().Should().Be(0xffff);
 
-            hex1 = "$fff";
-            Assert.AreEqual(0xfff.ToString(), hex1.ParseNumber().ToString());
+        hex1 = "$fff";
+        hex1.ParseNumber().Should().Be(0xfff);
 
-            hex1 = "$ff";
-            Assert.AreEqual(0xff.ToString(), hex1.ParseNumber().ToString());
+        hex1 = "$ff";
+        hex1.ParseNumber().Should().Be(0xff);
 
-            hex1 = "$f";
-            Assert.AreEqual(0xf.ToString(), hex1.ParseNumber().ToString());
+        hex1 = "$f";
+        hex1.ParseNumber().Should().Be(0xf);
 
-            hex1 = "$abcd";
-            Assert.AreEqual(0xabcd.ToString(), hex1.ParseNumber().ToString());
-        }
+        hex1 = "$abcd";
+        hex1.ParseNumber().Should().Be(0xabcd);
+    }
 
-        [Test]
-        public void TestParseWithZeroX()
-        {
-            var hex1 = "0xffff";
-            Assert.AreEqual(0xffff.ToString(), hex1.ParseNumber().ToString());
+    [Fact]
+    public void TestParseWithZeroX()
+    {
+        var hex1 = "0xffff";
+        hex1.ParseNumber().Should().Be(0xffff);
 
-            hex1 = "0xfff";
-            Assert.AreEqual(0xfff.ToString(), hex1.ParseNumber().ToString());
+        hex1 = "0xfff";
+        hex1.ParseNumber().Should().Be(0xfff);
 
-            hex1 = "0xff";
-            Assert.AreEqual(0xff.ToString(), hex1.ParseNumber().ToString());
+        hex1 = "0xff";
+        hex1.ParseNumber().Should().Be(0xff);
 
-            hex1 = "0xf";
-            Assert.AreEqual(0xf.ToString(), hex1.ParseNumber().ToString());
+        hex1 = "0xf";
+        hex1.ParseNumber().Should().Be(0xf);
 
-            hex1 = "0xabcd";
-            Assert.AreEqual(0xabcd.ToString(), hex1.ParseNumber().ToString());
-        }
+        hex1 = "0xabcd";
+        hex1.ParseNumber().Should().Be(0xabcd);
+    }
 
-        [Test]
-        public void TestPlainIntegers()
-        {
-            var int1 = "65535";
-            Assert.AreEqual(0xffff.ToString(), int1.ParseNumber().ToString());
+    [Fact]
+    public void TestPlainIntegers()
+    {
+        var int1 = "65535";
+        int1.ParseNumber().Should().Be(0xffff);
 
-            int1 = "4095";
-            Assert.AreEqual(0xfff.ToString(), int1.ParseNumber().ToString());
+        int1 = "4095";
+        int1.ParseNumber().Should().Be(0xfff);
 
-            int1 = "255";
-            Assert.AreEqual(0xff.ToString(), int1.ParseNumber().ToString());
+        int1 = "255";
+        int1.ParseNumber().Should().Be(0xff);
 
-            int1 = "15";
-            Assert.AreEqual(0xf.ToString(), int1.ParseNumber().ToString());
+        int1 = "15";
+        int1.ParseNumber().Should().Be(0xf);
 
-            int1 = "43981";
-            Assert.AreEqual(0xabcd.ToString(), int1.ParseNumber().ToString());
-        }
+        int1 = "43981";
+        int1.ParseNumber().Should().Be(0xabcd);
+    }
 
-        [Test]
-        public void TestGetLoadAddress()
-        {
-            var bytes = new byte[2];
-            bytes[0] = 0;
-            bytes[1] = 192;
+    [Fact]
+    public void TestGetLoadAddress()
+    {
+        var bytes = new byte[2];
+        bytes[0] = 0;
+        bytes[1] = 192;
 
-            var address = Utility.GetProgramLoadAddress(bytes);
-            Assert.AreEqual(0xc000.ToString(), address.ToString());
-        }
+        var address = Utility.GetProgramLoadAddress(bytes);
+        address.Should().Be(0xc000);
+    }
 
-        [Test]
-        public void TestConvertIntToHex()
-        {
-            var i = 65535;
-            Assert.AreEqual("$ffff", i.ToHex());
+    [Fact]
+    public void TestConvertIntToHex()
+    {
+        var i = 65535;
+        i.ToHex().Should().Be("$ffff");
 
-            i = 4095;
-            Assert.AreEqual("$fff", i.ToHex());
+        i = 4095;
+        i.ToHex().Should().Be("$fff");
 
-            i = 255;
-            Assert.AreEqual("$ff", i.ToHex());
+        i = 255;
+        i.ToHex().Should().Be("$ff");
 
-            i = 15;
-            Assert.AreEqual("$f", i.ToHex());
-        }
+        i = 15;
+        i.ToHex().Should().Be("$f");
     }
 }

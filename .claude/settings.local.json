@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet test:*)",
+      "Bash(dotnet build:*)",
+      "Skill(superpowers:brainstorming)",
+      "Bash(cat:*)",
+      "Bash(woodpecker:*)",
+      "Bash(woodpecker repo:*)",
+      "Bash(env)",
+      "Bash(woodpecker-cli repo list:*)",
+      "Bash(woodpecker-cli secret list:*)",
+      "Bash(woodpecker-cli org secret list:*)",
+      "Bash(woodpecker-cli secret:*)",
+      "Bash(woodpecker-cli repo:*)",
+      "Bash(woodpecker-cli org secret ls:*)",
+      "Bash(woodpecker-cli org:*)",
+      "Bash(wc:*)",
+      "Bash(dotnet restore:*)",
+      "Bash(chmod:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}

@@ -1,208 +1,206 @@
-using System.Collections.Generic;
 using Antlr4.Runtime;
 using Antlr4.Runtime.Tree;
-using NUnit.Framework;
+using FluentAssertions;
 using sim6502.Grammar;
 using sim6502.Grammar.Generated;
 using sim6502.Utilities;
+using Xunit;
 
-namespace sim6502tests
+namespace sim6502tests;
+
+public class TestSuiteParser
 {
-    [TestFixture]
-    public class TestSuiteParser
+    private static sim6502Parser.SuitesContext GetContext(string test)
     {
-        private static sim6502Parser.SuitesContext GetContext(string test)
+        var afs = new AntlrFileStream(test);
+        var lexer = new sim6502Lexer(afs);
+        var tokens = new CommonTokenStream(lexer);
+        var parser = new sim6502Parser(tokens);
+        parser.RemoveErrorListeners();
+        parser.AddErrorListener(new SimErrorListener());
+        parser.BuildParseTree = true;
+        return parser.suites();
+    }
+
+    [Fact]
+    public void TestSuite1()
+    {
+        var symbols = new Dictionary<string, int>
         {
-            var afs = new AntlrFileStream(test);
-            var lexer = new sim6502Lexer(afs);
-            var tokens = new CommonTokenStream(lexer);
-            var parser = new sim6502Parser(tokens);
-            parser.RemoveErrorListeners();
-            parser.AddErrorListener(new SimErrorListener());
-            parser.BuildParseTree = true;
-            return parser.suites();
-        }
-        
-        [Test]
-        public void TestSuite1()
+            { "MySymbol", 0xa000 },
+            { "Loc1", 0xc000 },
+            { "Loc2", 0x80 }
+        };
+
+        var symbolFile = new SymbolFile(symbols);
+
+        var tree = GetContext("GrammarTests/test-1.txt");
+
+        var walker = new ParseTreeWalker();
+        var sbl = new SimBaseListener();
+
+        sbl.Symbols = symbolFile;
+
+        walker.Walk(sbl, tree);
+
+        sbl.Proc.ReadMemoryValueWithoutCycle(0x80).Should().Be(0xd0);
+        sbl.Proc.ReadMemoryWordWithoutCycle(0xc000).Should().Be(0xabcd);
+        sbl.Proc.ReadMemoryWordWithoutCycle(0xc002).Should().Be(0xdcba);
+        sbl.Proc.ReadMemoryValueWithoutCycle(0x81).Should().Be(0x0d);
+    }
+
+    [Fact]
+    public void TestSuite2()
+    {
+        var symbols = new Dictionary<string, int> { { "Val1", 0x11 }, { "Val2", 0x22 }, { "Val3", 0xff } };
+        var symbolFile = new SymbolFile(symbols);
+
+        var tree = GetContext("GrammarTests/test-2.txt");
+
+        var walker = new ParseTreeWalker();
+        var sbl = new SimBaseListener { Symbols = symbolFile };
+
+        walker.Walk(sbl, tree);
+
+        sbl.Proc.XRegister.Should().Be(0x11);
+        sbl.Proc.Accumulator.Should().Be(0x22);
+        sbl.Proc.YRegister.Should().Be(0xff);
+    }
+
+    [Fact]
+    public void TestSuite3()
+    {
+        var symbols = new Dictionary<string, int>
         {
-            var symbols = new Dictionary<string, int>();
+            { "Val1", 0x11 },
+            { "Val2", 0x22 },
+            { "Val3", 0xff },
+            { "Loc1", 0xd020 },
+            { "Loc2", 0xd021 },
+            { "Loc3", 0xd022 }
+        };
 
-            symbols.Add("MySymbol", 0xa000);
-            symbols.Add("Loc1", 0xc000);
-            symbols.Add("Loc2", 0x80);
-            
-            var symbolFile = new SymbolFile(symbols);
+        var symbolFile = new SymbolFile(symbols);
 
-            var tree = GetContext("GrammarTests/test-1.txt");
+        var tree = GetContext("GrammarTests/test-3.txt");
 
-            var walker = new ParseTreeWalker();
-            var sbl = new SimBaseListener();
-            
-            sbl.Symbols = symbolFile;
+        var walker = new ParseTreeWalker();
+        var sbl = new SimBaseListener { Symbols = symbolFile };
 
-            walker.Walk(sbl, tree);
-            
-            Assert.AreEqual(0xd0, sbl.Proc.ReadMemoryValueWithoutCycle(0x80));
-            Assert.AreEqual(0xabcd, sbl.Proc.ReadMemoryWordWithoutCycle(0xc000));
-            Assert.AreEqual(0xdcba, sbl.Proc.ReadMemoryWordWithoutCycle(0xc002));
-            Assert.AreEqual(0x0d, sbl.Proc.ReadMemoryValueWithoutCycle(0x81));
-        }
-        
-        [Test]
-        public void TestSuite2()
+        walker.Walk(sbl, tree);
+
+        sbl.Proc.ReadMemoryValueWithoutCycle(0xd020).Should().Be(0x11);
+        sbl.Proc.ReadMemoryValueWithoutCycle(0xd021).Should().Be(0x22);
+        sbl.Proc.ReadMemoryValueWithoutCycle(0xd022).Should().Be(0xff);
+    }
+
+    [Fact]
+    public void TestSuite4()
+    {
+        var symbols = new Dictionary<string, int> { { "FALSE", 0x00 } };
+
+        var symbolFile = new SymbolFile(symbols);
+        var tree = GetContext("GrammarTests/test-4.txt");
+
+        var walker = new ParseTreeWalker();
+        var sbl = new SimBaseListener { Symbols = symbolFile };
+
+        walker.Walk(sbl, tree);
+
+        sbl.Proc.CarryFlag.Should().BeTrue();
+        sbl.Proc.NegativeFlag.Should().BeFalse();
+        sbl.Proc.ZeroFlag.Should().BeTrue();
+        sbl.Proc.OverflowFlag.Should().BeFalse();
+        sbl.Proc.DecimalFlag.Should().BeFalse();
+    }
+
+    [Fact]
+    public void TestSuite5()
+    {
+        var tree = GetContext("GrammarTests/test-5.txt");
+
+        var walker = new ParseTreeWalker();
+        var sbl = new SimBaseListener();
+
+        walker.Walk(sbl, tree);
+    }
+
+    [Fact]
+    public void TestSuite6()
+    {
+        var tree = GetContext("GrammarTests/test-6.txt");
+
+        var walker = new ParseTreeWalker();
+        var sbl = new SimBaseListener();
+
+        walker.Walk(sbl, tree);
+    }
+
+    [Fact]
+    public void TestSuite7()
+    {
+        var tree = GetContext("GrammarTests/test-7.txt");
+
+        var walker = new ParseTreeWalker();
+        var sbl = new SimBaseListener();
+
+        walker.Walk(sbl, tree);
+    }
+
+    [Fact]
+    public void TestSuite8()
+    {
+        var symbols = new Dictionary<string, int>
         {
-            var symbols = new Dictionary<string, int> {{"Val1", 0x11}, {"Val2", 0x22}, {"Val3", 0xff}};
-            var symbolFile = new SymbolFile(symbols);
+            { "Loc1", 0xd020 }
+        };
 
-            var tree = GetContext("GrammarTests/test-2.txt");
+        var symbolFile = new SymbolFile(symbols);
 
-            var walker = new ParseTreeWalker();
-            var sbl = new SimBaseListener {Symbols = symbolFile};
-            
-            walker.Walk(sbl, tree);
-            
-            Assert.AreEqual(0x11, sbl.Proc.XRegister);
-            Assert.AreEqual(0x22, sbl.Proc.Accumulator);
-            Assert.AreEqual(0xff, sbl.Proc.YRegister);
-        }
+        var tree = GetContext("GrammarTests/test-8.txt");
 
-        [Test]
-        public void TestSuite3()
+        var walker = new ParseTreeWalker();
+        var sbl = new SimBaseListener { Symbols = symbolFile };
+
+        walker.Walk(sbl, tree);
+
+        sbl.Proc.ReadMemoryWordWithoutCycle(0xd020).Should().Be(0xabcd);
+        sbl.Proc.ReadMemoryValueWithoutCycle(0xd022).Should().Be(0xd0);
+    }
+
+    [Fact]
+    public void TestSuite9()
+    {
+        var symbols = new Dictionary<string, int>
         {
-            var symbols = new Dictionary<string, int>
-            {
-                {"Val1", 0x11},
-                {"Val2", 0x22},
-                {"Val3", 0xff},
-                {"Loc1", 0xd020},
-                {"Loc2", 0xd021},
-                {"Loc3", 0xd022}
-            };
+            { "Loc1", 0xd020 }
+        };
 
+        var symbolFile = new SymbolFile(symbols);
 
-            var symbolFile = new SymbolFile(symbols);
+        var tree = GetContext("GrammarTests/test-9.txt");
 
-            var tree = GetContext("GrammarTests/test-3.txt");
+        var walker = new ParseTreeWalker();
+        var sbl = new SimBaseListener { Symbols = symbolFile };
 
-            var walker = new ParseTreeWalker();
-            var sbl = new SimBaseListener {Symbols = symbolFile};
-            
-            walker.Walk(sbl, tree);
-            
-            Assert.AreEqual(0x11, sbl.Proc.ReadMemoryValueWithoutCycle(0xd020));
-            Assert.AreEqual(0x22, sbl.Proc.ReadMemoryValueWithoutCycle(0xd021));
-            Assert.AreEqual(0xff, sbl.Proc.ReadMemoryValueWithoutCycle(0xd022));
-        }
-        
-        [Test]
-        public void TestSuite4()
+        walker.Walk(sbl, tree);
+    }
+
+    [Fact]
+    public void TestSuite10()
+    {
+        var symbols = new Dictionary<string, int>
         {
-            var symbols = new Dictionary<string, int> {{"FALSE", 0x00}};
-            
-            var symbolFile = new SymbolFile(symbols);
-            var tree = GetContext("GrammarTests/test-4.txt");
+            { "Loc1", 0xd020 }
+        };
 
-            var walker = new ParseTreeWalker();
-            var sbl = new SimBaseListener {Symbols = symbolFile};
+        var symbolFile = new SymbolFile(symbols);
 
-            walker.Walk(sbl, tree);
-            
-            Assert.IsTrue(sbl.Proc.CarryFlag);
-            Assert.IsFalse(sbl.Proc.NegativeFlag);
-            Assert.IsTrue(sbl.Proc.ZeroFlag);
-            Assert.IsFalse(sbl.Proc.OverflowFlag);
-            Assert.IsFalse(sbl.Proc.DecimalFlag);
-        }
-        
-        [Test]
-        public void TestSuite5()
-        {
-            var tree = GetContext("GrammarTests/test-5.txt");
+        var tree = GetContext("GrammarTests/test-10.txt");
 
-            var walker = new ParseTreeWalker();
-            var sbl = new SimBaseListener();
+        var walker = new ParseTreeWalker();
+        var sbl = new SimBaseListener { Symbols = symbolFile };
 
-            walker.Walk(sbl, tree);
-        }
-        
-        [Test]
-        public void TestSuite6()
-        {
-            var tree = GetContext("GrammarTests/test-6.txt");
-
-            var walker = new ParseTreeWalker();
-            var sbl = new SimBaseListener();
-
-            walker.Walk(sbl, tree);
-        }
-        
-        [Test]
-        public void TestSuite7()
-        {
-            var tree = GetContext("GrammarTests/test-7.txt");
-
-            var walker = new ParseTreeWalker();
-            var sbl = new SimBaseListener();
-
-            walker.Walk(sbl, tree);
-        }
-        
-        [Test]
-        public void TestSuite8()
-        {
-            var symbols = new Dictionary<string, int>
-            {
-                {"Loc1", 0xd020}
-            };
-            
-            var symbolFile = new SymbolFile(symbols);
-            
-            var tree = GetContext("GrammarTests/test-8.txt");
-
-            var walker = new ParseTreeWalker();
-            var sbl = new SimBaseListener {Symbols = symbolFile};
-
-            walker.Walk(sbl, tree);
-
-            Assert.AreEqual(0xabcd, sbl.Proc.ReadMemoryWordWithoutCycle(0xd020));
-            Assert.AreEqual(0xd0, sbl.Proc.ReadMemoryValueWithoutCycle(0xd022));
-        }
-        
-        [Test]
-        public void TestSuite9()
-        {
-            var symbols = new Dictionary<string, int>
-            {
-                {"Loc1", 0xd020}
-            };
-            
-            var symbolFile = new SymbolFile(symbols);
-            
-            var tree = GetContext("GrammarTests/test-9.txt");
-
-            var walker = new ParseTreeWalker();
-            var sbl = new SimBaseListener {Symbols = symbolFile};
-
-            walker.Walk(sbl, tree);
-        }
-        
-        [Test]
-        public void TestSuite10()
-        {
-            var symbols = new Dictionary<string, int>
-            {
-                {"Loc1", 0xd020}
-            };
-            
-            var symbolFile = new SymbolFile(symbols);
-            
-            var tree = GetContext("GrammarTests/test-10.txt");
-
-            var walker = new ParseTreeWalker();
-            var sbl = new SimBaseListener {Symbols = symbolFile};
-
-            walker.Walk(sbl, tree);
-        }
+        walker.Walk(sbl, tree);
     }
 }
