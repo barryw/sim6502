@@ -177,6 +177,44 @@ If you'd like to see the assembly language instructions that it executes while r
 dotnet Sim6502TestRunner.dll -t -s {path to your test script}
 ```
 
+### Test Filtering
+
+Run a subset of tests using these CLI options:
+
+```bash
+# Run tests matching a glob pattern
+dotnet Sim6502TestRunner.dll -s tests.6502 --filter "castle*"
+
+# Run a single test by exact name
+dotnet Sim6502TestRunner.dll -s tests.6502 --test "attack-knight-center"
+
+# Run tests with specific tags (OR logic)
+dotnet Sim6502TestRunner.dll -s tests.6502 --filter-tag "smoke,regression"
+
+# Exclude tests with certain tags
+dotnet Sim6502TestRunner.dll -s tests.6502 --exclude-tag "slow"
+
+# List matching tests without running them
+dotnet Sim6502TestRunner.dll -s tests.6502 --filter "castle*" --list
+
+# Combine filters
+dotnet Sim6502TestRunner.dll -s tests.6502 --filter "castle*" --filter-tag "regression"
+```
+
+| Option | Description |
+|--------|-------------|
+| `--filter <pattern>` | Glob pattern to match test names (e.g., `"castle*"`, `"*move*"`) |
+| `--test <name>` | Run single test by exact name (highest priority) |
+| `--filter-tag <tags>` | Comma-separated tags; tests matching ANY tag run (OR logic) |
+| `--exclude-tag <tags>` | Exclude tests with any of these tags |
+| `--list` | List matching tests without running them |
+
+**Filter Precedence:**
+1. `--test` (exact match) takes priority
+2. `--filter` (glob) narrows the set
+3. `--filter-tag` further narrows to matching tags
+4. `--exclude-tag` removes from final set
+
 There is also a Docker image if you'd like to not have to mess with installing the .NET Core framework. You can run it like this:
 
 ```bash
@@ -443,6 +481,131 @@ Returns `true` if the two memory regions are identical.
 ```
 memcmp($e000, $4000, $2000)        ; Compare 8KB regions
 memcmp([src], [dst], peekword([size]))
+```
+
+#### memfill(address, count, value)
+Fills a region of memory with a specified value. Useful for initializing test memory.
+
+```
+memfill($4000, $100, $00)          ; Fill 256 bytes with zero
+memfill([buffer], 64, $ff)         ; Fill 64 bytes with $ff
+memfill([r0L], 2, $55)             ; Fill 2 bytes starting at r0L address
+```
+
+#### memdump(address, count)
+Prints a hex dump of memory to the console. Useful for debugging.
+
+```
+memdump($4000, 16)                 ; Dump 16 bytes at $4000
+memdump([Board], 128)              ; Dump 128 bytes at symbol address
+```
+
+Output format:
+```
+[memdump] $4000, 16 bytes:
+4000: 41 42 43 44 45 46 47 48  |  ABCDEFGH|
+4008: 00 00 00 00 00 00 00 00  |  ........|
+```
+
+### Setup Block
+
+The `setup` block runs before each test in a suite. Use it to initialize common memory state:
+
+```
+suite("Chess Tests") {
+  symbols("chess.sym")
+  load("chess.prg", strip_header = true)
+
+  setup {
+    ; Runs before EACH test in this suite
+    [whiteKingSq] = $74
+    [blackKingSq] = $04
+    [currentPlayer] = $01
+    memfill([Board], 64, $30)
+  }
+
+  test("move-pawn", "Pawn moves forward") {
+    ; Setup already ran - board is initialized
+    ; ...
+  }
+
+  test("capture-piece", "Pawn captures diagonally") {
+    ; Setup runs again - board is reset to initial state
+    ; ...
+  }
+}
+```
+
+The setup block supports:
+- Memory assignments (`$5000 = $42`, `[symbol] = value`)
+- Symbol assignments
+- `memfill()` calls
+- Register/flag assignments
+
+Note: Assertions and JSR calls are NOT allowed in setup blocks.
+
+### Test Options
+
+Tests support optional parameters for control flow and debugging:
+
+```
+test("test-id", "Description", skip = true, trace = true, timeout = 10000, tags = "smoke,regression") {
+  ; test contents
+}
+```
+
+#### skip = true|false
+Skip test execution. Skipped tests appear in results but don't run.
+
+```
+test("wip-feature", "Work in progress", skip = true) {
+  ; This test won't execute
+}
+```
+
+#### trace = true|false
+Enable execution trace on failure. When enabled, if the test fails, a detailed instruction trace is printed showing every instruction executed with register/flag state.
+
+```
+test("buggy-code", "Debug this", trace = true) {
+  jsr([GenerateMove], stop_on_rts = true, fail_on_brk = true)
+  assert(c == true, "Should set carry")
+}
+```
+
+If this test fails, output includes:
+```
+FAILED: buggy-code - Should set carry
+Expected: c == true, Got: c == false
+
+Execution trace (247 instructions):
+$1832: LDA $2157      A=$B6 X=$74 Y=$00 SP=$F7 NV-bdizc
+$1835: AND #$7F       A=$36 X=$74 Y=$00 SP=$F7 nv-bdizc
+...
+```
+
+Flags are uppercase when set, lowercase when clear.
+
+#### timeout = N
+Set cycle limit for the test. If exceeded, the test fails.
+
+```
+test("must-be-fast", "Performance test", timeout = 10000) {
+  jsr([QuickSort], stop_on_rts = true, fail_on_brk = true)
+  ; Fails if routine takes > 10000 cycles
+}
+```
+
+- `0` disables the timeout
+- Default (unspecified) = no timeout
+
+#### tags = "tag1,tag2"
+Categorize tests with comma-separated tags for filtering.
+
+```
+test("castle-kingside", "King castles kingside", tags = "castling,regression") {
+  ; ...
+}
 ```
 
 ### JSR Function (Subroutine Execution)
