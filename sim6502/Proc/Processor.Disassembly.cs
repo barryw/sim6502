@@ -34,9 +34,17 @@ namespace sim6502.Proc;
 /// </summary>
 public partial class Processor
 {
+    /// <summary>
+    /// Formats processor flags for trace output - uppercase when set, lowercase when clear
+    /// </summary>
+    private string FormatFlags()
+    {
+        return $"{(NegativeFlag ? 'N' : 'n')}{(OverflowFlag ? 'V' : 'v')}-bd{(DisableInterruptFlag ? 'I' : 'i')}{(ZeroFlag ? 'Z' : 'z')}{(CarryFlag ? 'C' : 'c')}";
+    }
+
     private void SetDisassembly()
     {
-        if (!Logger.IsDebugEnabled)
+        if (!Logger.IsDebugEnabled && !TraceEnabled)
             return;
 
         var addressMode = GetAddressingMode();
@@ -164,25 +172,22 @@ public partial class Processor
             DisassemblyOutput = disassembledStep
         };
 
-        Logger.Trace(
-            "${0} : {1}{2}{3} {4} {5} A: {6} X: {7} Y: {8} SP {9} N: {10} V: {11} B: {12} D: {13} I: {14} Z: {15} C: {16}",
-            ProgramCounter.ToString("X").PadLeft(4, '0'),
-            CurrentOpCode.ToString("X").PadLeft(2, '0'),
-            CurrentDisassembly.LowAddress.PadLeft(2, ' '),
-            CurrentDisassembly.HighAddress.PadLeft(2, ' '),
-            CurrentDisassembly.OpCodeString,
-            CurrentDisassembly.DisassemblyOutput.PadRight(10, ' '),
-            Accumulator.ToString("X").PadLeft(3, '0'),
-            XRegister.ToString("X").PadLeft(3, '0'),
-            YRegister.ToString("X").PadLeft(3, '0'),
-            StackPointer.ToString("X").PadLeft(3, '0'),
-            Convert.ToInt16(NegativeFlag),
-            Convert.ToInt16(OverflowFlag),
-            0,
-            Convert.ToInt16(DecimalFlag),
-            Convert.ToInt16(DisableInterruptFlag),
-            Convert.ToInt16(ZeroFlag),
-            Convert.ToInt16(CarryFlag));
+        var traceOutput =
+            $"${ProgramCounter.ToString("X").PadLeft(4, '0')}: {CurrentDisassembly.OpCodeString} " +
+            $"{CurrentDisassembly.DisassemblyOutput.PadRight(10, ' ')} " +
+            $"A=${Accumulator.ToString("X").PadLeft(2, '0')} " +
+            $"X=${XRegister.ToString("X").PadLeft(2, '0')} " +
+            $"Y=${YRegister.ToString("X").PadLeft(2, '0')} " +
+            $"SP=${StackPointer.ToString("X").PadLeft(2, '0')} " +
+            $"{FormatFlags()}";
+
+        // Buffer trace if enabled
+        if (TraceEnabled)
+        {
+            _traceBuffer.Add(traceOutput);
+        }
+
+        Logger.Trace(traceOutput);
     }
 
     public string ConvertOpCodeIntoString(int i)

@@ -141,6 +141,8 @@ namespace sim6502.Grammar
             _currentTestTimeout = 0;
             _currentTestTags = "";
             Proc.ResetCycleCount();
+            Proc.TraceEnabled = false;
+            Proc.ClearTraceBuffer();
             LoadResources();
         }
 
@@ -154,6 +156,19 @@ namespace sim6502.Grammar
         {
             _currentSuitePassed = false;
             _allSuitesPassed = false;
+        }
+
+        private void OutputTrace()
+        {
+            var trace = Proc.GetTraceBuffer();
+            if (trace.Count == 0) return;
+
+            Logger.Info("");
+            Logger.Info($"Execution trace ({trace.Count} instructions):");
+            foreach (var line in trace)
+            {
+                Logger.Info(line);
+            }
         }
 
         private void ResetSuite()
@@ -686,6 +701,14 @@ namespace sim6502.Grammar
                 return;
             }
 
+            // Enable trace buffering if requested
+            if (_currentTestTraceEnabled)
+            {
+                Proc.TraceEnabled = true;
+                Proc.ClearTraceBuffer();
+                Logger.Trace("Trace buffering enabled for test");
+            }
+
             // Execute setup block before each test if present
             if (_currentSetupBlock != null)
             {
@@ -733,6 +756,12 @@ namespace sim6502.Grammar
                 foreach (var msg in _testFailureMessages)
                 {
                     Logger.Fatal($"'{test}' - {msg}");
+                }
+
+                // Output trace if trace was enabled and test failed
+                if (_currentTestTraceEnabled)
+                {
+                    OutputTrace();
                 }
             }
         }

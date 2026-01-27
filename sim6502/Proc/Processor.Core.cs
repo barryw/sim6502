@@ -162,6 +162,16 @@ public partial class Processor
     /// <value>The number of elapsed cycles</value>
     public int CycleCount { get; private set; }
 
+    /// <summary>
+    /// Enables trace buffering for execution trace
+    /// </summary>
+    public bool TraceEnabled { get; set; }
+
+    /// <summary>
+    /// Buffered trace lines for failure-only output
+    /// </summary>
+    private readonly System.Collections.Generic.List<string> _traceBuffer = new();
+
     #endregion
 
     #region Helper Methods
@@ -184,6 +194,23 @@ public partial class Processor
     public void ResetCycleCount()
     {
         CycleCount = 0;
+    }
+
+    /// <summary>
+    /// Gets the current trace buffer contents
+    /// </summary>
+    /// <returns>List of buffered trace lines</returns>
+    public System.Collections.Generic.List<string> GetTraceBuffer()
+    {
+        return _traceBuffer;
+    }
+
+    /// <summary>
+    /// Clears the trace buffer
+    /// </summary>
+    public void ClearTraceBuffer()
+    {
+        _traceBuffer.Clear();
     }
 
     /// <summary>
