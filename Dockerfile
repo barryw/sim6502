@@ -3,22 +3,17 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 
 WORKDIR /src
 
-# Copy csproj files first for layer caching
+# Copy only main project for layer caching
 COPY sim6502/sim6502.csproj sim6502/
-COPY sim6502tests/sim6502tests.csproj sim6502tests/
-COPY sim6502.sln .
 
-# Restore dependencies
-RUN dotnet restore
+# Restore only main project
+RUN dotnet restore sim6502/sim6502.csproj
 
-# Copy everything else
-COPY . .
-
-# Build
-RUN dotnet build -c Release --no-restore
+# Copy main project source
+COPY sim6502/ sim6502/
 
 # Publish
-RUN dotnet publish sim6502/sim6502.csproj -c Release -o /app/publish --no-build
+RUN dotnet publish sim6502/sim6502.csproj -c Release -o /app/publish
 
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/runtime:10.0 AS runtime
