@@ -1,24 +1,11 @@
-[changelog]
-path = "CHANGELOG.md"
-authors = [
-    { signature = "Barry Walker", username = "barryw" }
-]
-
-[commit_types]
-feat = { changelog_title = "Features" }
-fix = { changelog_title = "Bug Fixes" }
-docs = { changelog_title = "Documentation" }
-style = { changelog_title = "Style" }
-refactor = { changelog_title = "Refactoring" }
-perf = { changelog_title = "Performance" }
-test = { changelog_title = "Tests" }
-build = { changelog_title = "Build" }
-ci = { changelog_title = "CI/CD" }
-chore = { changelog_title = "Chores", omit_from_changelog = true }
-
 # Hooks to update version in csproj file
 pre_bump_hooks = [
     "sed -i 's/<Version>[0-9]*\\.[0-9]*\\.[0-9]*<\\/Version>/<Version>{{version}}<\\/Version>/g' sim6502/sim6502.csproj",
     "git add sim6502/sim6502.csproj"
 ]
-post_bump_hooks = []
+
+[changelog]
+path = "CHANGELOG.md"
+authors = [
+    { signature = "Barry Walker", username = "barryw" }
+]
