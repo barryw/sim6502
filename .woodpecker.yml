@@ -48,8 +48,6 @@ steps:
           NOTES=$(git log --pretty=format:"- %s" $VERSION^)
         fi
         gh release create "$VERSION" --title "$VERSION" --notes "$NOTES"
-        # Save version for docker step
-        echo "${VERSION#v}" > /woodpecker/src/VERSION
     depends_on: [build-and-test]
 
   - name: docker
@@ -60,14 +58,7 @@ steps:
       GITHUB_TOKEN:
         from_secret: github_token
     commands:
-      - |
-        VERSION=$(cat /woodpecker/src/VERSION 2>/dev/null || echo "latest")
-        echo "Building Docker image: $VERSION"
-        mkdir -p /kaniko/.docker
-        echo "{\"auths\":{\"ghcr.io\":{\"username\":\"barryw\",\"password\":\"$GITHUB_TOKEN\"}}}" > /kaniko/.docker/config.json
-        /kaniko/executor \
-          --context=/woodpecker/src \
-          --dockerfile=/woodpecker/src/Dockerfile \
-          --destination="ghcr.io/barryw/sim6502:v$VERSION" \
-          --destination="ghcr.io/barryw/sim6502:latest"
+      - mkdir -p /kaniko/.docker
+      - echo "{\"auths\":{\"ghcr.io\":{\"username\":\"barryw\",\"password\":\"$GITHUB_TOKEN\"}}}" > /kaniko/.docker/config.json
+      - /kaniko/executor --context=/woodpecker/src --dockerfile=/woodpecker/src/Dockerfile --destination=ghcr.io/barryw/sim6502:latest
     depends_on: [release]
