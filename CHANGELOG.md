@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.1.0 - 2026-01-27
+#### Features
+- add GitHub release creation with commit-based notes - (9658810) - Barry Walker
+
+- - -
+
 ## v3.0.2 - 2026-01-27
 #### Bug Fixes
 - correct evaluate condition to check for chore(version) - (4e30337) - Barry Walker
