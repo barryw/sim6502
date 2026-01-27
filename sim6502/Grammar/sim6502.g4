@@ -120,7 +120,7 @@ stripHeader
     ;
     
 testFunction
-    : Test LParen testName Comma testDescription RParen LBrace testContents+ RBrace
+    : Test LParen testName Comma testDescription (Comma testOptions)? RParen LBrace testContents+ RBrace
     ;
 
 testName
@@ -129,6 +129,17 @@ testName
 
 testDescription
     : StringLiteral
+    ;
+
+testOptions
+    : testOption (Comma testOption)*
+    ;
+
+testOption
+    : Skip Assign boolean
+    | Trace Assign boolean
+    | Timeout Assign number
+    | Tags Assign StringLiteral
     ;
 
 setupBlock
@@ -349,6 +360,10 @@ StripHeader:    'strip_header';
 StopOnAddress:  'stop_on_address';
 StopOnRTS:      'stop_on_rts';
 FailOnBRK:      'fail_on_brk';
+Skip:           'skip';
+Trace:          'trace';
+Timeout:        'timeout';
+Tags:           'tags';
 
 LoByte: '.l' | '.L' ;
 HiByte: '.h' | '.H' ;

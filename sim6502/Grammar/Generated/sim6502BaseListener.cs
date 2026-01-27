@@ -505,6 +505,30 @@ public partial class sim6502BaseListener : Isim6502Listener {
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitTestDescription([NotNull] sim6502Parser.TestDescriptionContext context) { }
 	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.testOptions"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterTestOptions([NotNull] sim6502Parser.TestOptionsContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.testOptions"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitTestOptions([NotNull] sim6502Parser.TestOptionsContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.testOption"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterTestOption([NotNull] sim6502Parser.TestOptionContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.testOption"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitTestOption([NotNull] sim6502Parser.TestOptionContext context) { }
+	/// <summary>
 	/// Enter a parse tree produced by <see cref="sim6502Parser.setupBlock"/>.
 	/// <para>The default implementation does nothing.</para>
 	/// </summary>

@@ -428,6 +428,26 @@ public interface Isim6502Listener : IParseTreeListener {
 	/// <param name="context">The parse tree.</param>
 	void ExitTestDescription([NotNull] sim6502Parser.TestDescriptionContext context);
 	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.testOptions"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterTestOptions([NotNull] sim6502Parser.TestOptionsContext context);
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.testOptions"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitTestOptions([NotNull] sim6502Parser.TestOptionsContext context);
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.testOption"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterTestOption([NotNull] sim6502Parser.TestOptionContext context);
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.testOption"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitTestOption([NotNull] sim6502Parser.TestOptionContext context);
+	/// <summary>
 	/// Enter a parse tree produced by <see cref="sim6502Parser.setupBlock"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>

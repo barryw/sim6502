@@ -49,7 +49,8 @@
       "Bash(then :)",
       "Bash(else echo \"$f has assert but no jsr\")",
       "Bash(NLOG_LEVEL=Trace dotnet run:*)",
-      "Bash(/Users/barry/Git/sim6502/sim6502/bin/Debug/net10.0/Sim6502TestRunner:*)"
+      "Bash(/Users/barry/Git/sim6502/sim6502/bin/Debug/net10.0/Sim6502TestRunner:*)",
+      "Bash(git checkout:*)"
     ]
   }
 }
