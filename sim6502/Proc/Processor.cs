@@ -52,14 +52,6 @@ namespace sim6502.Proc
         }
 
         /// <summary>
-        /// Clear memory
-        /// </summary>
-        public void ResetMemory()
-        {
-            Memory = new byte[0x10000];
-        }
-
-        /// <summary>
         /// Initializes the processor to its default state.
         /// </summary>
         public void Reset()
@@ -191,160 +183,11 @@ namespace sim6502.Proc
         }
 
         /// <summary>
-        /// Loads a program into the processors memory
-        /// </summary>
-        /// <param name="offset">The offset in memory when loading the program.</param>
-        /// <param name="program">The program to be loaded</param>
-        /// <param name="initialProgramCounter">The initial PC value, this is the entry point of the program</param>
-        /// <param name="reset">Should the processor be reset after load? Defaults to false</param>
-        public void LoadProgram(int offset, byte[] program, int initialProgramCounter, bool reset = true)
-        {
-            LoadProgram(offset, program);
-            var bytes = BitConverter.GetBytes(initialProgramCounter);
-            if (!reset) return;
-
-            // Write the initialProgram Counter to the reset vector
-            WriteMemoryValue(0xFFFC, bytes[0]);
-            WriteMemoryValue(0xFFFD, bytes[1]);
-                
-            // Reset the CPU
-            Reset();
-        }
-
-        /// <summary>
-        /// Loads a program into the processors memory
-        /// </summary>
-        /// <param name="offset">The offset in memory when loading the program.</param>
-        /// <param name="program">The program to be loaded</param>
-        public void LoadProgram(int offset, byte[] program)
-        {
-            if (offset > Memory.Length)
-                throw new InvalidOperationException("Offset '{0}' is larger than memory size '{1}'");
-
-            if (program.Length > Memory.Length + offset)
-                throw new InvalidOperationException(
-                    $"Program Size '{program.Length.ToString()}' Cannot be Larger than Memory Size '{Memory.Length.ToString()}' plus offset '{offset.ToString()}'");
-
-            for (var i = 0; i < program.Length; i++) Memory[i + offset] = program[i];
-        }
-
-        /// <summary>
         /// The InterruptRequest or IRQ
         /// </summary>
         public void InterruptRequest()
         {
             TriggerIrq = true;
-        }
-
-        /// <summary>
-        /// Clears the memory
-        /// </summary>
-        public void ClearMemory()
-        {
-            for (var i = 0; i < Memory.Length; i++)
-                Memory[i] = 0x00;
-        }
-
-        /// <summary>
-        /// Returns the byte at the given address.
-        /// </summary>
-        /// <param name="address">The address to return</param>
-        /// <returns>the byte being returned</returns>
-        public virtual byte ReadMemoryValue(int address)
-        {
-            var value = Memory[address];
-            IncrementCycleCount();
-            return value;
-        }
-
-        /// <summary>
-        /// Returns the byte at a given address without incrementing the cycle. Useful for test harness. 
-        /// </summary>
-        /// <param name="address"></param>
-        /// <returns></returns>
-        public virtual byte ReadMemoryValueWithoutCycle(int address)
-        {
-            var value = Memory[address];
-            
-            Logger.Trace($"Read BYTE value {value.ToString()} from location {address.ToString()}");
-            
-            return value;
-        }
-
-        /// <summary>
-        /// Return the 16-bit word at a given address without incrementing the cycle counter.
-        /// </summary>
-        /// <param name="address"></param>
-        /// <returns></returns>
-        public virtual int ReadMemoryWordWithoutCycle(int address)
-        {
-            var lobyte = ReadMemoryValueWithoutCycle(address);
-            var hibyte = ReadMemoryValueWithoutCycle(address + 1);
-            var value = hibyte * 256 + lobyte;
-            
-            Logger.Trace($"Read WORD value {value.ToString()} from location {address.ToString()} and {(address + 1).ToString()}");
-            
-            return value;
-        }
-
-        /// <summary>
-        /// Writes data to the given address.
-        /// </summary>
-        /// <param name="address">The address to write data to</param>
-        /// <param name="data">The data to write</param>
-        public virtual void WriteMemoryValue(int address, byte data)
-        {
-            IncrementCycleCount();
-            WriteMemoryValueWithoutIncrement(address, data);
-        }
-
-        /// <summary>
-        /// Writes data to the given address, but doesn't increase the cycle count.
-        /// </summary>
-        /// <param name="address">The address to write data to</param>
-        /// <param name="data">The data to write</param>
-        public virtual void WriteMemoryValueWithoutIncrement(int address, byte data)
-        {
-            Logger.Trace($"Writing BYTE {data.ToString()} to address {address.ToString()}");
-            
-            Memory[address] = data;
-        }
-
-        /// <summary>
-        /// Write 2 bytes to address and address + 1
-        /// </summary>
-        /// <param name="address">The starting address to write to</param>
-        /// <param name="word">The 16-bit word to write</param>
-        public virtual void WriteMemoryWord(int address, int word)
-        {
-            var page = Convert.ToByte(word / 256);
-            var b = Convert.ToByte(word - page * 256);
-
-            Logger.Trace($"Writing WORD {word.ToString()} to address {address.ToString()} and {(address + 1).ToString()}");
-            
-            Memory[address] = b;
-            Memory[address + 1] = page;
-        }
-
-        public virtual void WriteMemoryValue(int address, int value)
-        {
-            if (value > 255)
-            {
-                WriteMemoryWord(address, value);
-            }
-            else
-            {
-                WriteMemoryValueWithoutIncrement(address, (byte)value);
-            }
-        }
-
-        /// <summary>
-        /// Dumps the entire memory object. Used when saving the memory state
-        /// </summary>
-        /// <returns></returns>
-        public byte[] DumpMemory()
-        {
-            return Memory;
         }
 
         #endregion
