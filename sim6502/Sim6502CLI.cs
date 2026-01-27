@@ -55,6 +55,21 @@ namespace sim6502
 
             [Option('s', "suitefile", Required = true, HelpText = "The path to your suite file which contains your test suites")]
             public string SuiteFile { get; set; }
+
+            [Option("filter", Required = false, HelpText = "Glob pattern for test names (e.g., 'castle*')")]
+            public string? FilterPattern { get; set; }
+
+            [Option("test", Required = false, HelpText = "Run single test by exact name")]
+            public string? SingleTest { get; set; }
+
+            [Option("filter-tag", Required = false, HelpText = "Comma-separated tags to include (OR logic)")]
+            public string? FilterTags { get; set; }
+
+            [Option("exclude-tag", Required = false, HelpText = "Comma-separated tags to exclude")]
+            public string? ExcludeTags { get; set; }
+
+            [Option("list", Required = false, HelpText = "List matching tests without running")]
+            public bool ListOnly { get; set; }
         }
 
         private static int Main(string[] args)
