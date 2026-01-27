@@ -216,4 +216,21 @@ public class TestSuiteParser
 
         walker.Walk(sbl, tree);
     }
+
+    [Fact]
+    public void TestSuite12_GrammarFixes()
+    {
+        // This test validates grammar fixes:
+        // - Operator precedence (mul/div before add/sub, arithmetic before bitwise)
+        // - Mixed statements in test blocks
+        // - Register and flag assignments
+        // - Expression assignments
+        // - Nested symbol references
+        var tree = GetContext("GrammarTests/test-12.txt");
+
+        var walker = new ParseTreeWalker();
+        var sbl = new SimBaseListener();
+
+        walker.Walk(sbl, tree);
+    }
 }

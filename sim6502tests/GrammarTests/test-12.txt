@@ -1,0 +1,104 @@
+suites {
+  suite("Test Suite 12 - Grammar Fixes Validation") {
+    ; Load test program for symbols
+    symbols("TestPrograms/include_me_full.sym")
+    load("TestPrograms/include_me_full.prg", strip_header = true)
+
+    test("operator-precedence-mul-add", "Multiplication has higher precedence than addition") {
+      ; Test: 2 + 3 * 4 should equal 14, not 20
+      ; If precedence is wrong (add before mul), would be (2+3)*4 = 20
+      ; Correct precedence: 2 + (3*4) = 14
+      $4000 = 2 + 3 * 4
+
+      assert($4000 == 14, "2 + 3 * 4 should equal 14 (mul before add)")
+    }
+
+    test("operator-precedence-div-sub", "Division has higher precedence than subtraction") {
+      ; Test: 20 - 8 / 2 should equal 16, not 6
+      ; Correct precedence: 20 - (8/2) = 16
+      $4001 = 20 - 8 / 2
+
+      assert($4001 == 16, "20 - 8 / 2 should equal 16 (div before sub)")
+    }
+
+    test("operator-precedence-bitwise-lower", "Bitwise operators have lower precedence than arithmetic") {
+      ; Test: $10 | $02 * $03 should be $10 | $06 = $16 (mul first, correct)
+      ;                         or ($10 | $02) * $03 = $12 * $03 = $36 (or first, wrong)
+      $4002 = $10 | $02 * $03
+
+      assert($4002 == $16, "$10 | $02 * $03 should equal $16 (mul before or)")
+    }
+
+    test("mixed-statements", "Test can contain mixed assignments and asserts") {
+      ; First assignment
+      $3000 = $aa
+      ; Second assignment
+      $3001 = $bb
+      ; Third assignment
+      $3002 = $cc
+
+      ; Assert after assignments
+      assert($3000 == $aa, "First byte should be $aa")
+
+      ; More assignments after assert
+      $3003 = $dd
+
+      ; Final assertions
+      assert($3001 == $bb, "Second byte should be $bb")
+      assert($3002 == $cc, "Third byte should be $cc")
+      assert($3003 == $dd, "Fourth byte should be $dd")
+    }
+
+    test("register-assignment", "Registers can be assigned") {
+      a = $12
+      x = $34
+      y = $56
+
+      assert(a == $12, "Accumulator should be $12")
+      assert(x == $34, "X register should be $34")
+      assert(y == $56, "Y register should be $56")
+    }
+
+    test("flag-assignment", "Processor flags can be assigned") {
+      c = true
+      n = false
+      z = true
+      v = false
+      d = false
+
+      assert(c == true, "Carry flag should be set")
+      assert(n == false, "Negative flag should be clear")
+      assert(z == true, "Zero flag should be set")
+    }
+
+    test("expression-assignment", "Expression can be left side of assignment") {
+      ; Test that [symbol] + offset = value works
+      [Loc1] = $1234
+      [Loc1] + $02 = $56
+
+      assert([Loc1] + $02 == $56, "Value at Loc1 + 2 should be $56")
+    }
+
+    test("nested-symbol-reference", "Nested symbols (namespace.name) work") {
+      ; Use a namespaced symbol like vic.EXTCOL
+      [vic.EXTCOL] = $0e
+
+      assert([vic.EXTCOL] == $0e, "Namespaced symbol should work")
+    }
+
+    test("complex-expressions", "Complex nested expressions parse correctly") {
+      ; Test parentheses for grouping
+      $4010 = (2 + 3) * 4
+
+      assert($4010 == 20, "(2 + 3) * 4 should equal 20")
+    }
+
+    test("bitwise-precedence-chain", "Bitwise operators follow correct precedence") {
+      ; | has lowest, ^ middle, & highest among bitwise
+      ; $ff & $0f | $10 should be ($ff & $0f) | $10 = $0f | $10 = $1f
+      $4020 = $ff & $0f | $10
+
+      assert($4020 == $1f, "$ff & $0f | $10 should equal $1f")
+    }
+  }
+}

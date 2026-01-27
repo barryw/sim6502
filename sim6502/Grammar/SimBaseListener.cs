@@ -14,8 +14,19 @@ namespace sim6502.Grammar
     {
         private readonly ParseTreeProperty<int> _intValues = new ParseTreeProperty<int>();
         private readonly ParseTreeProperty<bool> _boolValues = new ParseTreeProperty<bool>();
-        
+
         private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
+
+        /// <summary>
+        /// Strip surrounding quotes from a string literal.
+        /// The grammar no longer strips quotes, so we do it here for portability.
+        /// </summary>
+        private static string StripQuotes(string text)
+        {
+            if (text.Length >= 2 && text.StartsWith("\"") && text.EndsWith("\""))
+                return text.Substring(1, text.Length - 2);
+            return text;
+        }
 
         // Whether the current test has passed
         private bool TestPassed => _testFailureMessages.Count == 0;
@@ -119,7 +130,7 @@ namespace sim6502.Grammar
         {
             Proc = new Processor();
             Proc.Reset();
-            CurrentSuite = context.suiteName().GetText();
+            CurrentSuite = StripQuotes(context.suiteName().GetText());
             Logger.Info($"Running test suite '{CurrentSuite}'...");
         }
 
@@ -447,7 +458,7 @@ namespace sim6502.Grammar
         
         public override void ExitSymbolsFunction(sim6502Parser.SymbolsFunctionContext context)
         {
-            var filename = context.symbolsFilename().StringLiteral().GetText();
+            var filename = StripQuotes(context.symbolsFilename().StringLiteral().GetText());
             Logger.Trace($"Loading symbol file {filename}");
             var symbols = File.ReadAllText(filename);
             Symbols = new SymbolFile(symbols);
@@ -456,7 +467,7 @@ namespace sim6502.Grammar
         
         public override void ExitLoadFunction(sim6502Parser.LoadFunctionContext context)
         {
-            var filename = context.loadFilename().StringLiteral().GetText();
+            var filename = StripQuotes(context.loadFilename().StringLiteral().GetText());
             var addrCtx = context.loadAddress();
             var strip = false;
             if (context.stripHeader() != null)
@@ -476,8 +487,8 @@ namespace sim6502.Grammar
 
         public override void ExitTestFunction(sim6502Parser.TestFunctionContext context)
         {
-            var test = context.testName().GetText();
-            var description = context.testDescription().GetText();
+            var test = StripQuotes(context.testName().GetText());
+            var description = StripQuotes(context.testDescription().GetText());
 
             if (!_didJsr)
             {
@@ -502,7 +513,7 @@ namespace sim6502.Grammar
 
         public override void EnterAssertFunction(sim6502Parser.AssertFunctionContext context)
         {
-            _currentAssertion = context.assertDescription().GetText();
+            _currentAssertion = StripQuotes(context.assertDescription().GetText());
         }
 
         public override void ExitAssertFunction(sim6502Parser.AssertFunctionContext context)

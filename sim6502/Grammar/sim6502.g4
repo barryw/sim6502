@@ -36,12 +36,13 @@ suiteName
     : StringLiteral
     ;
    
+// Assignment rule - order matters: most specific first, general expression last
 assignment
-    : expression Assign expression      # expressionAssignment
+    : Register Assign expression        # registerAssignment
+    | ProcessorFlag Assign expression   # flagAssignment
     | symbolRef Assign expression       # symbolAssignment
     | address Assign expression         # addressAssignment
-    | Register Assign expression        # registerAssignment
-    | ProcessorFlag Assign expression   # flagAssignment
+    | expression Assign expression      # expressionAssignment
     ;
     
 address
@@ -130,10 +131,11 @@ testDescription
     : StringLiteral
     ;
     
+// Test contents - allow any single statement, testFunction uses + to allow multiple
 testContents
-    : assertFunction+ 
-    | assignment+
-    | jsrFunction+
+    : assertFunction
+    | assignment
+    | jsrFunction
     ;
 
 peekByteFunction
@@ -168,20 +170,22 @@ memoryValue
     : expression
     ;
     
+// Expression rule - operator precedence (bottom = highest in ANTLR4)
+// Precedence order: * / > + - > & > ^ > |
 expression
     : address (lbhb)?                           # addressValue
     | number (lbhb)?                            # intValue
-    | boolean                                   # boolValue     
+    | boolean                                   # boolValue
     | intFunction                               # intFunctionValue
     | boolFunction                              # boolFunctionValue
     | LParen expression RParen                  # subExpressionValue
-    | expression BitAnd expression              # bitAndExpressionValue
     | expression BitOr expression               # bitOrExpressionValue
     | expression BitXor expression              # bitXorExpressionValue
-    | expression Mul expression                 # multiplyValue
-    | expression Div expression                 # divisionValue
+    | expression BitAnd expression              # bitAndExpressionValue
     | expression Add expression                 # addValue
     | expression Sub expression                 # subValue
+    | expression Mul expression                 # multiplyValue
+    | expression Div expression                 # divisionValue
     ;
     
 lbhb
@@ -233,12 +237,12 @@ Register
     ;
          
 Int
-    : [0-9] +
+    : [0-9]+
     ;
-   
+
 Hex
-    : Dollar HexDigit +
-    | '0' [xX] HexDigit +
+    : Dollar HexDigit+
+    | '0' [xX] HexDigit+
     ;
     
 fragment
@@ -247,7 +251,7 @@ HexDigit
     ;
     
 Binary
-    : Percent ('0' | '1') +
+    : Percent [01]+
     ;
 
 CompareOperator
@@ -286,6 +290,8 @@ LBrace:     '{' ;
 RBrace:     '}' ;
 LBracket:   '[' ;
 RBracket:   ']' ;
+
+fragment
 Quote:      '"' ;
 
 RegA: [aA] ;
@@ -325,14 +331,14 @@ HiByte: '.h' | '.H' ;
 Byte: '.b' | '.B' ;
 Word: '.w' | '.W' ;
 
+// Identifier must start with letter or underscore, can contain letters, digits, underscores
 Identifier
-    : [a-zA-Z0-9_.]+
+    : [a-zA-Z_][a-zA-Z0-9_]*
     ;
     
 StringLiteral
-	:	Quote String Quote
-	{Text = Text.Substring(1, Text.Length - 2);}
-	;
+    : Quote String Quote
+    ;
 	
 fragment
 String
@@ -343,13 +349,7 @@ Comment
     : ';' ~ [\r\n]* -> skip
     ;
 
-WS  
-    :  [ \t\r\n\u000C]+ -> skip
-    ;
-	
-NewLine
-    :   (   '\r' '\n'?
-        |   '\n'
-        )
-        -> skip
+// Whitespace includes newlines - no separate NewLine rule needed
+WS
+    : [ \t\r\n\u000C]+ -> skip
     ;

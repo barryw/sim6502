@@ -62,17 +62,29 @@ public interface Isim6502Listener : IParseTreeListener {
 	/// <param name="context">The parse tree.</param>
 	void ExitSuiteName([NotNull] sim6502Parser.SuiteNameContext context);
 	/// <summary>
-	/// Enter a parse tree produced by the <c>expressionAssignment</c>
+	/// Enter a parse tree produced by the <c>registerAssignment</c>
 	/// labeled alternative in <see cref="sim6502Parser.assignment"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
-	void EnterExpressionAssignment([NotNull] sim6502Parser.ExpressionAssignmentContext context);
+	void EnterRegisterAssignment([NotNull] sim6502Parser.RegisterAssignmentContext context);
 	/// <summary>
-	/// Exit a parse tree produced by the <c>expressionAssignment</c>
+	/// Exit a parse tree produced by the <c>registerAssignment</c>
 	/// labeled alternative in <see cref="sim6502Parser.assignment"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
-	void ExitExpressionAssignment([NotNull] sim6502Parser.ExpressionAssignmentContext context);
+	void ExitRegisterAssignment([NotNull] sim6502Parser.RegisterAssignmentContext context);
+	/// <summary>
+	/// Enter a parse tree produced by the <c>flagAssignment</c>
+	/// labeled alternative in <see cref="sim6502Parser.assignment"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterFlagAssignment([NotNull] sim6502Parser.FlagAssignmentContext context);
+	/// <summary>
+	/// Exit a parse tree produced by the <c>flagAssignment</c>
+	/// labeled alternative in <see cref="sim6502Parser.assignment"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitFlagAssignment([NotNull] sim6502Parser.FlagAssignmentContext context);
 	/// <summary>
 	/// Enter a parse tree produced by the <c>symbolAssignment</c>
 	/// labeled alternative in <see cref="sim6502Parser.assignment"/>.
@@ -98,29 +110,17 @@ public interface Isim6502Listener : IParseTreeListener {
 	/// <param name="context">The parse tree.</param>
 	void ExitAddressAssignment([NotNull] sim6502Parser.AddressAssignmentContext context);
 	/// <summary>
-	/// Enter a parse tree produced by the <c>registerAssignment</c>
+	/// Enter a parse tree produced by the <c>expressionAssignment</c>
 	/// labeled alternative in <see cref="sim6502Parser.assignment"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
-	void EnterRegisterAssignment([NotNull] sim6502Parser.RegisterAssignmentContext context);
+	void EnterExpressionAssignment([NotNull] sim6502Parser.ExpressionAssignmentContext context);
 	/// <summary>
-	/// Exit a parse tree produced by the <c>registerAssignment</c>
+	/// Exit a parse tree produced by the <c>expressionAssignment</c>
 	/// labeled alternative in <see cref="sim6502Parser.assignment"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
-	void ExitRegisterAssignment([NotNull] sim6502Parser.RegisterAssignmentContext context);
-	/// <summary>
-	/// Enter a parse tree produced by the <c>flagAssignment</c>
-	/// labeled alternative in <see cref="sim6502Parser.assignment"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	void EnterFlagAssignment([NotNull] sim6502Parser.FlagAssignmentContext context);
-	/// <summary>
-	/// Exit a parse tree produced by the <c>flagAssignment</c>
-	/// labeled alternative in <see cref="sim6502Parser.assignment"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	void ExitFlagAssignment([NotNull] sim6502Parser.FlagAssignmentContext context);
+	void ExitExpressionAssignment([NotNull] sim6502Parser.ExpressionAssignmentContext context);
 	/// <summary>
 	/// Enter a parse tree produced by the <c>numberAddress</c>
 	/// labeled alternative in <see cref="sim6502Parser.address"/>.
