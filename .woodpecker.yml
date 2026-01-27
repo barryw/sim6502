@@ -1,6 +1,7 @@
 when:
   - event: push
     branch: main
+    evaluate: 'CI_COMMIT_MESSAGE not contains "chore(version):"'
 
 labels:
   platform: linux/amd64
