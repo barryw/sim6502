@@ -1,0 +1,48 @@
+suites {
+  suite("Test Suite 13 - memfill/memdump") {
+    symbols("TestPrograms/include_me_full.sym")
+    load("TestPrograms/include_me_full.prg", strip_header = true)
+
+    test("memfill-basic", "memfill fills memory with value") {
+      ; Set boundary marker before fill
+      $3010 = $99
+
+      memfill($3000, 16, $aa)
+
+      assert($3000 == $aa, "First byte should be $aa")
+      assert($3001 == $aa, "Second byte should be $aa")
+      assert($300f == $aa, "Last byte should be $aa")
+      assert($3010 == $99, "Byte after should be unchanged")
+    }
+
+    test("memfill-zero-count", "memfill with count=0 fills nothing") {
+      $3000 = $ff
+      memfill($3000, 0, $aa)
+      assert($3000 == $ff, "Should remain unchanged with zero count")
+    }
+
+    test("memfill-symbol", "memfill works with symbols") {
+      ; Use r0L symbol which is at $fb (zero page)
+      memfill([r0L], 2, $55)
+
+      assert([r0L] == $55, "Symbol address should be filled")
+    }
+
+    test("memdump-basic", "memdump executes without error") {
+      $4000 = $41
+      $4001 = $42
+      $4002 = $43
+      memdump($4000, 8)
+
+      ; memdump should not modify memory
+      assert($4000 == $41, "Memory unchanged after memdump")
+    }
+
+    test("memdump-symbol", "memdump works with symbols") {
+      [vic.EXTCOL] = $0e
+      memdump([vic.EXTCOL], 4)
+
+      assert([vic.EXTCOL] == $0e, "Symbol memory unchanged after memdump")
+    }
+  }
+}

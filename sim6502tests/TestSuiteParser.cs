@@ -233,4 +233,17 @@ public class TestSuiteParser
 
         walker.Walk(sbl, tree);
     }
+
+    [Fact]
+    public void TestSuite13_MemfillMemdump()
+    {
+        // This test validates memfill and memdump grammar parsing
+        // Expected to fail (red test) until listener implementation is complete
+        var tree = GetContext("GrammarTests/test-13.txt");
+
+        var walker = new ParseTreeWalker();
+        var sbl = new SimBaseListener();
+
+        walker.Walk(sbl, tree);
+    }
 }
