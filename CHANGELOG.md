@@ -2,6 +2,35 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.4.0 - 2026-01-27
+#### Features
+- (**cli**) add test filtering options (--filter, --test, --filter-tag, --exclude-tag, --list) - (07778c4) - Barry Walker
+- (**grammar**) add test options (skip, trace, timeout, tags) - (bd9bca8) - Barry Walker
+- (**grammar**) add setup block syntax - (b0f3d91) - Barry Walker
+- (**grammar**) add memfill and memdump tokens and rules - (da06f99) - Barry Walker
+- (**listener**) implement test filtering (--filter, --test, --filter-tag, --exclude-tag, --list) - (8e79b43) - Barry Walker
+- (**listener**) implement test options (skip, trace, timeout, tags) - (1f51ab0) - Barry Walker
+- (**listener**) implement setup block execution before each test - (62f9868) - Barry Walker
+- (**listener**) implement memdump function with hex dump output - (612f267) - Barry Walker
+- (**listener**) implement memfill function - (cc91a31) - Barry Walker
+- (**processor,listener**) implement execution trace buffering and output - (3dc1451) - Barry Walker
+#### Bug Fixes
+- (**listener**) add setup guards to register/flag assignments, fix overflow flag - (fd6f2c4) - Barry Walker
+- (**listener**) add memory boundary validation to memfill/memdump - (5390d74) - Barry Walker
+- (**test**) replace vic.BGCOL0 with vic.SCROLY in test-14 - (c89a719) - Barry Walker
+- (**tests**) add FillMemory setup and test methods for grammar tests - (9fafa35) - Barry Walker
+#### Documentation
+- add DSL enhancements documentation - (6be623b) - Barry Walker
+- add DSL enhancements implementation plan - (81e5a1a) - Barry Walker
+- add DSL enhancements design plan - (2c7a87f) - Barry Walker
+#### Tests
+- (**grammar**) add test options grammar test (red test) - (43b9c12) - Barry Walker
+- (**grammar**) add test options grammar test (red test) - (9add315) - Barry Walker
+- (**grammar**) add setup block grammar test (red test) - (874c756) - Barry Walker
+- (**grammar**) add memfill/memdump grammar test (red) - (98b87f4) - Barry Walker
+
+- - -
+
 ## v3.3.2 - 2026-01-27
 #### Bug Fixes
 - (**processor**) remove dead code and fix incorrect comment in Addressing.cs - (3e9a062) - Barry Walker
