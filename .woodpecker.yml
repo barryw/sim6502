@@ -16,7 +16,7 @@ steps:
   - name: release
     image: alpine
     when:
-      - evaluate: 'CI_COMMIT_MESSAGE not contains "chore(release):"'
+      - evaluate: 'CI_COMMIT_MESSAGE not contains "chore(version):"'
     environment:
       GITHUB_TOKEN:
         from_secret: github_token
@@ -41,7 +41,7 @@ steps:
   - name: docker
     image: gcr.io/kaniko-project/executor:debug
     when:
-      - evaluate: 'CI_COMMIT_MESSAGE not contains "chore(release):"'
+      - evaluate: 'CI_COMMIT_MESSAGE not contains "chore(version):"'
     environment:
       GITHUB_TOKEN:
         from_secret: github_token
