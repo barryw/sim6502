@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file. See [conven
 - - -
 ## 0.0.1 - 2026-01-27
 #### Bug Fixes
+- **(ci)** use kaniko debug image with shell support - (f0eea09) - *barryw*
+
+- - -
+
+## 0.0.1 - 2026-01-27
+#### Bug Fixes
 - **(ci)** use Linux sed syntax in cog pre_bump_hooks - (d2adbd5) - *barryw*
 
 - - -
