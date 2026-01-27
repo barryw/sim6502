@@ -103,6 +103,11 @@ namespace sim6502.Utilities
 
             if (stripHeader)
             {
+                if (program.Count < 2)
+                {
+                    throw new InvalidOperationException(
+                        $"Cannot strip header from '{filename}': file has only {program.Count} bytes (need at least 2)");
+                }
                 Logger.Trace($"Stripping header bytes before load.");
                 program.RemoveAt(0);
                 program.RemoveAt(0);
