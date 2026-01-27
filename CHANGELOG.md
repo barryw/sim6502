@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.2.1 - 2026-01-27
+#### Bug Fixes
+- use alpine/git for docker step, remove tests from Dockerfile - (1b036ee) - Barry Walker
+
+- - -
+
 ## v3.2.0 - 2026-01-27
 #### Features
 - add kaniko docker build step - (0f926d9) - Barry Walker
