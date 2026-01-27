@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file. See [conven
 - - -
 ## 0.0.1 - 2026-01-27
 #### Chores
+- **(version)** 0.0.1 - (eb307ed) - Woodpecker CI
+
+- - -
+
+## 0.0.1 - 2026-01-27
+#### Chores
 - **(version)** 0.0.1 - (df92fd0) - Woodpecker CI
 
 - - -
