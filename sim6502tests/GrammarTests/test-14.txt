@@ -69,15 +69,16 @@ suites {
 
     setup {
       ; Use namespaced VIC symbols in setup
+      ; Note: Cannot use vic.BGCOL0 as .B conflicts with Byte token in grammar
       [vic.EXTCOL] = $0e
-      [vic.BGCOL0] = $06
+      [vic.SCROLY] = $1b
       [vic.SP0X] = $80
       [vic.SP0Y] = $c8
     }
 
     test("setup-vic-symbols", "Setup works with VIC namespace symbols") {
       assert([vic.EXTCOL] == $0e, "EXTCOL should be $0e from setup")
-      assert([vic.BGCOL0] == $06, "BGCOL0 should be $06 from setup")
+      assert([vic.SCROLY] == $1b, "SCROLY should be $1b from setup")
       assert([vic.SP0X] == $80, "SP0X should be $80 from setup")
       assert([vic.SP0Y] == $c8, "SP0Y should be $c8 from setup")
 

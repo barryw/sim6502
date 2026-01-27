@@ -37,7 +37,8 @@
       "Bash(dotnet clean:*)",
       "Bash(grep:*)",
       "Bash(find:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(xxd:*)"
     ]
   }
 }
