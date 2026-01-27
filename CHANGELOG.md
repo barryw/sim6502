@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.1.5 - 2026-01-27
+#### Bug Fixes
+- fetch docker version from GitHub releases API - (ff2d32b) - Barry Walker
+
+- - -
+
 ## v3.1.4 - 2026-01-27
 #### Bug Fixes
 - extract docker version from csproj instead of temp file - (11bebc9) - Barry Walker
