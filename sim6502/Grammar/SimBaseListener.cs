@@ -623,6 +623,37 @@ namespace sim6502.Grammar
             }
         }
 
+        public override void ExitMemDumpFunction(sim6502Parser.MemDumpFunctionContext ctx)
+        {
+            var address = _intValues.Get(ctx.expression(0));
+            var count = _intValues.Get(ctx.expression(1));
+
+            // Try to resolve symbol name for the address
+            var symbolName = Symbols?.AddressToSymbol(address, false);
+            var header = symbolName != null && symbolName != address.ToString()
+                ? $"[memdump] ${address:X4} ({symbolName}), {count} bytes:"
+                : $"[memdump] ${address:X4}, {count} bytes:";
+
+            Console.WriteLine(header);
+
+            // Output 8 bytes per line with ASCII sidebar
+            for (var offset = 0; offset < count; offset += 8)
+            {
+                var lineAddr = address + offset;
+                var bytes = new System.Text.StringBuilder();
+                var ascii = new System.Text.StringBuilder();
+
+                for (var i = 0; i < 8 && offset + i < count; i++)
+                {
+                    var b = Proc.ReadMemoryValueWithoutCycle(lineAddr + i);
+                    bytes.Append($"{b:X2} ");
+                    ascii.Append(b >= 0x20 && b < 0x7F ? (char)b : '.');
+                }
+
+                Console.WriteLine($"{lineAddr:X4}: {bytes,-24}|  {ascii}|");
+            }
+        }
+
         #endregion
 
     }
