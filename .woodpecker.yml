@@ -2,7 +2,6 @@ when:
   - event: push
     branch: main
   - event: tag
-    ref: refs/tags/v*
 
 labels:
   platform: linux/amd64
@@ -46,14 +45,13 @@ steps:
     image: gcr.io/kaniko-project/executor:debug
     when:
       - event: tag
-        ref: refs/tags/v*
     environment:
       GITHUB_TOKEN:
         from_secret: github_token
     commands:
       - mkdir -p /kaniko/.docker
       - echo "{\"auths\":{\"ghcr.io\":{\"username\":\"barryw\",\"password\":\"$GITHUB_TOKEN\"}}}" > /kaniko/.docker/config.json
-      - /kaniko/executor --context $CI_WORKSPACE --dockerfile $CI_WORKSPACE/Dockerfile --destination ghcr.io/barryw/sim6502:latest --destination "ghcr.io/barryw/sim6502:${CI_COMMIT_TAG##v}" --cache=true
+      - /kaniko/executor --context $CI_WORKSPACE --dockerfile $CI_WORKSPACE/Dockerfile --destination ghcr.io/barryw/sim6502:latest --destination "ghcr.io/barryw/sim6502:$CI_COMMIT_TAG" --cache=true
 
   # Build and push latest on main push using kaniko
   - name: docker-build-push-latest
