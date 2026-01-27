@@ -1,6 +1,6 @@
 from_latest_tag = true
 tag_prefix = "v"
-skip_ci = "[skip ci]"
+skip_ci = "[CI SKIP]"
 
 post_bump_hooks = [
     "perl -i -pe 's/^(\\s*)<Version>.*<\\/Version>/$1<Version>{{version}}<\\/Version>/' sim6502/sim6502.csproj",
