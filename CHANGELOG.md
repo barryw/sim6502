@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.1.1 - 2026-01-27
+#### Bug Fixes
+- pass version via file for docker build (kaniko has no git) - (766a4a6) - Barry Walker
+
+- - -
+
 ## v3.1.0 - 2026-01-27
 #### Features
 - add GitHub release creation with commit-based notes - (9658810) - Barry Walker
