@@ -31,7 +31,9 @@
       "Skill(superpowers:writing-plans)",
       "Skill(superpowers:subagent-driven-development)",
       "Bash(ls:*)",
-      "Bash(dotnet run:*)"
+      "Bash(dotnet run:*)",
+      "Bash(for f in /Users/barry/Git/sim6502/sim6502/Proc/*.cs)",
+      "Bash(done)"
     ]
   }
 }

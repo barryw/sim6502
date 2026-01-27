@@ -12,6 +12,12 @@ namespace sim6502tests;
 /// The test binary is a 64KB memory image that tests all valid NMOS 6502
 /// opcodes and addressing modes. When all tests pass, execution traps at
 /// address $3469. Any other trap address indicates a test failure.
+///
+/// NOTE: The main functional test requires ~96 million cycles and takes 2-3 minutes.
+/// It is marked with [Trait("Category", "Slow")] so it can be excluded from regular runs:
+///   dotnet test --filter "Category!=Slow"
+/// To run only the slow tests:
+///   dotnet test --filter "Category=Slow"
 /// </summary>
 public class KlausDormannFunctionalTests
 {
@@ -32,6 +38,7 @@ public class KlausDormannFunctionalTests
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void AllOpcodes_ShouldPassFunctionalTest()
     {
         // Arrange
