@@ -6,7 +6,6 @@ when:
 
 variables:
   - &dotnet_image "mcr.microsoft.com/dotnet/sdk:10.0-preview"
-  - &docker_image "woodpeckerci/plugin-docker-buildx:5"
 
 steps:
   # Build and test
@@ -49,42 +48,56 @@ steps:
           echo "No version bump needed or already at correct version"
         fi
 
-  # Build and push Docker image on tags
+  # Build and push Docker image on tags using kaniko
   - name: docker-build-push
-    image: *docker_image
-    privileged: true
+    image: gcr.io/kaniko-project/executor:latest
     when:
       - event: tag
         ref: refs/tags/v*
-    settings:
-      registry: ghcr.io
-      repo: ghcr.io/barryw/sim6502
-      tags:
-        - latest
-        - "${CI_COMMIT_TAG##v}"
-      username: barryw
-      password:
+    environment:
+      GITHUB_TOKEN:
         from_secret: github_token
-      platforms:
-        - linux/amd64
-        - linux/arm64
+    commands:
+      - |
+        cat > /kaniko/.docker/config.json << EOF
+        {
+          "auths": {
+            "ghcr.io": {
+              "auth": "$(echo -n barryw:$GITHUB_TOKEN | base64)"
+            }
+          }
+        }
+        EOF
+      - /kaniko/executor
+        --context .
+        --dockerfile Dockerfile
+        --destination ghcr.io/barryw/sim6502:latest
+        --destination ghcr.io/barryw/sim6502:${CI_COMMIT_TAG##v}
+        --cache=true
 
-  # Build and push latest on main push
+  # Build and push latest on main push using kaniko
   - name: docker-build-push-latest
-    image: *docker_image
-    privileged: true
+    image: gcr.io/kaniko-project/executor:latest
     when:
       - event: push
         branch: main
-    settings:
-      registry: ghcr.io
-      repo: ghcr.io/barryw/sim6502
-      tags:
-        - latest
-        - "sha-${CI_COMMIT_SHA:0:8}"
-      username: barryw
-      password:
+    environment:
+      GITHUB_TOKEN:
         from_secret: github_token
-      platforms:
-        - linux/amd64
-        - linux/arm64
+    commands:
+      - |
+        cat > /kaniko/.docker/config.json << EOF
+        {
+          "auths": {
+            "ghcr.io": {
+              "auth": "$(echo -n barryw:$GITHUB_TOKEN | base64)"
+            }
+          }
+        }
+        EOF
+      - /kaniko/executor
+        --context .
+        --dockerfile Dockerfile
+        --destination ghcr.io/barryw/sim6502:latest
+        --destination ghcr.io/barryw/sim6502:sha-${CI_COMMIT_SHA:0:8}
+        --cache=true
