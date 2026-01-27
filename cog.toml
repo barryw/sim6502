@@ -20,15 +20,9 @@ build = { changelog_title = "Build" }
 ci = { changelog_title = "CI/CD" }
 chore = { changelog_title = "Chores", omit_from_changelog = true }
 
-[bump_profiles]
-
-[packages.sim6502]
-path = "sim6502"
-include = ["sim6502/**"]
-# Bump version in csproj file
-pre_bump_hooks = []
+# Hooks to update version in csproj file
+pre_bump_hooks = [
+    "sed -i 's/<Version>[0-9]*\\.[0-9]*\\.[0-9]*<\\/Version>/<Version>{{version}}<\\/Version>/g' sim6502/sim6502.csproj",
+    "git add sim6502/sim6502.csproj"
+]
 post_bump_hooks = []
-
-[[packages.sim6502.bumps]]
-file = "sim6502/sim6502.csproj"
-version_regex = "<Version>(?P<version>[0-9]+\\.[0-9]+\\.[0-9]+)</Version>"
