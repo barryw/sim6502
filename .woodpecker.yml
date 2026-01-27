@@ -48,4 +48,20 @@ steps:
           NOTES=$(git log --pretty=format:"- %s" $VERSION^)
         fi
         gh release create "$VERSION" --title "$VERSION" --notes "$NOTES"
+        echo "${VERSION#v}" > "$CI_WORKSPACE/VERSION"
     depends_on: [build-and-test]
+
+  - name: docker
+    image: gcr.io/kaniko-project/executor:debug
+    when:
+      - evaluate: 'CI_COMMIT_MESSAGE not contains "chore(version):"'
+    environment:
+      GITHUB_TOKEN:
+        from_secret: github_token
+    commands:
+      - VERSION=$(cat "$CI_WORKSPACE/VERSION" 2>/dev/null || echo "0.0.0")
+      - echo "Building version $VERSION"
+      - mkdir -p /kaniko/.docker
+      - echo "{\"auths\":{\"ghcr.io\":{\"username\":\"barryw\",\"password\":\"$GITHUB_TOKEN\"}}}" > /kaniko/.docker/config.json
+      - /kaniko/executor --context="$CI_WORKSPACE" --dockerfile="$CI_WORKSPACE/Dockerfile" --destination="ghcr.io/barryw/sim6502:v$VERSION" --destination="ghcr.io/barryw/sim6502:latest"
+    depends_on: [release]
