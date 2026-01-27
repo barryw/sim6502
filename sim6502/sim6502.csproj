@@ -6,7 +6,7 @@
         <Copyright>Copyright © 2020-2026 Barry Walker. All Rights Reserved.</Copyright>
         <Company>Barry Walker</Company>
         <Product>6502 Simulator Test Runner CLI</Product>
-        <Version>3.0.0</Version>
+        <Version>0.0.1</Version>
         <PackageProjectUrl>https://github.com/barryw/sim6502</PackageProjectUrl>
         <PackageId>6502 Test Runner</PackageId>
         <Authors>Barry Walker</Authors>
