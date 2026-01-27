@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.2.0 - 2026-01-27
+#### Features
+- add kaniko docker build step - (0f926d9) - Barry Walker
+
+- - -
+
 ## v3.1.8 - 2026-01-27
 #### Bug Fixes
 - remove docker step (needs privileged mode) - (0577394) - Barry Walker
