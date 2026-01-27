@@ -12,6 +12,12 @@ suites {
     }
 
     test("setup-basic", "Setup runs before first test") {
+      ; Set up FillMemory params: count=1 at $C000 (leaves $FB/$FC alone)
+      $61 = $01
+      $62 = $00
+      $fd = $00
+      $fe = $c0
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       ; Verify setup initialized values correctly
       assert($5000 == $42, "Setup should have set $5000 to $42")
       assert([r0L] == $11, "Setup should have set r0L to $11")
@@ -27,6 +33,12 @@ suites {
     }
 
     test("setup-runs-again", "Setup runs before second test") {
+      ; Set up FillMemory params
+      $61 = $01
+      $62 = $00
+      $fd = $00
+      $fe = $c0
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       ; If setup runs again, all values should be reset to original setup values
       ; NOT the modified values from the previous test
       assert($5000 == $42, "Setup should have reset $5000 to $42, not $ff")
@@ -36,6 +48,12 @@ suites {
     }
 
     test("setup-with-expressions", "Setup can use expressions") {
+      ; Set up FillMemory params
+      $61 = $01
+      $62 = $00
+      $fd = $00
+      $fe = $c0
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       ; Verify that the memfill from setup filled 4 bytes
       assert($5100 == $aa, "First byte should be $aa")
       assert($5101 == $aa, "Second byte should be $aa")
@@ -45,6 +63,12 @@ suites {
     }
 
     test("setup-multiple-symbols", "Setup works with multiple symbol references") {
+      ; Set up FillMemory params
+      $61 = $01
+      $62 = $00
+      $fd = $00
+      $fe = $c0
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       ; Test that various symbol types work in setup
       assert([r0L] == $11, "r0L should be set by setup")
       assert([r0H] == $22, "r0H should be set by setup")
@@ -55,6 +79,12 @@ suites {
     }
 
     test("setup-does-not-affect-program-load", "Setup doesn't corrupt loaded program") {
+      ; Set up FillMemory params
+      $61 = $01
+      $62 = $00
+      $fd = $00
+      $fe = $c0
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       ; Verify that setup block doesn't interfere with program data
       ; The loaded program should still be intact
       ; (This assumes the program has some known values we can check)
@@ -77,6 +107,12 @@ suites {
     }
 
     test("setup-vic-symbols", "Setup works with VIC namespace symbols") {
+      ; Set up FillMemory params
+      $61 = $01
+      $62 = $00
+      $fd = $00
+      $fe = $c0
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       assert([vic.EXTCOL] == $0e, "EXTCOL should be $0e from setup")
       assert([vic.SCROLY] == $1b, "SCROLY should be $1b from setup")
       assert([vic.SP0X] == $80, "SP0X should be $80 from setup")
@@ -87,6 +123,12 @@ suites {
     }
 
     test("setup-vic-reset", "Setup resets VIC symbols between tests") {
+      ; Set up FillMemory params
+      $61 = $01
+      $62 = $00
+      $fd = $00
+      $fe = $c0
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       ; Should be reset to setup values, not $ff from previous test
       assert([vic.EXTCOL] == $0e, "EXTCOL should be reset to $0e by setup")
     }
@@ -105,6 +147,12 @@ suites {
     }
 
     test("setup-multiple-memfills", "Setup can have multiple memfill operations") {
+      ; Set up FillMemory params
+      $61 = $01
+      $62 = $00
+      $fd = $00
+      $fe = $c0
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       assert($6000 == $11, "First fill: first byte")
       assert($600f == $11, "First fill: last byte")
       assert($6010 != $11, "First fill: beyond range")

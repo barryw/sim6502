@@ -9,6 +9,13 @@ suites {
 
       memfill($3000, 16, $aa)
 
+      ; Set up FillMemory to do minimal work (1 byte at $C000)
+      $61 = $01
+      $62 = $00
+      $fd = $00
+      $fe = $c0
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
+
       assert($3000 == $aa, "First byte should be $aa")
       assert($3001 == $aa, "Second byte should be $aa")
       assert($300f == $aa, "Last byte should be $aa")
@@ -18,13 +25,25 @@ suites {
     test("memfill-zero-count", "memfill with count=0 fills nothing") {
       $3000 = $ff
       memfill($3000, 0, $aa)
+      ; Set up FillMemory to do minimal work (1 byte at $C000)
+      $61 = $01
+      $62 = $00
+      $fd = $00
+      $fe = $c0
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       assert($3000 == $ff, "Should remain unchanged with zero count")
     }
 
     test("memfill-symbol", "memfill works with symbols") {
       ; Use r0L symbol which is at $fb (zero page)
       memfill([r0L], 2, $55)
-
+      ; Set up FillMemory to do minimal work (1 byte at $C000) - must do AFTER memfill
+      ; since memfill touches $fb which FillMemory uses
+      $61 = $01
+      $62 = $00
+      $fd = $00
+      $fe = $c0
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       assert([r0L] == $55, "Symbol address should be filled")
     }
 
@@ -33,7 +52,12 @@ suites {
       $4001 = $42
       $4002 = $43
       memdump($4000, 8)
-
+      ; Set up FillMemory to do minimal work (1 byte at $C000)
+      $61 = $01
+      $62 = $00
+      $fd = $00
+      $fe = $c0
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       ; memdump should not modify memory
       assert($4000 == $41, "Memory unchanged after memdump")
     }
@@ -41,7 +65,12 @@ suites {
     test("memdump-symbol", "memdump works with symbols") {
       [vic.EXTCOL] = $0e
       memdump([vic.EXTCOL], 4)
-
+      ; Set up FillMemory to do minimal work (1 byte at $C000)
+      $61 = $01
+      $62 = $00
+      $fd = $00
+      $fe = $c0
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       assert([vic.EXTCOL] == $0e, "Symbol memory unchanged after memdump")
     }
   }

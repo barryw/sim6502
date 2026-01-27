@@ -246,4 +246,29 @@ public class TestSuiteParser
 
         walker.Walk(sbl, tree);
     }
+
+    [Fact]
+    public void TestSuite14_SetupBlock()
+    {
+        // This test validates setup block grammar parsing and execution
+        var tree = GetContext("GrammarTests/test-14.txt");
+
+        var walker = new ParseTreeWalker();
+        var sbl = new SimBaseListener();
+
+        walker.Walk(sbl, tree);
+    }
+
+    [Fact]
+    public void TestSuite15_TestOptions()
+    {
+        // This test validates test options grammar parsing and execution
+        // Tests skip, trace, timeout, and tags options
+        var tree = GetContext("GrammarTests/test-15.txt");
+
+        var walker = new ParseTreeWalker();
+        var sbl = new SimBaseListener();
+
+        walker.Walk(sbl, tree);
+    }
 }

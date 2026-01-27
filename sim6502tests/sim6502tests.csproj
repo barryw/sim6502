@@ -71,6 +71,12 @@
       <None Update="GrammarTests\test-13.txt">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
+      <None Update="GrammarTests\test-14.txt">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="GrammarTests\test-15.txt">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
       <None Update="FunctionalTests\6502_functional_test.bin">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
