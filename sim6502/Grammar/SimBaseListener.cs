@@ -44,6 +44,7 @@ namespace sim6502.Grammar
 
         public int TotalTestsFailed { get; private set; }
         public int TotalTestsPassed { get; private set; }
+        public int TotalTestsSkipped { get; private set; }
 
         public int TotalSuitesPassed { get; set; } = 0;
 
@@ -57,6 +58,12 @@ namespace sim6502.Grammar
 
         // Track whether we're currently walking the setup block definition (not executing it)
         private bool _inSetupBlockDefinition;
+
+        // Test options
+        private bool _currentTestSkipped;
+        private bool _currentTestTraceEnabled;
+        private int _currentTestTimeout;
+        private string _currentTestTags;
         
         public Processor Proc { get; set; }
         public SymbolFile Symbols { get; set; }
@@ -67,6 +74,10 @@ namespace sim6502.Grammar
         {
             _testFailureMessages.Clear();
             _didJsr = false;
+            _currentTestSkipped = false;
+            _currentTestTraceEnabled = false;
+            _currentTestTimeout = 0;
+            _currentTestTags = "";
             Proc.ResetCycleCount();
             LoadResources();
         }
@@ -89,17 +100,23 @@ namespace sim6502.Grammar
                 TotalSuitesFailed++;
             else
                 TotalSuitesPassed++;
-            
-            var totalTests = TotalTestsFailed + TotalTestsPassed;
+
+            var totalTests = TotalTestsFailed + TotalTestsPassed + TotalTestsSkipped;
             var logLevel = TotalTestsFailed == 0 ? LogLevel.Info : LogLevel.Fatal;
-            Logger.Log(logLevel, $"{TotalTestsPassed.ToString()} of {totalTests.ToString()} tests ran successfully in suite '{CurrentSuite}'.");
-            
+            var passedMsg = $"{TotalTestsPassed.ToString()} of {totalTests.ToString()} tests ran successfully";
+            if (TotalTestsSkipped > 0)
+            {
+                passedMsg += $" ({TotalTestsSkipped.ToString()} skipped)";
+            }
+            Logger.Log(logLevel, $"{passedMsg} in suite '{CurrentSuite}'.");
+
             CurrentSuite = "";
             _currentSuitePassed = true;
             _testFailureMessages.Clear();
             _suiteResources.Clear();
             TotalTestsFailed = 0;
             TotalTestsPassed = 0;
+            TotalTestsSkipped = 0;
         }
 
         private void LoadResources()
@@ -305,11 +322,11 @@ namespace sim6502.Grammar
 
         public override void ExitExpressionAssignment(sim6502Parser.ExpressionAssignmentContext context)
         {
-            // Always evaluate expressions, but skip side effects during setup block definition
+            // Always evaluate expressions, but skip side effects during setup block definition or skipped tests
             var address = GetIntValue(context.expression(0));
             var value = GetIntValue(context.expression(1));
 
-            if (!_inSetupBlockDefinition)
+            if (!_inSetupBlockDefinition && !_currentTestSkipped)
             {
                 Proc.WriteMemoryValue(address, value);
             }
@@ -317,11 +334,11 @@ namespace sim6502.Grammar
 
         public override void ExitAddressAssignment(sim6502Parser.AddressAssignmentContext context)
         {
-            // Always evaluate expressions, but skip side effects during setup block definition
+            // Always evaluate expressions, but skip side effects during setup block definition or skipped tests
             var address = GetIntValue(context.address());
             var value = GetIntValue(context.expression());
 
-            if (!_inSetupBlockDefinition)
+            if (!_inSetupBlockDefinition && !_currentTestSkipped)
             {
                 WriteValueToMemory(address, value);
             }
@@ -329,11 +346,11 @@ namespace sim6502.Grammar
 
         public override void ExitSymbolAssignment(sim6502Parser.SymbolAssignmentContext context)
         {
-            // Always evaluate expressions, but skip side effects during setup block definition
+            // Always evaluate expressions, but skip side effects during setup block definition or skipped tests
             var address = GetIntValue(context.symbolRef());
             var value = GetIntValue(context.expression());
 
-            if (!_inSetupBlockDefinition)
+            if (!_inSetupBlockDefinition && !_currentTestSkipped)
             {
                 WriteValueToMemory(address, value);
             }
@@ -344,8 +361,8 @@ namespace sim6502.Grammar
             var register = context.Register().GetText();
             var exp = GetIntValue(context.expression());
 
-            // Skip side effects during setup block definition
-            if (_inSetupBlockDefinition)
+            // Skip side effects during setup block definition or skipped tests
+            if (_inSetupBlockDefinition || _currentTestSkipped)
                 return;
 
             if (exp > 255)
@@ -383,8 +400,8 @@ namespace sim6502.Grammar
 
             var val = bool.Parse(expr);
 
-            // Skip side effects during setup block definition
-            if (_inSetupBlockDefinition)
+            // Skip side effects during setup block definition or skipped tests
+            if (_inSetupBlockDefinition || _currentTestSkipped)
                 return;
 
             switch (flag)
@@ -540,6 +557,44 @@ namespace sim6502.Grammar
         {
             ResetTest();
 
+            // Parse test options if present
+            var options = context.testOptions();
+            if (options != null)
+            {
+                foreach (var opt in options.testOption())
+                {
+                    if (opt.Skip() != null)
+                    {
+                        // Parse boolean directly from text since we haven't exited the context yet
+                        _currentTestSkipped = opt.boolean().GetText() == "true";
+                        Logger.Trace($"Test option: skip = {_currentTestSkipped}");
+                    }
+                    else if (opt.Trace() != null)
+                    {
+                        _currentTestTraceEnabled = opt.boolean().GetText() == "true";
+                        Logger.Trace($"Test option: trace = {_currentTestTraceEnabled}");
+                    }
+                    else if (opt.Timeout() != null)
+                    {
+                        // Parse number directly from text
+                        _currentTestTimeout = opt.number().GetText().ParseNumber();
+                        Logger.Trace($"Test option: timeout = {_currentTestTimeout}");
+                    }
+                    else if (opt.Tags() != null)
+                    {
+                        _currentTestTags = StripQuotes(opt.StringLiteral().GetText());
+                        Logger.Trace($"Test option: tags = {_currentTestTags}");
+                    }
+                }
+            }
+
+            // If test is skipped, don't execute setup or test contents
+            if (_currentTestSkipped)
+            {
+                Logger.Info("Test marked as skipped, will not execute");
+                return;
+            }
+
             // Execute setup block before each test if present
             if (_currentSetupBlock != null)
             {
@@ -557,6 +612,15 @@ namespace sim6502.Grammar
             var test = StripQuotes(context.testName().GetText());
             var description = StripQuotes(context.testDescription().GetText());
 
+            // Handle skipped tests
+            if (_currentTestSkipped)
+            {
+                Logger.Warn($"'{test} - {description}' : SKIPPED");
+                TotalTestsSkipped++;
+                return;
+            }
+
+            // Check for JSR only if test was not skipped
             if (!_didJsr)
             {
                 FailAssertion("No JSR encountered. Make sure you call the jsr function in this test!");
@@ -580,11 +644,19 @@ namespace sim6502.Grammar
 
         public override void EnterAssertFunction(sim6502Parser.AssertFunctionContext context)
         {
+            // Skip assertions in skipped tests
+            if (_currentTestSkipped)
+                return;
+
             _currentAssertion = StripQuotes(context.assertDescription().GetText());
         }
 
         public override void ExitAssertFunction(sim6502Parser.AssertFunctionContext context)
         {
+            // Skip assertions in skipped tests
+            if (_currentTestSkipped)
+                return;
+
             var success = GetBoolValue(context.comparison());
             if (!success)
             {
@@ -641,6 +713,10 @@ namespace sim6502.Grammar
             if (_inSetupBlockDefinition)
                 return;
 
+            // Skip execution if test is skipped
+            if (_currentTestSkipped)
+                return;
+
             var address = GetIntValue(context.address());
             var failOnBrkSet = context.failOnBreak().GetText() != null;
             var failOnBrk = true;
@@ -687,8 +763,8 @@ namespace sim6502.Grammar
             var count = _intValues.Get(ctx.expression(1));
             var value = _intValues.Get(ctx.expression(2));
 
-            // Skip side effects during setup block definition
-            if (_inSetupBlockDefinition)
+            // Skip side effects during setup block definition or skipped tests
+            if (_inSetupBlockDefinition || _currentTestSkipped)
                 return;
 
             // Validate address is within 6502 memory bounds (64KB)
@@ -723,8 +799,8 @@ namespace sim6502.Grammar
 
         public override void ExitMemDumpFunction(sim6502Parser.MemDumpFunctionContext ctx)
         {
-            // Skip execution if we're in the setup block definition
-            if (_inSetupBlockDefinition)
+            // Skip execution if we're in the setup block definition or skipped tests
+            if (_inSetupBlockDefinition || _currentTestSkipped)
                 return;
 
             var address = _intValues.Get(ctx.expression(0));

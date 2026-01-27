@@ -6,42 +6,50 @@ suites {
     ; Test 1: skip = true should skip test execution
     test("skip-true", "Test with skip = true should be skipped", skip = true) {
       ; This assertion should never execute because test is skipped
+      ; We add JSR here but it should not execute
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       assert($ffff == $0000, "This should never run")
     }
 
     ; Test 2: skip = false should run normally (explicit false)
     test("skip-false", "Test with skip = false should run normally", skip = false) {
       $5000 = $42
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       assert($5000 == $42, "Test should execute normally")
     }
 
     ; Test 3: trace = true should enable execution trace on failure
     test("trace-true", "Test with trace = true (will pass)", trace = true) {
       $5001 = $43
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       assert($5001 == $43, "This passes so no trace output expected")
     }
 
     ; Test 4: trace = false (explicit)
     test("trace-false", "Test with trace = false", trace = false) {
       $5002 = $44
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       assert($5002 == $44, "Test runs without trace")
     }
 
     ; Test 5: timeout = N sets cycle limit
     test("timeout-value", "Test with timeout = 10000", timeout = 10000) {
       $5003 = $45
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       assert($5003 == $45, "Test completes within timeout")
     }
 
     ; Test 6: tags = "a,b" for categorization
     test("tags-single", "Test with single tag", tags = "smoke") {
       $5004 = $46
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       assert($5004 == $46, "Test with smoke tag")
     }
 
     ; Test 7: Multiple tags
     test("tags-multiple", "Test with multiple tags", tags = "integration,regression") {
       $5005 = $47
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       assert($5005 == $47, "Test with integration and regression tags")
     }
 
@@ -49,6 +57,7 @@ suites {
     test("combined-options", "Test with multiple options combined",
          trace = true, timeout = 50000, tags = "comprehensive") {
       $5006 = $48
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       assert($5006 == $48, "Test with multiple options")
     }
 
@@ -56,30 +65,35 @@ suites {
     test("all-options", "Test with all four options",
          skip = false, trace = true, timeout = 100000, tags = "full,test") {
       $5007 = $49
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       assert($5007 == $49, "All options specified")
     }
 
     ; Test 10: No options (backward compatibility)
     test("no-options", "Test without any options") {
       $5008 = $4a
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       assert($5008 == $4a, "No options works correctly")
     }
 
     ; Test 11: timeout = 0 (disabled/unlimited)
     test("timeout-zero", "Test with timeout = 0", timeout = 0) {
       $5009 = $4b
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       assert($5009 == $4b, "Zero timeout means no limit")
     }
 
     ; Test 12: Large timeout value
     test("timeout-large", "Test with large timeout", timeout = 1000000) {
       $500a = $4c
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       assert($500a == $4c, "Large timeout value works")
     }
 
     ; Test 13: Complex tag names
     test("tags-complex", "Test with complex tag names", tags = "test_suite_1,regression_v2") {
       $500b = $4d
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       assert($500b == $4d, "Tags with underscores and numbers")
     }
 
@@ -87,6 +101,7 @@ suites {
     test("option-order", "Test with options in different order",
          tags = "ordered", timeout = 5000, trace = false, skip = false) {
       $500c = $4e
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       assert($500c == $4e, "Order of options doesn't matter")
     }
   }
@@ -97,16 +112,19 @@ suites {
 
     ; Skip with tags
     test("skip-with-tags", "Skipped test with tags", skip = true, tags = "skipped") {
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       assert($ffff == $0000, "Should not run")
     }
 
     ; Skip with trace
     test("skip-with-trace", "Skipped test with trace", skip = true, trace = true) {
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       assert($ffff == $0000, "Should not run")
     }
 
     ; Skip with timeout
     test("skip-with-timeout", "Skipped test with timeout", skip = true, timeout = 1000) {
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       assert($ffff == $0000, "Should not run")
     }
   }
@@ -124,6 +142,7 @@ suites {
     ; Test with options and setup block
     test("options-with-setup", "Test options work with setup block", trace = true, tags = "setup") {
       ; Verify setup ran
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       assert($6000 == $55, "Setup set $6000 to $55")
       assert([r0L] == $66, "Setup set r0L to $66")
     }
@@ -134,10 +153,12 @@ suites {
       ; Modify values
       $6000 = $ff
       [r0L] = $00
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
     }
 
     ; Third test confirms setup reset values
     test("setup-reset-with-options", "Setup resets for third test", tags = "verification") {
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
       assert($6000 == $55, "Setup should have reset $6000 to $55")
       assert([r0L] == $66, "Setup should have reset r0L to $66")
     }
