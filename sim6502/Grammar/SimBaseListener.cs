@@ -48,9 +48,15 @@ namespace sim6502.Grammar
         public int TotalSuitesPassed { get; set; } = 0;
 
         public int TotalSuitesFailed { get; set; } = 0;
-        
+
         // Make sure we do a JSR during test
         private bool _didJsr;
+
+        // Store the setup block context for execution before each test
+        private sim6502Parser.SetupBlockContext _currentSetupBlock;
+
+        // Track whether we're currently walking the setup block definition (not executing it)
+        private bool _inSetupBlockDefinition;
         
         public Processor Proc { get; set; }
         public SymbolFile Symbols { get; set; }
@@ -136,6 +142,8 @@ namespace sim6502.Grammar
 
         public override void ExitSuite(sim6502Parser.SuiteContext context)
         {
+            // Clear the setup block context when exiting the suite
+            _currentSetupBlock = null;
             ResetSuite();
         }
 
@@ -297,15 +305,39 @@ namespace sim6502.Grammar
 
         public override void ExitExpressionAssignment(sim6502Parser.ExpressionAssignmentContext context)
         {
-            Proc.WriteMemoryValue(GetIntValue(context.expression(0)), 
-                GetIntValue(context.expression(1)));
+            // Always evaluate expressions, but skip side effects during setup block definition
+            var address = GetIntValue(context.expression(0));
+            var value = GetIntValue(context.expression(1));
+
+            if (!_inSetupBlockDefinition)
+            {
+                Proc.WriteMemoryValue(address, value);
+            }
         }
 
-        public override void ExitAddressAssignment(sim6502Parser.AddressAssignmentContext context) => WriteValueToMemory(
-            GetIntValue(context.address()), GetIntValue(context.expression()));
+        public override void ExitAddressAssignment(sim6502Parser.AddressAssignmentContext context)
+        {
+            // Always evaluate expressions, but skip side effects during setup block definition
+            var address = GetIntValue(context.address());
+            var value = GetIntValue(context.expression());
 
-        public override void ExitSymbolAssignment(sim6502Parser.SymbolAssignmentContext context) => WriteValueToMemory(
-            GetIntValue(context.symbolRef()), GetIntValue(context.expression()));
+            if (!_inSetupBlockDefinition)
+            {
+                WriteValueToMemory(address, value);
+            }
+        }
+
+        public override void ExitSymbolAssignment(sim6502Parser.SymbolAssignmentContext context)
+        {
+            // Always evaluate expressions, but skip side effects during setup block definition
+            var address = GetIntValue(context.symbolRef());
+            var value = GetIntValue(context.expression());
+
+            if (!_inSetupBlockDefinition)
+            {
+                WriteValueToMemory(address, value);
+            }
+        }
 
         public override void ExitRegisterAssignment(sim6502Parser.RegisterAssignmentContext context)
         {
@@ -480,9 +512,35 @@ namespace sim6502.Grammar
             _suiteResources.Add(lr);
         }
         
+        public override void EnterSetupBlock(sim6502Parser.SetupBlockContext context)
+        {
+            // Store the setup block context for execution before each test
+            // Set flag to prevent execution during the initial tree walk
+            _currentSetupBlock = context;
+            _inSetupBlockDefinition = true;
+            Logger.Trace("Setup block registered for execution before each test");
+        }
+
+        public override void ExitSetupBlock(sim6502Parser.SetupBlockContext context)
+        {
+            // Clear the flag - we're done walking the setup block definition
+            _inSetupBlockDefinition = false;
+        }
+
         public override void EnterTestFunction(sim6502Parser.TestFunctionContext context)
         {
             ResetTest();
+
+            // Execute setup block before each test if present
+            if (_currentSetupBlock != null)
+            {
+                Logger.Trace("Executing setup block before test");
+                foreach (var content in _currentSetupBlock.setupContents())
+                {
+                    // Walk each setup statement
+                    ParseTreeWalker.Default.Walk(this, content);
+                }
+            }
         }
 
         public override void ExitTestFunction(sim6502Parser.TestFunctionContext context)
@@ -570,6 +628,10 @@ namespace sim6502.Grammar
 
         public override void ExitJsrFunction(sim6502Parser.JsrFunctionContext context)
         {
+            // Skip execution if we're in the setup block definition
+            if (_inSetupBlockDefinition)
+                return;
+
             var address = GetIntValue(context.address());
             var failOnBrkSet = context.failOnBreak().GetText() != null;
             var failOnBrk = true;
@@ -578,7 +640,7 @@ namespace sim6502.Grammar
 
             var stopOnRts = GetBoolValue(context.stopOn());
             var stopOnAddress = GetIntValue(context.stopOn());
-            
+
             Logger.Trace($"Stop on address = {stopOnAddress.ToString()}");
             Logger.Trace($"Stop on RTS = {stopOnRts.ToString()}");
             Logger.Trace($"JSR address = {address.ToString()}");
@@ -611,9 +673,14 @@ namespace sim6502.Grammar
 
         public override void ExitMemFillFunction(sim6502Parser.MemFillFunctionContext ctx)
         {
+            // Always evaluate expressions
             var address = _intValues.Get(ctx.expression(0));
             var count = _intValues.Get(ctx.expression(1));
             var value = _intValues.Get(ctx.expression(2));
+
+            // Skip side effects during setup block definition
+            if (_inSetupBlockDefinition)
+                return;
 
             // Validate address is within 6502 memory bounds (64KB)
             if (address < 0 || address >= 0x10000)
@@ -647,6 +714,10 @@ namespace sim6502.Grammar
 
         public override void ExitMemDumpFunction(sim6502Parser.MemDumpFunctionContext ctx)
         {
+            // Skip execution if we're in the setup block definition
+            if (_inSetupBlockDefinition)
+                return;
+
             var address = _intValues.Get(ctx.expression(0));
             var count = _intValues.Get(ctx.expression(1));
 
