@@ -2,6 +2,63 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.0.1 - 2026-01-27
+#### Bug Fixes
+- simplify cog commit types and fix tarball extraction - (f9ec7c7) - Barry Walker
+#### Refactoring
+- (**ci**) simplify - all commits bump patch, use cog properly - (fdc6351) - Barry Walker
+
+- - -
+
+## v0.0.4 - 2026-01-27
+#### Bug Fixes
+- (**ci**) skip version commits to prevent loop, remove tests from Dockerfile - (7d34334) - Barry Walker
+#### Documentation
+- trigger pipeline - (0e68e25) - Barry Walker
+#### Refactoring
+- (**ci**) simplified pipeline based on PaperlessMCP approach - (e33bb7a) - Barry Walker
+#### Chores
+- (**release**) bump version to 0.0.4 [skip ci] - (b184327) - Woodpecker CI
+
+- - -
+
+## v0.0.3 - 2026-01-27
+#### Bug Fixes
+- (**ci**) quote commit command to avoid YAML colon parsing - (18da639) - Barry Walker
+- (**ci**) remove cog pre_bump_hooks and commit csproj before cog bump - (f81aa7c) - Barry Walker
+- (**ci**) use pipe delimiter in sed to avoid slash conflicts - (3aca2c3) - Barry Walker
+#### Refactoring
+- (**ci**) simplify to single pipeline with clear steps - (1bb3511) - Barry Walker
+#### Chores
+- (**version**) 0.0.3 - (8182604) - Woodpecker CI
+- update version in csproj - (511eb6c) - Woodpecker CI
+
+- - -
+
+## v0.0.2 - 2026-01-27
+#### Bug Fixes
+- (**ci**) fetch tags before cog bump to detect current version - (429845c) - Barry Walker
+- (**ci**) configure all commit types to trigger patch bumps - (ff06d26) - Barry Walker
+- (**ci**) trigger docker build on all tags, not just v* prefix - (677b179) - Barry Walker
+- (**ci**) use kaniko debug image with shell support - (f0eea09) - Barry Walker
+#### Documentation
+- add title header to README - (4163324) - Barry Walker
+#### Chores
+- (**version**) 0.0.2 - (269ad9d) - Woodpecker CI
+- (**version**) 0.0.1 - (8491994) - Woodpecker CI
+- (**version**) 0.0.1 - (eb307ed) - Woodpecker CI
+- (**version**) 0.0.1 - (df92fd0) - Woodpecker CI
+- (**version**) 0.0.1 - (61e01de) - Woodpecker CI
+- (**version**) 0.0.1 - (b2ff709) - Woodpecker CI
+
+- - -
+
+## v0.0.1 - 2026-01-27
+#### Chores
+- (**version**) 0.0.1 - (2a0726a) - Woodpecker CI
+
+- - -
+
 ## 0.0.3 - 2026-01-27
 #### Bug Fixes
 - **(ci)** quote commit command to avoid YAML colon parsing - (18da639) - *barryw*
