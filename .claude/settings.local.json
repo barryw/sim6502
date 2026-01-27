@@ -34,7 +34,10 @@
       "Bash(dotnet run:*)",
       "Bash(for f in /Users/barry/Git/sim6502/sim6502/Proc/*.cs)",
       "Bash(done)",
-      "Bash(dotnet clean:*)"
+      "Bash(dotnet clean:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(python3:*)"
     ]
   }
 }

@@ -615,6 +615,28 @@ namespace sim6502.Grammar
             var count = _intValues.Get(ctx.expression(1));
             var value = _intValues.Get(ctx.expression(2));
 
+            // Validate address is within 6502 memory bounds (64KB)
+            if (address < 0 || address >= 0x10000)
+            {
+                Logger.Error($"[memfill] Invalid address ${address:X4} (valid range: $0000-$FFFF)");
+                return;
+            }
+
+            // Handle zero or negative count
+            if (count <= 0)
+            {
+                Logger.Debug($"[memfill] Nothing to fill (count={count})");
+                return;
+            }
+
+            // Clamp count to prevent writing beyond memory bounds
+            var maxCount = 0x10000 - address;
+            if (count > maxCount)
+            {
+                Logger.Warn($"[memfill] Count {count} exceeds memory bounds, clamping to {maxCount}");
+                count = maxCount;
+            }
+
             Logger.Debug($"memfill(${address:X4}, {count}, ${value:X2})");
 
             for (var i = 0; i < count; i++)
@@ -627,6 +649,28 @@ namespace sim6502.Grammar
         {
             var address = _intValues.Get(ctx.expression(0));
             var count = _intValues.Get(ctx.expression(1));
+
+            // Validate address is within 6502 memory bounds (64KB)
+            if (address < 0 || address >= 0x10000)
+            {
+                Logger.Error($"[memdump] Invalid address ${address:X4} (valid range: $0000-$FFFF)");
+                return;
+            }
+
+            // Handle zero or negative count
+            if (count <= 0)
+            {
+                Logger.Debug($"[memdump] Nothing to dump (count={count})");
+                return;
+            }
+
+            // Clamp count to prevent reading beyond memory bounds
+            var maxCount = 0x10000 - address;
+            if (count > maxCount)
+            {
+                Logger.Warn($"[memdump] Count {count} exceeds memory bounds, clamping to {maxCount}");
+                count = maxCount;
+            }
 
             // Try to resolve symbol name for the address
             var symbolName = Symbols?.AddressToSymbol(address, false);
@@ -647,6 +691,7 @@ namespace sim6502.Grammar
                 {
                     var b = Proc.ReadMemoryValueWithoutCycle(lineAddr + i);
                     bytes.Append($"{b:X2} ");
+                    // ASCII printable range: 0x20 (space) to 0x7E (tilde), excluding 0x7F (DEL)
                     ascii.Append(b >= 0x20 && b < 0x7F ? (char)b : '.');
                 }
 
