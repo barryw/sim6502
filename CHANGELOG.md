@@ -2,6 +2,16 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.4.1 - 2026-01-27
+#### Bug Fixes
+- (**ci**) update version in csproj during docker build - (b017705) - Barry Walker
+- (**version**) correct version to 3.4.0 in csproj - (ebeefab) - Barry Walker
+#### Continuous Integration
+- trigger docker build for v3.4.0 - (ce8116a) - Barry Walker
+- trigger build for v3.4.0 - (106260b) - Barry Walker
+
+- - -
+
 ## v3.4.0 - 2026-01-27
 #### Features
 - (**cli**) add test filtering options (--filter, --test, --filter-tag, --exclude-tag, --list) - (07778c4) - Barry Walker
