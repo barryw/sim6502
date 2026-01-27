@@ -52,21 +52,16 @@ steps:
     depends_on: [build-and-test]
 
   - name: docker
-    image: alpine/git
+    image: gcr.io/kaniko-project/executor:debug
     when:
       - evaluate: 'CI_COMMIT_MESSAGE not contains "chore(version):"'
     environment:
       GITHUB_TOKEN:
         from_secret: github_token
     commands:
-      - apk add --no-cache curl
-      - git fetch --tags
-      - VERSION=$(git describe --tags --abbrev=0 | sed 's/^v//')
+      - VERSION=$(wget -qO- https://api.github.com/repos/barryw/sim6502/releases/latest | sed -n 's/.*"tag_name".*"v\([^"]*\)".*/\1/p')
       - echo "Building version $VERSION"
-      - echo "$VERSION" > /tmp/version
-      - curl -sSL https://github.com/GoogleContainerTools/kaniko/releases/download/v1.23.2/executor-linux-amd64 -o /tmp/executor
-      - chmod +x /tmp/executor
       - mkdir -p /kaniko/.docker
       - echo "{\"auths\":{\"ghcr.io\":{\"username\":\"barryw\",\"password\":\"$GITHUB_TOKEN\"}}}" > /kaniko/.docker/config.json
-      - /tmp/executor --context="$CI_WORKSPACE" --dockerfile="$CI_WORKSPACE/Dockerfile" --destination="ghcr.io/barryw/sim6502:v$VERSION" --destination="ghcr.io/barryw/sim6502:latest"
+      - /kaniko/executor --context="$CI_WORKSPACE" --dockerfile="$CI_WORKSPACE/Dockerfile" --destination="ghcr.io/barryw/sim6502:v$VERSION" --destination="ghcr.io/barryw/sim6502:latest"
     depends_on: [release]
