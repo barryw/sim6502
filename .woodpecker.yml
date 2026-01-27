@@ -31,12 +31,8 @@ steps:
       GIT_COMMITTER_EMAIL: "ci@barrywalker.io"
     commands:
       - apk add --no-cache git curl bash tar
-      - mkdir -p /tmp/cog && cd /tmp/cog
-      - curl -sSL -o cog.tar.gz https://github.com/cocogitto/cocogitto/releases/download/6.2.0/cocogitto-6.2.0-x86_64-unknown-linux-musl.tar.gz
-      - tar -xzf cog.tar.gz
-      - ls -la /tmp/cog
-      - find /tmp/cog -name "cog*" -type f
-      - cp /tmp/cog/cog /usr/local/bin/cog || cp /tmp/cog/*/cog /usr/local/bin/cog || cp /tmp/cog/cocogitto*/cog /usr/local/bin/cog
+      - curl -sSL https://github.com/cocogitto/cocogitto/releases/download/6.2.0/cocogitto-6.2.0-x86_64-unknown-linux-musl.tar.gz | tar xz -C /tmp
+      - cp /tmp/x86_64-unknown-linux-musl/cog /usr/local/bin/cog
       - chmod +x /usr/local/bin/cog
       - cog --version
       - git config --global user.email "ci@barrywalker.io"
