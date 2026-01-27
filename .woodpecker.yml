@@ -76,5 +76,5 @@ steps:
       # Clean up temp file and commit csproj
       - rm -f $CI_WORKSPACE/.next_version
       - git add sim6502/sim6502.csproj
-      - git commit -m "chore: update version in csproj" || true
+      - 'git commit -m "chore: update version in csproj" || true'
       - cog bump --auto && git push origin main --tags || echo "Version already tagged"
