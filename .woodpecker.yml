@@ -47,6 +47,7 @@ steps:
           NOTES=$(git log --pretty=format:"- %s" $VERSION^)
         fi
         gh release create "$VERSION" --title "$VERSION" --notes "$NOTES"
+        echo "${VERSION#v}" > "$CI_WORKSPACE/.version"
     depends_on: [build-and-test]
 
   - name: docker
@@ -58,8 +59,8 @@ steps:
         from_secret: github_token
     commands:
       - |
-        # Get version from latest tag (cog just created it)
-        VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.0.0")
+        # Read version from file written by release step
+        VERSION=$(cat "$CI_WORKSPACE/.version" 2>/dev/null || echo "0.0.0")
         echo "Building Docker image: $VERSION"
         mkdir -p /kaniko/.docker
         echo "{\"auths\":{\"ghcr.io\":{\"username\":\"barryw\",\"password\":\"$GITHUB_TOKEN\"}}}" > /kaniko/.docker/config.json
