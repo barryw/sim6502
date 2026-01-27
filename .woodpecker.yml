@@ -39,7 +39,7 @@ steps:
       - echo "Next version:" && cat $CI_WORKSPACE/.next_version
       # Update csproj
       - export VER=$(cat $CI_WORKSPACE/.next_version)
-      - sed -i "s/<Version>[0-9]*\.[0-9]*\.[0-9]*<\/Version>/<Version>$VER<\/Version>/g" sim6502/sim6502.csproj
+      - sed -i "s|<Version>[0-9]*\.[0-9]*\.[0-9]*</Version>|<Version>$VER</Version>|g" sim6502/sim6502.csproj
 
   # Build and push Docker with kaniko
   - name: docker-build-push
