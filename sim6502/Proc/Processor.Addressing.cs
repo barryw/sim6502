@@ -132,14 +132,7 @@ public partial class Processor
                 ReadMemoryValue(address);
 
                 address += XRegister;
-                address &= 0xFF;
-
-                //This address wraps if its greater than 0xFF
-                if (address > 0xFF)
-                {
-                    address -= 0x100;
-                    return address;
-                }
+                address &= 0xFF; // Zero page wrapping
 
                 return address;
             }
@@ -233,7 +226,7 @@ public partial class Processor
             case 0x69: //ADC
             case 0xA0: //LDY
             case 0xC0: //CPY
-            case 0xE0: //CMP
+            case 0xE0: //CPX
             case 0xA2: //LDX
             case 0xA9: //LDA
             case 0xC9: //CMP
