@@ -271,4 +271,18 @@ public class TestSuiteParser
 
         walker.Walk(sbl, tree);
     }
+
+    [Fact]
+    public void TestSuite16_PeekbyteBugFix()
+    {
+        // This test validates the fix for GitHub issue #2:
+        // peekbyte() should return the expression value directly in comparisons,
+        // not treat it as a memory address to read from
+        var tree = GetContext("GrammarTests/test-16.txt");
+
+        var walker = new ParseTreeWalker();
+        var sbl = new SimBaseListener();
+
+        walker.Walk(sbl, tree);
+    }
 }

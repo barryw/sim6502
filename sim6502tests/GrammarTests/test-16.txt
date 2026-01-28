@@ -1,0 +1,44 @@
+suites {
+  suite("Test Suite 16 - peekbyte bug reproduction") {
+    symbols("TestPrograms/include_me_full.sym")
+    load("TestPrograms/include_me_full.prg", strip_header = true)
+
+    test("peekbyte-roundtrip", "Writing then reading same address should match") {
+      ; First use memfill to initialize memory
+      memfill($5000, 16, $00)
+
+      ; Write directly to a computed address
+      $5000 + $08 = $b4
+
+      ; Need a JSR call - use FillMemory with minimal work
+      $61 = $01
+      $62 = $00
+      $fd = $00
+      $fe = $c0
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
+
+      ; Read it back with peekbyte
+      assert(peekbyte($5000 + $08) == $b4, "peekbyte should read back $b4")
+    }
+
+    test("peekbyte-symbol-offset", "Symbol + offset write/read") {
+      ; Use a safe memory region that won't be touched by FillMemory
+      ; FillMemory uses $FB/$FC (r0), $FD/$FE (destination), $61/$62 (count)
+      memfill($5100, 16, $00)
+
+      ; Write to symbol-based offset calculation
+      ; vic.EXTCOL is at $D020, so vic.EXTCOL + $10 = $D030
+      [vic.EXTCOL] + $10 = $aa
+
+      ; Need a JSR call
+      $61 = $01
+      $62 = $00
+      $fd = $00
+      $fe = $c0
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
+
+      ; Read it back
+      assert(peekbyte([vic.EXTCOL] + $10) == $aa, "peekbyte should read back $aa from symbol+offset")
+    }
+  }
+}

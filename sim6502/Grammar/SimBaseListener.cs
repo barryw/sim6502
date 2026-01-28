@@ -516,18 +516,27 @@ namespace sim6502.Grammar
 
         public override void ExitExpressionCompare(sim6502Parser.ExpressionCompareContext context)
         {
-            var address = GetIntValue(context.expression());
-            var value = 0;
+            var exprValue = GetIntValue(context.expression());
             var bw = context.byteWord();
-            if (bw == null || bw.GetText().ToLower().Equals(".b"))
+
+            int value;
+            if (bw == null)
             {
-                value = Proc.ReadMemoryValueWithoutCycle(address);
+                // No .b or .w suffix - use the expression value directly
+                // This handles cases like peekbyte(...), peekword(...), or arithmetic expressions
+                value = exprValue;
             }
-            if (bw != null && bw.GetText().ToLower().Equals(".w"))
+            else if (bw.GetText().ToLower().Equals(".b"))
             {
-                value = Proc.ReadMemoryWordWithoutCycle(address);
+                // .b suffix - read byte from memory at address
+                value = Proc.ReadMemoryValueWithoutCycle(exprValue);
             }
-            
+            else // .w
+            {
+                // .w suffix - read word from memory at address
+                value = Proc.ReadMemoryWordWithoutCycle(exprValue);
+            }
+
             SetIntValue(context, value);
         }
 
@@ -825,7 +834,7 @@ namespace sim6502.Grammar
             SetBoolValue(context, cmp.ComparisonPassed);
         }
         
-        public override void ExitPeekByteFunction(sim6502Parser.PeekByteFunctionContext context) => SetIntValue(context, 
+        public override void ExitPeekByteFunction(sim6502Parser.PeekByteFunctionContext context) => SetIntValue(context,
             Proc.ReadMemoryValueWithoutCycle(GetIntValue(context.expression())));
 
         public override void ExitPeekWordFunction(sim6502Parser.PeekWordFunctionContext context) => SetIntValue(context, 
