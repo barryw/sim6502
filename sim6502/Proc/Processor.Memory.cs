@@ -32,6 +32,10 @@ namespace sim6502.Proc;
 /// </summary>
 public partial class Processor
 {
+    // 6510 I/O port registers
+    private byte _6510DataDirection = 0x00;
+    private byte _6510DataPort = 0x00;
+
     /// <summary>
     /// Clear memory
     /// </summary>
@@ -56,6 +60,21 @@ public partial class Processor
     /// <returns>the byte being returned</returns>
     public virtual byte ReadMemoryValue(int address)
     {
+        // Handle 6510 I/O port reads
+        if (ProcessorType == ProcessorType.MOS6510)
+        {
+            if (address == 0x00)
+            {
+                IncrementCycleCount();
+                return _6510DataDirection;
+            }
+            if (address == 0x01)
+            {
+                IncrementCycleCount();
+                return _6510DataPort;
+            }
+        }
+
         var value = Memory[address];
         IncrementCycleCount();
         return value;
@@ -68,6 +87,21 @@ public partial class Processor
     /// <returns></returns>
     public virtual byte ReadMemoryValueWithoutCycle(int address)
     {
+        // Handle 6510 I/O port reads
+        if (ProcessorType == ProcessorType.MOS6510)
+        {
+            if (address == 0x00)
+            {
+                Logger.Trace($"Read BYTE value {_6510DataDirection.ToString()} from 6510 DDR at location {address.ToString()}");
+                return _6510DataDirection;
+            }
+            if (address == 0x01)
+            {
+                Logger.Trace($"Read BYTE value {_6510DataPort.ToString()} from 6510 Data Port at location {address.ToString()}");
+                return _6510DataPort;
+            }
+        }
+
         var value = Memory[address];
 
         Logger.Trace($"Read BYTE value {value.ToString()} from location {address.ToString()}");
@@ -99,6 +133,24 @@ public partial class Processor
     public virtual void WriteMemoryValue(int address, byte data)
     {
         IncrementCycleCount();
+
+        // Handle 6510 I/O port writes
+        if (ProcessorType == ProcessorType.MOS6510)
+        {
+            if (address == 0x00)
+            {
+                _6510DataDirection = data;
+                Logger.Trace($"Writing BYTE {data.ToString()} to 6510 DDR at address {address.ToString()}");
+                return;
+            }
+            if (address == 0x01)
+            {
+                _6510DataPort = data;
+                Logger.Trace($"Writing BYTE {data.ToString()} to 6510 Data Port at address {address.ToString()}");
+                return;
+            }
+        }
+
         WriteMemoryValueWithoutIncrement(address, data);
     }
 
@@ -109,6 +161,23 @@ public partial class Processor
     /// <param name="data">The data to write</param>
     public virtual void WriteMemoryValueWithoutIncrement(int address, byte data)
     {
+        // Handle 6510 I/O port writes
+        if (ProcessorType == ProcessorType.MOS6510)
+        {
+            if (address == 0x00)
+            {
+                _6510DataDirection = data;
+                Logger.Trace($"Writing BYTE {data.ToString()} to 6510 DDR at address {address.ToString()}");
+                return;
+            }
+            if (address == 0x01)
+            {
+                _6510DataPort = data;
+                Logger.Trace($"Writing BYTE {data.ToString()} to 6510 Data Port at address {address.ToString()}");
+                return;
+            }
+        }
+
         Logger.Trace($"Writing BYTE {data.ToString()} to address {address.ToString()}");
 
         Memory[address] = data;

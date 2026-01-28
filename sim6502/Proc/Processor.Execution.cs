@@ -66,7 +66,7 @@ namespace sim6502.Proc
         public void Reset()
         {
             Logger.Debug("Initializing 6502 simulator.");
-            
+
             ResetCycleCount();
 
             CycleCount = 0;
@@ -84,7 +84,14 @@ namespace sim6502.Proc
             _previousInterrupt = false;
             TriggerNmi = false;
             TriggerIrq = false;
-            
+
+            // Initialize 6510 I/O port registers
+            if (ProcessorType == ProcessorType.MOS6510)
+            {
+                _6510DataDirection = 0x00;
+                _6510DataPort = 0x00;
+            }
+
             Logger.Debug("6502 simulator initialized and reset.");
         }
 
