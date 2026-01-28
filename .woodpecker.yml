@@ -12,7 +12,7 @@ steps:
     commands:
       - dotnet restore
       - dotnet build -c Release
-      - dotnet test -c Release
+      - dotnet test -c Release --no-build
 
   - name: release
     image: alpine
