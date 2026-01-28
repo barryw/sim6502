@@ -259,6 +259,10 @@ public partial class Processor
             case 0x8A: //TXA
             case 0x9A: //TXS
             case 0x98: //TYA
+            case 0xDA: //PHX (65C02)
+            case 0xFA: //PLX (65C02)
+            case 0x5A: //PHY (65C02)
+            case 0x7A: //PLY (65C02)
             {
                 return AddressingMode.Implied;
             }

@@ -103,9 +103,18 @@ public partial class Processor
         }
 
         /// <summary>
-        /// Registers all 151 official 6502 opcodes
+        /// Registers all 151 official 6502 opcodes and 65C02 extensions
         /// </summary>
         private static void RegisterAllOpcodes()
+        {
+            Register6502Opcodes();
+            Register65C02Opcodes();
+        }
+
+        /// <summary>
+        /// Registers 6502 opcodes
+        /// </summary>
+        private static void Register6502Opcodes()
         {
         #region Add With Carry (ADC)
 
@@ -871,6 +880,42 @@ public partial class Processor
             _processorOpcodes[ProcessorType.MOS6502][opcode] = opcodeInfo;
             // Copy to 65C02 as well (it's a superset - we'll add 65C02-specific opcodes later)
             _processorOpcodes[ProcessorType.WDC65C02][opcode] = opcodeInfo;
+        }
+
+        /// <summary>
+        /// Helper method to register a 65C02-specific opcode (not available on 6502)
+        /// </summary>
+        private static void Register65C02(byte opcode, string mnemonic, AddressingMode mode, int bytes, int cycles, OpcodeHandler handler)
+        {
+            var opcodeInfo = new OpcodeInfo(opcode, mnemonic, mode, bytes, cycles, handler);
+            // Only add to 65C02, not to 6502
+            _processorOpcodes[ProcessorType.WDC65C02][opcode] = opcodeInfo;
+        }
+
+        /// <summary>
+        /// Registers 65C02-specific opcodes
+        /// </summary>
+        private static void Register65C02Opcodes()
+        {
+            #region 65C02 Stack Operations
+
+            // PHX - Push X Register (65C02 only)
+            Register65C02(0xDA, "PHX", AddressingMode.Implied, 1, 3,
+                p => p.PushXOperation());
+
+            // PLX - Pull X Register (65C02 only)
+            Register65C02(0xFA, "PLX", AddressingMode.Implied, 1, 4,
+                p => p.PullXOperation());
+
+            // PHY - Push Y Register (65C02 only)
+            Register65C02(0x5A, "PHY", AddressingMode.Implied, 1, 3,
+                p => p.PushYOperation());
+
+            // PLY - Pull Y Register (65C02 only)
+            Register65C02(0x7A, "PLY", AddressingMode.Implied, 1, 4,
+                p => p.PullYOperation());
+
+            #endregion
         }
     }
 }

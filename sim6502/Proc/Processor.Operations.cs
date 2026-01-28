@@ -568,4 +568,58 @@ public partial class Processor
     }
 
     #endregion
+
+    #region 65C02 Stack Operations
+
+    /// <summary>
+    /// PHX - Push X Register to Stack (65C02)
+    /// </summary>
+    public void PushXOperation()
+    {
+        ReadMemoryValue(ProgramCounter + 1);
+        PokeStack((byte)XRegister);
+        StackPointer--;
+        IncrementCycleCount();
+    }
+
+    /// <summary>
+    /// PLX - Pull X Register from Stack (65C02)
+    /// </summary>
+    public void PullXOperation()
+    {
+        ReadMemoryValue(ProgramCounter + 1);
+        StackPointer++;
+        IncrementCycleCount();
+        XRegister = PeekStack();
+        SetNegativeFlag(XRegister);
+        SetZeroFlag(XRegister);
+        IncrementCycleCount();
+    }
+
+    /// <summary>
+    /// PHY - Push Y Register to Stack (65C02)
+    /// </summary>
+    public void PushYOperation()
+    {
+        ReadMemoryValue(ProgramCounter + 1);
+        PokeStack((byte)YRegister);
+        StackPointer--;
+        IncrementCycleCount();
+    }
+
+    /// <summary>
+    /// PLY - Pull Y Register from Stack (65C02)
+    /// </summary>
+    public void PullYOperation()
+    {
+        ReadMemoryValue(ProgramCounter + 1);
+        StackPointer++;
+        IncrementCycleCount();
+        YRegister = PeekStack();
+        SetNegativeFlag(YRegister);
+        SetZeroFlag(YRegister);
+        IncrementCycleCount();
+    }
+
+    #endregion
 }

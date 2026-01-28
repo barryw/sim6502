@@ -423,6 +423,22 @@ public partial class Processor
             {
                 return "PLP";
             }
+            case 0xDA: // PHX Implied (65C02)
+            {
+                return "PHX";
+            }
+            case 0xFA: // PLX Implied (65C02)
+            {
+                return "PLX";
+            }
+            case 0x5A: // PHY Implied (65C02)
+            {
+                return "PHY";
+            }
+            case 0x7A: // PLY Implied (65C02)
+            {
+                return "PLY";
+            }
             case 0x2A: // ROL Accumulator
             case 0x26: // ROL Zero Page
             case 0x36: // ROL Zero Page X
