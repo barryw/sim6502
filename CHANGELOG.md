@@ -2,6 +2,31 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.7.0 - 2026-01-28
+#### Features
+- (**6510**) add I/O port emulation at $00-$01 - (e1f6214) - Barry Walker
+- (**65c02**) add zero page indirect addressing mode - (3a952d9) - Barry Walker
+- (**65c02**) add TRB and TSB opcodes - (47f603d) - Barry Walker
+- (**65c02**) add INC A and DEC A opcodes - (d779c42) - Barry Walker
+- (**65c02**) add BRA (Branch Always) opcode - (a4ab1fa) - Barry Walker
+- (**65c02**) add STZ (Store Zero) opcode with 4 addressing modes - (c3242b4) - Barry Walker
+- (**65c02**) add PHX, PLX, PHY, PLY stack operations - (b8e9688) - Barry Walker
+- (**grammar**) add processor() declaration to suite blocks - (b509f68) - Barry Walker
+- (**listener**) handle processor() declaration in suites - (aaf987c) - Barry Walker
+- (**proc**) use ProcessorType in opcode lookup - (12e80a2) - Barry Walker
+- (**proc**) add ProcessorType property to Processor - (6fe202b) - Barry Walker
+- (**proc**) add ProcessorType enum for 6502/6510/65C02 - (639a149) - Barry Walker
+#### Documentation
+- update PDF with processor selection documentation - (8faa8a1) - Barry Walker
+- add processor selection documentation - (3e949cf) - Barry Walker
+#### Tests
+- add 65C02 integration test suite - (60a769a) - Barry Walker
+- add comprehensive flag and exclusion tests for 65C02 PHX/PLX/PHY/PLY - (accb9cc) - Barry Walker
+#### Refactoring
+- (**opcodes**) add processor-specific opcode tables - (1466fb8) - Barry Walker
+
+- - -
+
 ## v3.6.0 - 2026-01-28
 #### Features
 - (**grammar**) support assigning register values to memory locations - (bc67fec) - Barry Walker
