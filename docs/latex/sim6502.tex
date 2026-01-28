@@ -1,0 +1,239 @@
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\title{sim6502 - 6502 Assembly Testing Framework}
+\author{Barry Walker}
+\date{\today}
+
+% Configure listings for 6502 assembly
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    numbers=left,
+    numberstyle=\tiny,
+    showstringspaces=false
+}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{Introduction}
+
+sim6502 is a tool to help you unit test your 6502 assembly language programs. It works by running your assembled programs with a 6502 simulator and then allowing you to make assertions on memory and CPU state.
+
+\section{Processor Selection}
+
+sim6502 supports multiple processor variants in the 65xx family:
+
+\begin{itemize}
+    \item \textbf{6502} - Original NMOS MOS Technology 6502 (default)
+    \item \textbf{6510} - Same ISA as 6502, adds I/O port at \$00-\$01 (Commodore 64)
+    \item \textbf{65C02} - WDC CMOS variant with additional instructions
+\end{itemize}
+
+\subsection{Specifying Processor Type}
+
+Use the \texttt{processor()} statement at the beginning of a suite:
+
+\begin{verbatim}
+suites {
+  suite("My 65C02 Tests") {
+    processor(65c02)
+
+    test("test-1", "Uses 65C02 opcodes") {
+      // PHX, PLX, STZ, BRA, etc. available
+    }
+  }
+}
+\end{verbatim}
+
+If no \texttt{processor()} statement is specified, the default is 6502.
+
+\subsection{65C02 Additional Instructions}
+
+The 65C02 adds the following instructions not available on the 6502/6510:
+
+\begin{itemize}
+    \item \textbf{PHX, PLX} - Push/Pull X register
+    \item \textbf{PHY, PLY} - Push/Pull Y register
+    \item \textbf{STZ} - Store Zero
+    \item \textbf{BRA} - Branch Always
+    \item \textbf{INC A, DEC A} - Increment/Decrement Accumulator
+    \item \textbf{TRB, TSB} - Test and Reset/Set Bits
+    \item Zero Page Indirect addressing mode: \texttt{LDA (\$50)}
+\end{itemize}
+
+\subsubsection{Stack Operations}
+
+The 65C02 adds dedicated stack operations for the X and Y registers:
+
+\begin{verbatim}
+PHX     ; Push X register onto stack
+PLX     ; Pull X register from stack
+PHY     ; Push Y register onto stack
+PLY     ; Pull Y register from stack
+\end{verbatim}
+
+These instructions behave like PHA/PLA but operate on the X and Y registers respectively.
+
+\subsubsection{Store Zero}
+
+The STZ instruction stores zero to a memory location, supporting multiple addressing modes:
+
+\begin{verbatim}
+STZ $50         ; Zero page
+STZ $50,X       ; Zero page, X
+STZ $1234       ; Absolute
+STZ $1234,X     ; Absolute, X
+\end{verbatim}
+
+\subsubsection{Branch Always}
+
+The BRA instruction provides an unconditional relative branch:
+
+\begin{verbatim}
+BRA label       ; Always branch to label
+\end{verbatim}
+
+This is more efficient than using a conditional branch that always succeeds.
+
+\subsubsection{Accumulator Increment/Decrement}
+
+The 65C02 adds INC and DEC instructions that operate directly on the accumulator:
+
+\begin{verbatim}
+INC A           ; Increment accumulator
+DEC A           ; Decrement accumulator
+\end{verbatim}
+
+\subsubsection{Bit Manipulation}
+
+TRB and TSB provide efficient bit testing and manipulation:
+
+\begin{verbatim}
+TRB $50         ; Test and Reset Bits (clear bits where A has 1s)
+TSB $50         ; Test and Set Bits (set bits where A has 1s)
+\end{verbatim}
+
+Both instructions set the Zero flag based on the result of A AND memory (before modification).
+
+\subsubsection{Zero Page Indirect Addressing}
+
+The 65C02 adds a new addressing mode that uses zero page indirect addressing without an index register:
+
+\begin{verbatim}
+LDA ($50)       ; Load A from address pointed to by $50-$51
+STA ($50)       ; Store A to address pointed to by $50-$51
+\end{verbatim}
+
+This mode is available for: LDA, STA, ORA, AND, EOR, ADC, CMP, and SBC.
+
+\subsection{6510 I/O Port}
+
+The 6510 (used in the Commodore 64) has an I/O port at addresses \$00 and \$01:
+
+\begin{itemize}
+    \item \textbf{\$00} - Data Direction Register (DDR)
+    \item \textbf{\$01} - Data Port
+\end{itemize}
+
+When using \texttt{processor(6510)}, reads and writes to these addresses access the I/O port registers instead of RAM. The DDR controls which bits are inputs (0) or outputs (1).
+
+\subsubsection{C64 Memory Banking}
+
+On the Commodore 64, the 6510 I/O port controls memory banking:
+
+\begin{verbatim}
+; Set DDR - bits 0-5 as outputs
+LDA #$2F
+STA $00
+
+; Set data port - standard C64 configuration
+LDA #$37
+STA $01
+\end{verbatim}
+
+\subsection{Processor Examples}
+
+\subsubsection{6502 Example}
+
+\begin{verbatim}
+suites {
+  suite("Standard 6502 Tests") {
+    processor(6502)  // Optional - this is the default
+
+    test("basic-test", "Basic 6502 operation") {
+      a = $42
+      assert(a == $42, "Accumulator test")
+    }
+  }
+}
+\end{verbatim}
+
+\subsubsection{6510 Example}
+
+\begin{verbatim}
+suites {
+  suite("C64 6510 Tests") {
+    processor(6510)
+
+    test("io-port", "Test 6510 I/O port") {
+      $00 = $2F   // Set DDR
+      $01 = $37   // Set data port (C64 standard)
+      assert($00 == $2F, "DDR configured")
+      assert($01 == $37, "Port configured")
+    }
+  }
+}
+\end{verbatim}
+
+\subsubsection{65C02 Example}
+
+\begin{verbatim}
+suites {
+  suite("WDC 65C02 Tests") {
+    processor(65c02)
+
+    test("enhanced-ops", "Test 65C02 enhancements") {
+      a = $41
+      x = $10
+      y = $20
+
+      // Use 65C02-specific instructions
+      // These would be assembled in your .prg file
+
+      assert(a == $42, "INC A worked")
+      assert(x == $11, "PHX/PLX preserved X")
+    }
+  }
+}
+\end{verbatim}
+
+\section{Test Suite Structure}
+
+For information on the complete DSL syntax, test structure, and other features, please refer to the project README.md file.
+
+\section{License}
+
+The 6502 Unit Test CLI and associated test suite are Copyright \copyright\ 2020 by Barry Walker. All Rights Reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+\begin{enumerate}
+    \item Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+    \item Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+\end{enumerate}
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+
+\end{document}
