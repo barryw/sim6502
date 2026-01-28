@@ -1,0 +1,67 @@
+suites {
+  suite("65C02 Integration Tests") {
+    processor(65c02)
+
+    test("phx-plx", "PHX/PLX verify X preserved") {
+      x = $42
+      ; PHX ($DA), PLX ($FA)
+      $0300 = $da  ; PHX
+      $0301 = $fa  ; PLX
+      $0302 = $60  ; RTS
+      jsr($0300, stop_on_rts = true, fail_on_brk = false)
+      assert(x == $42, "X should be restored after PHX/PLX")
+    }
+
+    test("phy-ply", "PHY/PLY verify Y preserved") {
+      y = $37
+      ; PHY ($5A), PLY ($7A)
+      $0310 = $5a  ; PHY
+      $0311 = $7a  ; PLY
+      $0312 = $60  ; RTS
+      jsr($0310, stop_on_rts = true, fail_on_brk = false)
+      assert(y == $37, "Y should be restored after PHY/PLY")
+    }
+
+    test("stz-zp", "STZ clears zero page") {
+      $50 = $ff
+      ; STZ $50 ($64 $50)
+      $0320 = $64
+      $0321 = $50
+      $0322 = $60  ; RTS
+      jsr($0320, stop_on_rts = true, fail_on_brk = false)
+      assert(peekbyte($50) == $00, "Zero page should be cleared")
+    }
+
+    test("bra", "BRA branches unconditionally") {
+      a = $00
+      ; BRA +2, LDA #$99, LDA #$42, RTS
+      $0330 = $80  ; BRA
+      $0331 = $02  ; +2 (skip LDA #$99)
+      $0332 = $a9  ; LDA immediate
+      $0333 = $99  ; #$99 (should be skipped)
+      $0334 = $a9  ; LDA immediate
+      $0335 = $42  ; #$42
+      $0336 = $60  ; RTS
+      jsr($0330, stop_on_rts = true, fail_on_brk = false)
+      assert(a == $42, "A should be $42 after branch skips $99")
+    }
+
+    test("inc-a", "INC A increments accumulator") {
+      a = $41
+      ; INC A ($1A)
+      $0340 = $1a
+      $0341 = $60  ; RTS
+      jsr($0340, stop_on_rts = true, fail_on_brk = false)
+      assert(a == $42, "A should be incremented to $42")
+    }
+
+    test("dec-a", "DEC A decrements accumulator") {
+      a = $43
+      ; DEC A ($3A)
+      $0350 = $3a
+      $0351 = $60  ; RTS
+      jsr($0350, stop_on_rts = true, fail_on_brk = false)
+      assert(a == $42, "A should be decremented to $42")
+    }
+  }
+}

@@ -319,4 +319,16 @@ public class TestSuiteParser
 
         walker.Walk(sbl, tree);
     }
+
+    [Fact]
+    public void TestSuite19_65C02Integration()
+    {
+        // This test validates 65C02 processor mode and opcodes work together
+        var tree = GetContext("GrammarTests/test-19.txt");
+
+        var walker = new ParseTreeWalker();
+        var sbl = new SimBaseListener();
+
+        walker.Walk(sbl, tree);
+    }
 }
