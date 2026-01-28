@@ -650,4 +650,32 @@ public partial class Processor
     }
 
     #endregion
+
+    #region 65C02 Accumulator Inc/Dec Operations
+
+    /// <summary>
+    /// INC A - Increment Accumulator (65C02)
+    /// Increments the accumulator by 1 and sets Z and N flags
+    /// </summary>
+    public void IncrementAccumulatorOperation()
+    {
+        ReadMemoryValue(ProgramCounter + 1);
+        Accumulator = (byte)((Accumulator + 1) & 0xFF);
+        SetZeroFlag(Accumulator);
+        SetNegativeFlag(Accumulator);
+    }
+
+    /// <summary>
+    /// DEC A - Decrement Accumulator (65C02)
+    /// Decrements the accumulator by 1 and sets Z and N flags
+    /// </summary>
+    public void DecrementAccumulatorOperation()
+    {
+        ReadMemoryValue(ProgramCounter + 1);
+        Accumulator = (byte)((Accumulator - 1) & 0xFF);
+        SetZeroFlag(Accumulator);
+        SetNegativeFlag(Accumulator);
+    }
+
+    #endregion
 }

@@ -312,6 +312,7 @@ public partial class Processor
             case 0xD6: // DEC Zero Page X
             case 0xCE: // DEC Absolute
             case 0xDE: // DEC Absolute X
+            case 0x3A: // DEC A (65C02)
             {
                 return "DEC";
             }
@@ -336,6 +337,7 @@ public partial class Processor
             }
             case 0xE6: // INC Zero Page
             case 0xF6: // INC Zero Page X
+            case 0x1A: // INC A (65C02)
             {
                 return "INC";
             }

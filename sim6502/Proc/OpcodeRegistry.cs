@@ -941,6 +941,18 @@ public partial class Processor
                 p => p.BranchAlwaysOperation());
 
             #endregion
+
+            #region 65C02 Accumulator Inc/Dec Operations
+
+            // INC A - Increment Accumulator (65C02 only)
+            Register65C02(0x1A, "INC", AddressingMode.Implied, 1, 2,
+                p => p.IncrementAccumulatorOperation());
+
+            // DEC A - Decrement Accumulator (65C02 only)
+            Register65C02(0x3A, "DEC", AddressingMode.Implied, 1, 2,
+                p => p.DecrementAccumulatorOperation());
+
+            #endregion
         }
     }
 }

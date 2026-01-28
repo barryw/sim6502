@@ -265,6 +265,8 @@ public partial class Processor
             case 0xFA: //PLX (65C02)
             case 0x5A: //PHY (65C02)
             case 0x7A: //PLY (65C02)
+            case 0x1A: //INC A (65C02)
+            case 0x3A: //DEC A (65C02)
             {
                 return AddressingMode.Implied;
             }

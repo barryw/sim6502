@@ -537,4 +537,237 @@ public class Opcodes65C02Tests
     }
 
     #endregion
+
+    #region INC A Tests
+
+    [Fact]
+    public void INC_A_IncrementsAccumulator()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+        proc.Accumulator = 0x42;
+
+        // INC A at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x1A); // INC A
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        proc.Accumulator.Should().Be(0x43);
+        proc.ProgramCounter.Should().Be(0x0201);
+        proc.CurrentOpCode.Should().Be(0x1A);
+    }
+
+    [Fact]
+    public void INC_A_WrapsAndSetsZeroFlag()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+        proc.Accumulator = 0xFF;
+
+        // INC A at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x1A); // INC A
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        proc.Accumulator.Should().Be(0x00);
+        proc.ZeroFlag.Should().BeTrue();
+        proc.NegativeFlag.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(0x00, 0x01, false, false)]
+    [InlineData(0x7F, 0x80, false, true)]
+    [InlineData(0x80, 0x81, false, true)]
+    [InlineData(0xFE, 0xFF, false, true)]
+    [InlineData(0xFF, 0x00, true, false)]
+    public void INC_A_SetsCorrectFlags(byte initial, byte expected, bool expectedZero, bool expectedNegative)
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+        proc.Accumulator = initial;
+
+        // INC A at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x1A); // INC A
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        proc.Accumulator.Should().Be(expected);
+        proc.ZeroFlag.Should().Be(expectedZero);
+        proc.NegativeFlag.Should().Be(expectedNegative);
+    }
+
+    [Fact]
+    public void INC_A_NotAvailableOn6502()
+    {
+        var proc = new Processor(ProcessorType.MOS6502);
+        proc.Reset();
+
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x1A); // INC A (65C02 only)
+        proc.ProgramCounter = 0x0200;
+
+        var action = () => proc.NextStep();
+        action.Should().Throw<System.NotSupportedException>();
+    }
+
+    [Fact]
+    public void INC_A_NotAvailableOn6510()
+    {
+        var proc = new Processor(ProcessorType.MOS6510);
+        proc.Reset();
+
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x1A); // INC A (65C02 only)
+        proc.ProgramCounter = 0x0200;
+
+        var action = () => proc.NextStep();
+        action.Should().Throw<System.NotSupportedException>();
+    }
+
+    [Fact]
+    public void INC_A_HasCorrectCycles()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+        proc.Accumulator = 0x42;
+
+        // INC A at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x1A); // INC A
+        proc.ProgramCounter = 0x0200;
+
+        var initialCycles = proc.CycleCount;
+        proc.NextStep();
+
+        // Should take 2 cycles
+        (proc.CycleCount - initialCycles).Should().Be(2);
+    }
+
+    #endregion
+
+    #region DEC A Tests
+
+    [Fact]
+    public void DEC_A_DecrementsAccumulator()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+        proc.Accumulator = 0x42;
+
+        // DEC A at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x3A); // DEC A
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        proc.Accumulator.Should().Be(0x41);
+        proc.ProgramCounter.Should().Be(0x0201);
+        proc.CurrentOpCode.Should().Be(0x3A);
+    }
+
+    [Fact]
+    public void DEC_A_WrapsAndSetsNegativeFlag()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+        proc.Accumulator = 0x00;
+
+        // DEC A at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x3A); // DEC A
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        proc.Accumulator.Should().Be(0xFF);
+        proc.ZeroFlag.Should().BeFalse();
+        proc.NegativeFlag.Should().BeTrue();
+    }
+
+    [Fact]
+    public void DEC_A_SetsZeroFlag()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+        proc.Accumulator = 0x01;
+
+        // DEC A at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x3A); // DEC A
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        proc.Accumulator.Should().Be(0x00);
+        proc.ZeroFlag.Should().BeTrue();
+        proc.NegativeFlag.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(0x01, 0x00, true, false)]
+    [InlineData(0x02, 0x01, false, false)]
+    [InlineData(0x80, 0x7F, false, false)]
+    [InlineData(0x81, 0x80, false, true)]
+    [InlineData(0xFF, 0xFE, false, true)]
+    [InlineData(0x00, 0xFF, false, true)]
+    public void DEC_A_SetsCorrectFlags(byte initial, byte expected, bool expectedZero, bool expectedNegative)
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+        proc.Accumulator = initial;
+
+        // DEC A at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x3A); // DEC A
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        proc.Accumulator.Should().Be(expected);
+        proc.ZeroFlag.Should().Be(expectedZero);
+        proc.NegativeFlag.Should().Be(expectedNegative);
+    }
+
+    [Fact]
+    public void DEC_A_NotAvailableOn6502()
+    {
+        var proc = new Processor(ProcessorType.MOS6502);
+        proc.Reset();
+
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x3A); // DEC A (65C02 only)
+        proc.ProgramCounter = 0x0200;
+
+        var action = () => proc.NextStep();
+        action.Should().Throw<System.NotSupportedException>();
+    }
+
+    [Fact]
+    public void DEC_A_NotAvailableOn6510()
+    {
+        var proc = new Processor(ProcessorType.MOS6510);
+        proc.Reset();
+
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x3A); // DEC A (65C02 only)
+        proc.ProgramCounter = 0x0200;
+
+        var action = () => proc.NextStep();
+        action.Should().Throw<System.NotSupportedException>();
+    }
+
+    [Fact]
+    public void DEC_A_HasCorrectCycles()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+        proc.Accumulator = 0x42;
+
+        // DEC A at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x3A); // DEC A
+        proc.ProgramCounter = 0x0200;
+
+        var initialCycles = proc.CycleCount;
+        proc.NextStep();
+
+        // Should take 2 cycles
+        (proc.CycleCount - initialCycles).Should().Be(2);
+    }
+
+    #endregion
 }
