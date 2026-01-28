@@ -2,6 +2,14 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.6.0 - 2026-01-28
+#### Features
+- (**grammar**) support assigning register values to memory locations - (bc67fec) - Barry Walker
+#### Tests
+- (**errors**) add unit tests for error handling components - (dc06a8b) - Barry Walker
+
+- - -
+
 ## v3.5.0 - 2026-01-28
 #### Features
 - (**errors**) comprehensive error handling with rich contextual output - (f298134) - Barry Walker
