@@ -426,4 +426,115 @@ public class Opcodes65C02Tests
     }
 
     #endregion
+
+    #region BRA Tests
+
+    [Fact]
+    public void BRA_BranchesForward()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+
+        // BRA +10 at address $0200
+        // Expected: PC should be at $0200 + 2 (instruction size) + 10 (offset) = $020C
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x80); // BRA
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0x0A); // offset +10
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        proc.ProgramCounter.Should().Be(0x020C);
+        proc.CurrentOpCode.Should().Be(0x80);
+    }
+
+    [Fact]
+    public void BRA_BranchesBackward()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+
+        // BRA -10 at address $0200
+        // Offset is two's complement: -10 = 256 - 10 = 246 = 0xF6
+        // Expected: PC should be at $0200 + 2 (instruction size) - 10 (offset) = $01F8
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x80); // BRA
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0xF6); // offset -10 (two's complement)
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        proc.ProgramCounter.Should().Be(0x01F8);
+        proc.CurrentOpCode.Should().Be(0x80);
+    }
+
+    [Fact]
+    public void BRA_PageBoundaryCrossed()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+
+        // Use pattern from existing tests: start near end of page and branch forward
+        // PC = $02F0, after instruction PC = $02F2
+        // offset = 0x0F (15), movement = 15
+        // newPC = $02F2 + 15 = $0301, then +1 = $0302
+        // But actually the PC ends up at $0301
+        proc.WriteMemoryValueWithoutIncrement(0x02F0, 0x80); // BRA
+        proc.WriteMemoryValueWithoutIncrement(0x02F1, 0x0F); // offset +15
+        proc.ProgramCounter = 0x02F0;
+
+        var initialCycles = proc.CycleCount;
+
+        proc.NextStep();
+
+        proc.ProgramCounter.Should().Be(0x0301);
+        // Base cycles: 3, plus 1 for page boundary crossing = 4 total
+        (proc.CycleCount - initialCycles).Should().Be(4);
+    }
+
+    [Fact]
+    public void BRA_NoPageBoundaryCross()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+
+        // BRA within same page
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x80); // BRA
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0x05); // offset +5
+        proc.ProgramCounter = 0x0200;
+
+        var initialCycles = proc.CycleCount;
+
+        proc.NextStep();
+
+        proc.ProgramCounter.Should().Be(0x0207);
+        // Base cycles: 3, no page boundary crossing
+        (proc.CycleCount - initialCycles).Should().Be(3);
+    }
+
+    [Fact]
+    public void BRA_NotAvailableOn6502()
+    {
+        var proc = new Processor(ProcessorType.MOS6502);
+        proc.Reset();
+
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x80); // BRA (65C02 only)
+        proc.ProgramCounter = 0x0200;
+
+        var action = () => proc.NextStep();
+        action.Should().Throw<System.NotSupportedException>();
+    }
+
+    [Fact]
+    public void BRA_NotAvailableOn6510()
+    {
+        var proc = new Processor(ProcessorType.MOS6510);
+        proc.Reset();
+
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x80); // BRA (65C02 only)
+        proc.ProgramCounter = 0x0200;
+
+        var action = () => proc.NextStep();
+        action.Should().Throw<System.NotSupportedException>();
+    }
+
+    #endregion
 }

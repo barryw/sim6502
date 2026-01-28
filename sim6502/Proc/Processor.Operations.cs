@@ -636,4 +636,18 @@ public partial class Processor
     }
 
     #endregion
+
+    #region 65C02 Branch Operations
+
+    /// <summary>
+    /// BRA - Branch Always (65C02)
+    /// Unconditionally branches to a relative address
+    /// </summary>
+    public void BranchAlwaysOperation()
+    {
+        var value = ReadMemoryValue(GetAddressByAddressingMode(AddressingMode.Relative));
+        MoveProgramCounterByRelativeValue(value);
+    }
+
+    #endregion
 }

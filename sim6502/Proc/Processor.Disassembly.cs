@@ -224,6 +224,10 @@ public partial class Processor
             {
                 return "ASL";
             }
+            case 0x80: // BRA Relative (65C02)
+            {
+                return "BRA";
+            }
             case 0x90: // BCC Relative
             {
                 return "BCC";

@@ -933,6 +933,14 @@ public partial class Processor
                 p => { p.StoreZeroOperation(AddressingMode.AbsoluteX); p.IncrementCycleCount(); });
 
             #endregion
+
+            #region 65C02 Branch Operations
+
+            // BRA - Branch Always (65C02 only)
+            Register65C02(0x80, "BRA", AddressingMode.Relative, 2, 3,
+                p => p.BranchAlwaysOperation());
+
+            #endregion
         }
     }
 }

@@ -295,6 +295,7 @@ public partial class Processor
             {
                 return AddressingMode.IndirectY;
             }
+            case 0x80: //BRA (65C02)
             case 0x90: //BCC
             case 0xB0: //BCS
             case 0xF0: //BEQ
