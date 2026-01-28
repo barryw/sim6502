@@ -73,6 +73,30 @@ public partial class sim6502BaseListener : Isim6502Listener {
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitSuiteName([NotNull] sim6502Parser.SuiteNameContext context) { }
 	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.processorDeclaration"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterProcessorDeclaration([NotNull] sim6502Parser.ProcessorDeclarationContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.processorDeclaration"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitProcessorDeclaration([NotNull] sim6502Parser.ProcessorDeclarationContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.processorTypeValue"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterProcessorTypeValue([NotNull] sim6502Parser.ProcessorTypeValueContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.processorTypeValue"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitProcessorTypeValue([NotNull] sim6502Parser.ProcessorTypeValueContext context) { }
+	/// <summary>
 	/// Enter a parse tree produced by the <c>registerAssignment</c>
 	/// labeled alternative in <see cref="sim6502Parser.assignment"/>.
 	/// <para>The default implementation does nothing.</para>

@@ -62,6 +62,26 @@ public interface Isim6502Listener : IParseTreeListener {
 	/// <param name="context">The parse tree.</param>
 	void ExitSuiteName([NotNull] sim6502Parser.SuiteNameContext context);
 	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.processorDeclaration"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterProcessorDeclaration([NotNull] sim6502Parser.ProcessorDeclarationContext context);
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.processorDeclaration"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitProcessorDeclaration([NotNull] sim6502Parser.ProcessorDeclarationContext context);
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.processorTypeValue"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterProcessorTypeValue([NotNull] sim6502Parser.ProcessorTypeValueContext context);
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.processorTypeValue"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitProcessorTypeValue([NotNull] sim6502Parser.ProcessorTypeValueContext context);
+	/// <summary>
 	/// Enter a parse tree produced by the <c>registerAssignment</c>
 	/// labeled alternative in <see cref="sim6502Parser.assignment"/>.
 	/// </summary>

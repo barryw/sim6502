@@ -1,0 +1,35 @@
+suites {
+  suite("Test 65C02 processor declaration") {
+    processor(65c02)
+
+    test("proc-decl", "Verify processor declaration parses") {
+      a = $00
+      assert(a == $00, "Basic test should work")
+    }
+  }
+
+  suite("Test 6502 processor declaration") {
+    processor(6502)
+
+    test("proc-6502", "Verify 6502 declaration parses") {
+      a = $01
+      assert(a == $01, "Basic test should work")
+    }
+  }
+
+  suite("Test 6510 processor declaration") {
+    processor(6510)
+
+    test("proc-6510", "Verify 6510 declaration parses") {
+      a = $02
+      assert(a == $02, "Basic test should work")
+    }
+  }
+
+  suite("Test default processor (no declaration)") {
+    test("no-proc", "Should default to 6502") {
+      a = $03
+      assert(a == $03, "Basic test should work")
+    }
+  }
+}

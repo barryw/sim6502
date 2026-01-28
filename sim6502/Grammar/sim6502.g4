@@ -29,11 +29,24 @@ suites
     ;
 
 suite
-    : Suite LParen suiteName RParen LBrace (testFunction | symbolsFunction | loadFunction | setupBlock)+ RBrace
+    : Suite LParen suiteName RParen LBrace
+        (processorDeclaration)?
+        (testFunction | symbolsFunction | loadFunction | setupBlock)+
+      RBrace
     ;
     
 suiteName
     : StringLiteral
+    ;
+
+processorDeclaration
+    : Processor LParen processorTypeValue RParen
+    ;
+
+processorTypeValue
+    : ProcessorType6502
+    | ProcessorType6510
+    | ProcessorType65C02
     ;
    
 // Assignment rule - order matters: most specific first, general expression last
@@ -366,6 +379,10 @@ Skip:           'skip';
 Trace:          'trace';
 Timeout:        'timeout';
 Tags:           'tags';
+Processor:      'processor';
+ProcessorType6502:  '6502';
+ProcessorType6510:  '6510';
+ProcessorType65C02: '65c02' | '65C02';
 
 LoByte: '.l' | '.L' ;
 HiByte: '.h' | '.H' ;

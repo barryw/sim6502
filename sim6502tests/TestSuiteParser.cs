@@ -307,4 +307,16 @@ public class TestSuiteParser
 
         walker.Walk(sbl, tree);
     }
+
+    [Fact]
+    public void TestSuite18_ProcessorDeclaration()
+    {
+        // This test validates processor() declaration grammar parsing
+        var tree = GetContext("GrammarTests/test-18.txt");
+
+        var walker = new ParseTreeWalker();
+        var sbl = new SimBaseListener();
+
+        walker.Walk(sbl, tree);
+    }
 }
