@@ -146,6 +146,17 @@ public partial class Processor
 
                 return address;
             }
+            case AddressingMode.ZeroPageIndirect:
+            {
+                // Get zero page address that contains the pointer
+                var zpAddress = ReadMemoryValue(ProgramCounter++);
+
+                // Read the low and high bytes from zero page
+                var lowByte = ReadMemoryValue(zpAddress);
+                highByte = ReadMemoryValue((zpAddress + 1) & 0xFF);
+
+                return (highByte << 8) | lowByte;
+            }
             default:
                 throw new InvalidOperationException(
                     $"The Address Mode '{addressingMode}' does not require an address");
@@ -359,6 +370,17 @@ public partial class Processor
             case 0x74: //STZ (65C02)
             {
                 return AddressingMode.ZeroPageX;
+            }
+            case 0x12: //ORA (65C02)
+            case 0x32: //AND (65C02)
+            case 0x52: //EOR (65C02)
+            case 0x72: //ADC (65C02)
+            case 0x92: //STA (65C02)
+            case 0xB2: //LDA (65C02)
+            case 0xD2: //CMP (65C02)
+            case 0xF2: //SBC (65C02)
+            {
+                return AddressingMode.ZeroPageIndirect;
             }
             default:
                 throw new NotSupportedException($"The OpCode {CurrentOpCode.ToString()} @ address {ProgramCounter.ToString()} is not supported.");

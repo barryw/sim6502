@@ -1110,4 +1110,285 @@ public class Opcodes65C02Tests
     }
 
     #endregion
+
+    #region Zero Page Indirect Addressing Mode Tests
+
+    [Fact]
+    public void LDA_ZeroPageIndirect_LoadsCorrectValue()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+
+        // Setup: Zero page location $20 contains pointer to $1234
+        proc.WriteMemoryValueWithoutIncrement(0x0020, 0x34); // Low byte
+        proc.WriteMemoryValueWithoutIncrement(0x0021, 0x12); // High byte
+        proc.WriteMemoryValueWithoutIncrement(0x1234, 0x42); // Target value
+
+        // LDA ($20) at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0xB2); // LDA
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0x20); // Zero page address
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        proc.Accumulator.Should().Be(0x42);
+        proc.ProgramCounter.Should().Be(0x0202);
+        proc.CurrentOpCode.Should().Be(0xB2);
+    }
+
+    [Fact]
+    public void STA_ZeroPageIndirect_StoresCorrectValue()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+        proc.Accumulator = 0x99;
+
+        // Setup: Zero page location $20 contains pointer to $1234
+        proc.WriteMemoryValueWithoutIncrement(0x0020, 0x34); // Low byte
+        proc.WriteMemoryValueWithoutIncrement(0x0021, 0x12); // High byte
+
+        // STA ($20) at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x92); // STA
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0x20); // Zero page address
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        proc.ReadMemoryValueWithoutCycle(0x1234).Should().Be(0x99);
+        proc.ProgramCounter.Should().Be(0x0202);
+        proc.CurrentOpCode.Should().Be(0x92);
+    }
+
+    [Fact]
+    public void ADC_ZeroPageIndirect_AddsCorrectly()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+        proc.Accumulator = 0x10;
+        proc.CarryFlag = false;
+
+        // Setup: Zero page location $30 contains pointer to $2000
+        proc.WriteMemoryValueWithoutIncrement(0x0030, 0x00); // Low byte
+        proc.WriteMemoryValueWithoutIncrement(0x0031, 0x20); // High byte
+        proc.WriteMemoryValueWithoutIncrement(0x2000, 0x25); // Value to add
+
+        // ADC ($30) at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x72); // ADC
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0x30); // Zero page address
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        proc.Accumulator.Should().Be(0x35);
+        proc.CarryFlag.Should().BeFalse();
+        proc.ZeroFlag.Should().BeFalse();
+        proc.NegativeFlag.Should().BeFalse();
+    }
+
+    [Fact]
+    public void AND_ZeroPageIndirect_PerformsAndCorrectly()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+        proc.Accumulator = 0xFF;
+
+        // Setup: Zero page location $40 contains pointer to $3000
+        proc.WriteMemoryValueWithoutIncrement(0x0040, 0x00); // Low byte
+        proc.WriteMemoryValueWithoutIncrement(0x0041, 0x30); // High byte
+        proc.WriteMemoryValueWithoutIncrement(0x3000, 0x0F); // Value to AND
+
+        // AND ($40) at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x32); // AND
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0x40); // Zero page address
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        proc.Accumulator.Should().Be(0x0F);
+        proc.ZeroFlag.Should().BeFalse();
+        proc.NegativeFlag.Should().BeFalse();
+    }
+
+    [Fact]
+    public void EOR_ZeroPageIndirect_PerformsXorCorrectly()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+        proc.Accumulator = 0xFF;
+
+        // Setup: Zero page location $50 contains pointer to $4000
+        proc.WriteMemoryValueWithoutIncrement(0x0050, 0x00); // Low byte
+        proc.WriteMemoryValueWithoutIncrement(0x0051, 0x40); // High byte
+        proc.WriteMemoryValueWithoutIncrement(0x4000, 0xAA); // Value to XOR
+
+        // EOR ($50) at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x52); // EOR
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0x50); // Zero page address
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        proc.Accumulator.Should().Be(0x55);
+        proc.ZeroFlag.Should().BeFalse();
+        proc.NegativeFlag.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ORA_ZeroPageIndirect_PerformsOrCorrectly()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+        proc.Accumulator = 0xF0;
+
+        // Setup: Zero page location $60 contains pointer to $5000
+        proc.WriteMemoryValueWithoutIncrement(0x0060, 0x00); // Low byte
+        proc.WriteMemoryValueWithoutIncrement(0x0061, 0x50); // High byte
+        proc.WriteMemoryValueWithoutIncrement(0x5000, 0x0F); // Value to OR
+
+        // ORA ($60) at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x12); // ORA
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0x60); // Zero page address
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        proc.Accumulator.Should().Be(0xFF);
+        proc.ZeroFlag.Should().BeFalse();
+        proc.NegativeFlag.Should().BeTrue();
+    }
+
+    [Fact]
+    public void CMP_ZeroPageIndirect_ComparesCorrectly()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+        proc.Accumulator = 0x42;
+
+        // Setup: Zero page location $70 contains pointer to $6000
+        proc.WriteMemoryValueWithoutIncrement(0x0070, 0x00); // Low byte
+        proc.WriteMemoryValueWithoutIncrement(0x0071, 0x60); // High byte
+        proc.WriteMemoryValueWithoutIncrement(0x6000, 0x42); // Value to compare
+
+        // CMP ($70) at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0xD2); // CMP
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0x70); // Zero page address
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        proc.ZeroFlag.Should().BeTrue();  // Equal
+        proc.CarryFlag.Should().BeTrue(); // A >= M
+        proc.NegativeFlag.Should().BeFalse();
+    }
+
+    [Fact]
+    public void SBC_ZeroPageIndirect_SubtractsCorrectly()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+        proc.Accumulator = 0x50;
+        proc.CarryFlag = true; // No borrow
+
+        // Setup: Zero page location $80 contains pointer to $7000
+        proc.WriteMemoryValueWithoutIncrement(0x0080, 0x00); // Low byte
+        proc.WriteMemoryValueWithoutIncrement(0x0081, 0x70); // High byte
+        proc.WriteMemoryValueWithoutIncrement(0x7000, 0x25); // Value to subtract
+
+        // SBC ($80) at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0xF2); // SBC
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0x80); // Zero page address
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        proc.Accumulator.Should().Be(0x2B);
+        proc.CarryFlag.Should().BeTrue();
+        proc.ZeroFlag.Should().BeFalse();
+        proc.NegativeFlag.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ZeroPageIndirect_PointerWrapsCorrectly()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+
+        // Pointer at $FF should read low byte from $FF, high byte from $00 (wraps)
+        proc.WriteMemoryValueWithoutIncrement(0x00FF, 0x34); // Low byte
+        proc.WriteMemoryValueWithoutIncrement(0x0000, 0x12); // High byte (wrapped)
+        proc.WriteMemoryValueWithoutIncrement(0x1234, 0x88); // Target value
+
+        // LDA ($FF) at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0xB2); // LDA
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0xFF); // Zero page address at boundary
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        proc.Accumulator.Should().Be(0x88);
+    }
+
+    [Fact]
+    public void LDA_ZeroPageIndirect_HasCorrectCycles()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+
+        proc.WriteMemoryValueWithoutIncrement(0x0020, 0x34);
+        proc.WriteMemoryValueWithoutIncrement(0x0021, 0x12);
+        proc.WriteMemoryValueWithoutIncrement(0x1234, 0x42);
+
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0xB2);
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0x20);
+        proc.ProgramCounter = 0x0200;
+
+        var initialCycles = proc.CycleCount;
+        proc.NextStep();
+
+        (proc.CycleCount - initialCycles).Should().Be(5);
+    }
+
+    [Theory]
+    [InlineData(0x12)] // ORA Zero Page Indirect
+    [InlineData(0x32)] // AND Zero Page Indirect
+    [InlineData(0x52)] // EOR Zero Page Indirect
+    [InlineData(0x72)] // ADC Zero Page Indirect
+    [InlineData(0x92)] // STA Zero Page Indirect
+    [InlineData(0xB2)] // LDA Zero Page Indirect
+    [InlineData(0xD2)] // CMP Zero Page Indirect
+    [InlineData(0xF2)] // SBC Zero Page Indirect
+    public void ZeroPageIndirect_NotAvailableOn6502(byte opcode)
+    {
+        var proc = new Processor(ProcessorType.MOS6502);
+        proc.Reset();
+
+        proc.WriteMemoryValueWithoutIncrement(0x0200, opcode);
+        proc.ProgramCounter = 0x0200;
+
+        var action = () => proc.NextStep();
+        action.Should().Throw<System.NotSupportedException>();
+    }
+
+    [Theory]
+    [InlineData(0x12)] // ORA Zero Page Indirect
+    [InlineData(0x32)] // AND Zero Page Indirect
+    [InlineData(0x52)] // EOR Zero Page Indirect
+    [InlineData(0x72)] // ADC Zero Page Indirect
+    [InlineData(0x92)] // STA Zero Page Indirect
+    [InlineData(0xB2)] // LDA Zero Page Indirect
+    [InlineData(0xD2)] // CMP Zero Page Indirect
+    [InlineData(0xF2)] // SBC Zero Page Indirect
+    public void ZeroPageIndirect_NotAvailableOn6510(byte opcode)
+    {
+        var proc = new Processor(ProcessorType.MOS6510);
+        proc.Reset();
+
+        proc.WriteMemoryValueWithoutIncrement(0x0200, opcode);
+        proc.ProgramCounter = 0x0200;
+
+        var action = () => proc.NextStep();
+        action.Should().Throw<System.NotSupportedException>();
+    }
+
+    #endregion
 }

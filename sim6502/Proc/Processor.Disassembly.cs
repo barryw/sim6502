@@ -159,6 +159,13 @@ public partial class Processor
                 disassembledStep = $"${address1.Value.ToString("X").PadLeft(2, '0')},Y";
                 break;
             }
+            case AddressingMode.ZeroPageIndirect:
+            {
+                address2 = null;
+
+                disassembledStep = $"(${address1.Value.ToString("X").PadLeft(2, '0')})";
+                break;
+            }
             default:
                 throw new InvalidEnumArgumentException("Invalid Addressing Mode");
         }
@@ -202,6 +209,7 @@ public partial class Processor
             case 0x79: // ADC Absolute Y
             case 0x61: // ADC Indirect X
             case 0x71: // ADC Indirect Y
+            case 0x72: // ADC Zero Page Indirect (65C02)
             {
                 return "ADC";
             }
@@ -213,6 +221,7 @@ public partial class Processor
             case 0x39: // AND Absolute Y
             case 0x21: // AND Indirect X
             case 0x31: // AND Indirect Y
+            case 0x32: // AND Zero Page Indirect (65C02)
             {
                 return "AND";
             }
@@ -293,6 +302,7 @@ public partial class Processor
             case 0xD9: // CMP Absolute Y
             case 0xC1: // CMP Indirect X
             case 0xD1: // CMP Indirect Y
+            case 0xD2: // CMP Zero Page Indirect (65C02)
             {
                 return "CMP";
             }
@@ -332,6 +342,7 @@ public partial class Processor
             case 0x59: // EOR Absolute Y
             case 0x41: // EOR Indirect X
             case 0x51: // EOR Indirect Y
+            case 0x52: // EOR Zero Page Indirect (65C02)
             {
                 return "EOR";
             }
@@ -371,6 +382,7 @@ public partial class Processor
             case 0xB9: // LDA Absolute Y
             case 0xA1: // LDA Indirect X
             case 0xB1: // LDA Indirect Y
+            case 0xB2: // LDA Zero Page Indirect (65C02)
             {
                 return "LDA";
             }
@@ -410,6 +422,7 @@ public partial class Processor
             case 0x19: // ORA Absolute Y
             case 0x01: // ORA Indirect X
             case 0x11: // ORA Indirect Y
+            case 0x12: // ORA Zero Page Indirect (65C02)
             {
                 return "ORA";
             }
@@ -477,6 +490,7 @@ public partial class Processor
             case 0xF9: // SBC Absolute Y
             case 0xE1: // SBC Indirect X
             case 0xF1: // SBC Indirect Y
+            case 0xF2: // SBC Zero Page Indirect (65C02)
             {
                 return "SBC";
             }
@@ -499,6 +513,7 @@ public partial class Processor
             case 0x99: // STA Absolute Y
             case 0x81: // STA Indirect X
             case 0x91: // STA Indirect Y
+            case 0x92: // STA Zero Page Indirect (65C02)
             {
                 return "STA";
             }

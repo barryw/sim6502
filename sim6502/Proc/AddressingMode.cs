@@ -115,5 +115,11 @@ namespace sim6502.Proc
         /// This works the same as ZeroPageX except it uses the Y register instead of the X register.
         /// </summary>
         ZeroPageY = 13,
+
+        /// <summary>
+        /// Zero Page Indirect - 65C02 only
+        /// (zp) - Address in zero page points to target
+        /// </summary>
+        ZeroPageIndirect = 14,
     }
 }

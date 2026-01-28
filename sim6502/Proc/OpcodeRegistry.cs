@@ -971,6 +971,40 @@ public partial class Processor
                 p => p.TestAndSetBitsOperation(AddressingMode.Absolute));
 
             #endregion
+
+            #region 65C02 Zero Page Indirect Addressing Mode
+
+            // Zero Page Indirect - 65C02 only
+            Register65C02(0x12, "ORA", AddressingMode.ZeroPageIndirect, 2, 5,
+                p => p.OrOperation(AddressingMode.ZeroPageIndirect));
+
+            Register65C02(0x32, "AND", AddressingMode.ZeroPageIndirect, 2, 5,
+                p => p.AndOperation(AddressingMode.ZeroPageIndirect));
+
+            Register65C02(0x52, "EOR", AddressingMode.ZeroPageIndirect, 2, 5,
+                p => p.EorOperation(AddressingMode.ZeroPageIndirect));
+
+            Register65C02(0x72, "ADC", AddressingMode.ZeroPageIndirect, 2, 5,
+                p => p.AddWithCarryOperation(AddressingMode.ZeroPageIndirect));
+
+            Register65C02(0x92, "STA", AddressingMode.ZeroPageIndirect, 2, 5,
+                p => p.WriteMemoryValue(p.GetAddressByAddressingMode(AddressingMode.ZeroPageIndirect), (byte)p.Accumulator));
+
+            Register65C02(0xB2, "LDA", AddressingMode.ZeroPageIndirect, 2, 5,
+                p =>
+                {
+                    p.Accumulator = p.ReadMemoryValue(p.GetAddressByAddressingMode(AddressingMode.ZeroPageIndirect));
+                    p.SetZeroFlag(p.Accumulator);
+                    p.SetNegativeFlag(p.Accumulator);
+                });
+
+            Register65C02(0xD2, "CMP", AddressingMode.ZeroPageIndirect, 2, 5,
+                p => p.CompareOperation(AddressingMode.ZeroPageIndirect, p.Accumulator));
+
+            Register65C02(0xF2, "SBC", AddressingMode.ZeroPageIndirect, 2, 5,
+                p => p.SubtractWithBorrowOperation(AddressingMode.ZeroPageIndirect));
+
+            #endregion
         }
     }
 }
