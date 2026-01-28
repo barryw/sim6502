@@ -2,6 +2,14 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.5.0 - 2026-01-28
+#### Features
+- (**errors**) comprehensive error handling with rich contextual output - (f298134) - Barry Walker
+#### Documentation
+- add error handling design document - (d6366be) - Barry Walker
+
+- - -
+
 ## v3.4.3 - 2026-01-28
 #### Bug Fixes
 - (**ci**) use --no-build flag for dotnet test - (06f87c4) - Barry Walker
