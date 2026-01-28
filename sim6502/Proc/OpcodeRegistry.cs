@@ -916,6 +916,23 @@ public partial class Processor
                 p => p.PullYOperation());
 
             #endregion
+
+            #region 65C02 Store Operations
+
+            // STZ - Store Zero (65C02 only)
+            Register65C02(0x64, "STZ", AddressingMode.ZeroPage, 2, 3,
+                p => p.StoreZeroOperation(AddressingMode.ZeroPage));
+
+            Register65C02(0x74, "STZ", AddressingMode.ZeroPageX, 2, 4,
+                p => p.StoreZeroOperation(AddressingMode.ZeroPageX));
+
+            Register65C02(0x9C, "STZ", AddressingMode.Absolute, 3, 4,
+                p => p.StoreZeroOperation(AddressingMode.Absolute));
+
+            Register65C02(0x9E, "STZ", AddressingMode.AbsoluteX, 3, 5,
+                p => { p.StoreZeroOperation(AddressingMode.AbsoluteX); p.IncrementCycleCount(); });
+
+            #endregion
         }
     }
 }

@@ -300,4 +300,130 @@ public class Opcodes65C02Tests
 
         proc.NegativeFlag.Should().Be(expectedResult);
     }
+
+    #region STZ Tests
+
+    [Fact]
+    public void STZ_ZeroPage_StoresZero()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+
+        // Set target memory location to non-zero value
+        proc.WriteMemoryValueWithoutIncrement(0x0042, 0xFF);
+
+        // STZ $42 at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x64); // STZ
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0x42); // Zero page address
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        proc.ReadMemoryValueWithoutCycle(0x0042).Should().Be(0x00);
+        proc.ProgramCounter.Should().Be(0x0202);
+        proc.CurrentOpCode.Should().Be(0x64);
+    }
+
+    [Fact]
+    public void STZ_ZeroPageX_StoresZero()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+        proc.XRegister = 0x05;
+
+        // Set target memory location to non-zero value
+        proc.WriteMemoryValueWithoutIncrement(0x0047, 0xAA);
+
+        // STZ $42,X at address $0200 (will store to $42 + $05 = $47)
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x74); // STZ
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0x42); // Zero page address
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        proc.ReadMemoryValueWithoutCycle(0x0047).Should().Be(0x00);
+        proc.ProgramCounter.Should().Be(0x0202);
+        proc.CurrentOpCode.Should().Be(0x74);
+    }
+
+    [Fact]
+    public void STZ_Absolute_StoresZero()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+
+        // Set target memory location to non-zero value
+        proc.WriteMemoryValueWithoutIncrement(0x1234, 0x88);
+
+        // STZ $1234 at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x9C); // STZ
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0x34); // Low byte
+        proc.WriteMemoryValueWithoutIncrement(0x0202, 0x12); // High byte
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        proc.ReadMemoryValueWithoutCycle(0x1234).Should().Be(0x00);
+        proc.ProgramCounter.Should().Be(0x0203);
+        proc.CurrentOpCode.Should().Be(0x9C);
+    }
+
+    [Fact]
+    public void STZ_AbsoluteX_StoresZero()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+        proc.XRegister = 0x0A;
+
+        // Set target memory location to non-zero value
+        proc.WriteMemoryValueWithoutIncrement(0x123E, 0x77);
+
+        // STZ $1234,X at address $0200 (will store to $1234 + $0A = $123E)
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x9E); // STZ
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0x34); // Low byte
+        proc.WriteMemoryValueWithoutIncrement(0x0202, 0x12); // High byte
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        proc.ReadMemoryValueWithoutCycle(0x123E).Should().Be(0x00);
+        proc.ProgramCounter.Should().Be(0x0203);
+        proc.CurrentOpCode.Should().Be(0x9E);
+    }
+
+    [Theory]
+    [InlineData(0x64)] // STZ Zero Page
+    [InlineData(0x74)] // STZ Zero Page,X
+    [InlineData(0x9C)] // STZ Absolute
+    [InlineData(0x9E)] // STZ Absolute,X
+    public void STZ_NotAvailableOn6502(byte opcode)
+    {
+        var proc = new Processor(ProcessorType.MOS6502);
+        proc.Reset();
+
+        proc.WriteMemoryValueWithoutIncrement(0x0200, opcode);
+        proc.ProgramCounter = 0x0200;
+
+        var action = () => proc.NextStep();
+        action.Should().Throw<System.NotSupportedException>();
+    }
+
+    [Theory]
+    [InlineData(0x64)] // STZ Zero Page
+    [InlineData(0x74)] // STZ Zero Page,X
+    [InlineData(0x9C)] // STZ Absolute
+    [InlineData(0x9E)] // STZ Absolute,X
+    public void STZ_NotAvailableOn6510(byte opcode)
+    {
+        var proc = new Processor(ProcessorType.MOS6510);
+        proc.Reset();
+
+        proc.WriteMemoryValueWithoutIncrement(0x0200, opcode);
+        proc.ProgramCounter = 0x0200;
+
+        var action = () => proc.NextStep();
+        action.Should().Throw<System.NotSupportedException>();
+    }
+
+    #endregion
 }

@@ -50,7 +50,20 @@
       "Bash(else echo \"$f has assert but no jsr\")",
       "Bash(NLOG_LEVEL=Trace dotnet run:*)",
       "Bash(/Users/barry/Git/sim6502/sim6502/bin/Debug/net10.0/Sim6502TestRunner:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(gh release create:*)",
+      "Bash(gh release delete:*)",
+      "Bash(docker pull:*)",
+      "Bash(docker run:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh issue view:*)",
+      "Bash(gh issue close:*)",
+      "Bash(gh repo view:*)",
+      "Bash(gh pr create:*)",
+      "WebFetch(domain:www.the8bitguy.com)",
+      "Bash(timeout 180 dotnet test:*)",
+      "Bash(git show:*)",
+      "Bash(antlr4:*)"
     ]
   }
 }

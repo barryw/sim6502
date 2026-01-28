@@ -179,6 +179,7 @@ public partial class Processor
             case 0xCC: //CPY
             case 0xEC: //CPX
             case 0x20: //JSR
+            case 0x9C: //STZ (65C02)
             {
                 return AddressingMode.Absolute;
             }
@@ -197,6 +198,7 @@ public partial class Processor
             case 0x5E: //LSR
             case 0x7E: //ROR
             case 0xDE: //DEC
+            case 0x9E: //STZ (65C02)
             {
                 return AddressingMode.AbsoluteX;
             }
@@ -325,6 +327,7 @@ public partial class Processor
             case 0x85: //STA
             case 0x86: //STX
             case 0x84: //STY
+            case 0x64: //STZ (65C02)
             {
                 return AddressingMode.ZeroPage;
             }
@@ -346,6 +349,7 @@ public partial class Processor
             case 0x95: //STA
             case 0x96: //STX
             case 0x94: //STY
+            case 0x74: //STZ (65C02)
             {
                 return AddressingMode.ZeroPageX;
             }

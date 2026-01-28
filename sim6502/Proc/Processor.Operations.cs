@@ -622,4 +622,18 @@ public partial class Processor
     }
 
     #endregion
+
+    #region 65C02 Store Operations
+
+    /// <summary>
+    /// STZ - Store Zero to Memory (65C02)
+    /// Stores $00 to the specified memory location
+    /// </summary>
+    /// <param name="addressingMode">The addressing mode used to determine the target address</param>
+    public void StoreZeroOperation(AddressingMode addressingMode)
+    {
+        WriteMemoryValue(GetAddressByAddressingMode(addressingMode), 0x00);
+    }
+
+    #endregion
 }

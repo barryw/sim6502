@@ -508,6 +508,13 @@ public partial class Processor
             {
                 return "STY";
             }
+            case 0x64: // STZ Zero Page (65C02)
+            case 0x74: // STZ Zero Page X (65C02)
+            case 0x9C: // STZ Absolute (65C02)
+            case 0x9E: // STZ Absolute X (65C02)
+            {
+                return "STZ";
+            }
             case 0xAA: // TAX Implied
             {
                 return "TAX";
