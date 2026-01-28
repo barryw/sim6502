@@ -23,6 +23,7 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+using FluentAssertions;
 using sim6502.Proc;
 using Xunit;
 
@@ -175,5 +176,49 @@ public class OpcodeRegistryTests
             Assert.Equal(1, opcode.Bytes);
             Assert.Equal(2, opcode.BaseCycles);
         }
+    }
+
+    [Fact]
+    public void GetOpcode_6502_ReturnsValidOpcode()
+    {
+        var opcode = Processor.OpcodeRegistry.GetOpcode(0xA9, ProcessorType.MOS6502); // LDA immediate
+        opcode.Should().NotBeNull();
+        opcode!.Mnemonic.Should().Be("LDA");
+    }
+
+    [Fact]
+    public void GetOpcode_6502_ReturnsNullForInvalidOpcode()
+    {
+        // 0x5C is not a valid 6502 opcode (but is valid on 65C02)
+        var opcode = Processor.OpcodeRegistry.GetOpcode(0x5C, ProcessorType.MOS6502);
+        opcode.Should().BeNull();
+    }
+
+    [Fact]
+    public void GetOpcode_6510_ReturnsSameAs6502()
+    {
+        // 6510 has same ISA as 6502
+        var opcode6502 = Processor.OpcodeRegistry.GetOpcode(0xA9, ProcessorType.MOS6502);
+        var opcode6510 = Processor.OpcodeRegistry.GetOpcode(0xA9, ProcessorType.MOS6510);
+
+        opcode6502.Should().NotBeNull();
+        opcode6510.Should().NotBeNull();
+        opcode6502!.Mnemonic.Should().Be(opcode6510!.Mnemonic);
+    }
+
+    [Fact]
+    public void GetOpcode_BackwardsCompatible_DefaultsTo6502()
+    {
+        // Existing API without processor type should still work
+        var opcode = Processor.OpcodeRegistry.GetOpcode(0xA9);
+        opcode.Should().NotBeNull();
+        opcode!.Mnemonic.Should().Be("LDA");
+    }
+
+    [Fact]
+    public void GetOpcodeCount_6502_Returns151()
+    {
+        var count = Processor.OpcodeRegistry.GetOpcodeCount(ProcessorType.MOS6502);
+        count.Should().Be(151);
     }
 }

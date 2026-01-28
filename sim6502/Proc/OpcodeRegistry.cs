@@ -36,30 +36,71 @@ public partial class Processor
     /// </summary>
     public static class OpcodeRegistry
     {
-        private static readonly Dictionary<byte, OpcodeInfo> _opcodes = new();
+        // Processor-specific opcode dictionaries
+        private static readonly Dictionary<ProcessorType, Dictionary<byte, OpcodeInfo>> _processorOpcodes = new();
+
+        // Legacy single dictionary for backward compatibility (references 6502)
+        private static readonly Dictionary<byte, OpcodeInfo> _opcodes;
 
         /// <summary>
         /// Static constructor initializes the opcode registry
         /// </summary>
         static OpcodeRegistry()
         {
+            // Initialize dictionaries for each processor type
+            _processorOpcodes[ProcessorType.MOS6502] = new Dictionary<byte, OpcodeInfo>();
+            _processorOpcodes[ProcessorType.MOS6510] = _processorOpcodes[ProcessorType.MOS6502]; // 6510 shares 6502's ISA
+            _processorOpcodes[ProcessorType.WDC65C02] = new Dictionary<byte, OpcodeInfo>(); // 65C02 will have its own set
+
             RegisterAllOpcodes();
+
+            // Legacy _opcodes dictionary points to 6502 for backward compatibility
+            _opcodes = _processorOpcodes[ProcessorType.MOS6502];
         }
 
         /// <summary>
-        /// Gets the opcode information for a given opcode byte
+        /// Gets the opcode information for a given opcode byte (defaults to 6502 for backward compatibility)
         /// </summary>
         /// <param name="opcode">The opcode byte value (0x00-0xFF)</param>
         /// <returns>The OpcodeInfo if found, null otherwise</returns>
         public static OpcodeInfo? GetOpcode(byte opcode)
         {
-            return _opcodes.TryGetValue(opcode, out var info) ? info : null;
+            return GetOpcode(opcode, ProcessorType.MOS6502);
         }
 
         /// <summary>
-        /// Gets the total number of registered opcodes
+        /// Gets the opcode information for a given opcode byte and processor type
+        /// </summary>
+        /// <param name="opcode">The opcode byte value (0x00-0xFF)</param>
+        /// <param name="processorType">The processor type</param>
+        /// <returns>The OpcodeInfo if found, null otherwise</returns>
+        public static OpcodeInfo? GetOpcode(byte opcode, ProcessorType processorType)
+        {
+            if (_processorOpcodes.TryGetValue(processorType, out var opcodeDict))
+            {
+                return opcodeDict.TryGetValue(opcode, out var info) ? info : null;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Gets the total number of registered opcodes (defaults to 6502 for backward compatibility)
         /// </summary>
         public static int Count => _opcodes.Count;
+
+        /// <summary>
+        /// Gets the total number of registered opcodes for a specific processor type
+        /// </summary>
+        /// <param name="processorType">The processor type</param>
+        /// <returns>The number of opcodes registered for that processor</returns>
+        public static int GetOpcodeCount(ProcessorType processorType)
+        {
+            if (_processorOpcodes.TryGetValue(processorType, out var opcodeDict))
+            {
+                return opcodeDict.Count;
+            }
+            return 0;
+        }
 
         /// <summary>
         /// Registers all 151 official 6502 opcodes
@@ -822,11 +863,14 @@ public partial class Processor
         }
 
         /// <summary>
-        /// Helper method to register an opcode in the dictionary
+        /// Helper method to register an opcode in the 6502 dictionary
         /// </summary>
         private static void Register(byte opcode, string mnemonic, AddressingMode mode, int bytes, int cycles, OpcodeHandler handler)
         {
-            _opcodes[opcode] = new OpcodeInfo(opcode, mnemonic, mode, bytes, cycles, handler);
+            var opcodeInfo = new OpcodeInfo(opcode, mnemonic, mode, bytes, cycles, handler);
+            _processorOpcodes[ProcessorType.MOS6502][opcode] = opcodeInfo;
+            // Copy to 65C02 as well (it's a superset - we'll add 65C02-specific opcodes later)
+            _processorOpcodes[ProcessorType.WDC65C02][opcode] = opcodeInfo;
         }
     }
 }
