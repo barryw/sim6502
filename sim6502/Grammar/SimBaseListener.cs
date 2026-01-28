@@ -19,6 +19,9 @@ namespace sim6502.Grammar
 
         private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
 
+        // Track the processor type for the current suite
+        private ProcessorType _currentProcessorType = ProcessorType.MOS6502;
+
         /// <summary>
         /// Strip surrounding quotes from a string literal.
         /// The grammar no longer strips quotes, so we do it here for portability.
@@ -28,6 +31,21 @@ namespace sim6502.Grammar
             if (text.Length >= 2 && text.StartsWith("\"") && text.EndsWith("\""))
                 return text.Substring(1, text.Length - 2);
             return text;
+        }
+
+        /// <summary>
+        /// Get the ProcessorType from a processorTypeValue context.
+        /// </summary>
+        private ProcessorType GetProcessorType(sim6502Parser.ProcessorTypeValueContext context)
+        {
+            if (context.ProcessorType6502() != null)
+                return ProcessorType.MOS6502;
+            if (context.ProcessorType6510() != null)
+                return ProcessorType.MOS6510;
+            if (context.ProcessorType65C02() != null)
+                return ProcessorType.WDC65C02;
+
+            return ProcessorType.MOS6502; // default
         }
 
         /// <summary>
@@ -292,7 +310,19 @@ namespace sim6502.Grammar
 
         public override void EnterSuite(sim6502Parser.SuiteContext context)
         {
-            Proc = new Processor();
+            // Reset processor type to default at start of each suite
+            _currentProcessorType = ProcessorType.MOS6502;
+
+            // Check for processor declaration
+            var procDecl = context.processorDeclaration();
+            if (procDecl != null)
+            {
+                _currentProcessorType = GetProcessorType(procDecl.processorTypeValue());
+                Logger.Info($"Processor type set to: {_currentProcessorType}");
+            }
+
+            // Create processor with the specified type
+            Proc = new Processor(_currentProcessorType);
             Proc.Reset();
             CurrentSuite = StripQuotes(context.suiteName().GetText());
             Logger.Info($"Running test suite '{CurrentSuite}'...");
