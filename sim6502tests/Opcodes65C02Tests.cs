@@ -121,4 +121,183 @@ public class Opcodes65C02Tests
         var action = () => proc.NextStep();
         action.Should().Throw<System.NotSupportedException>();
     }
+
+    [Fact]
+    public void PHX_NotAvailableOn6510()
+    {
+        var proc = new Processor(ProcessorType.MOS6510);
+        proc.Reset();
+
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0xDA); // PHX (65C02 only)
+        proc.ProgramCounter = 0x0200;
+
+        var action = () => proc.NextStep();
+        action.Should().Throw<System.NotSupportedException>();
+    }
+
+    [Fact]
+    public void PLX_NotAvailableOn6502()
+    {
+        var proc = new Processor(ProcessorType.MOS6502);
+        proc.Reset();
+
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0xFA); // PLX (65C02 only)
+        proc.ProgramCounter = 0x0200;
+
+        var action = () => proc.NextStep();
+        action.Should().Throw<System.NotSupportedException>();
+    }
+
+    [Fact]
+    public void PLX_NotAvailableOn6510()
+    {
+        var proc = new Processor(ProcessorType.MOS6510);
+        proc.Reset();
+
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0xFA); // PLX (65C02 only)
+        proc.ProgramCounter = 0x0200;
+
+        var action = () => proc.NextStep();
+        action.Should().Throw<System.NotSupportedException>();
+    }
+
+    [Fact]
+    public void PHY_NotAvailableOn6502()
+    {
+        var proc = new Processor(ProcessorType.MOS6502);
+        proc.Reset();
+
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x5A); // PHY (65C02 only)
+        proc.ProgramCounter = 0x0200;
+
+        var action = () => proc.NextStep();
+        action.Should().Throw<System.NotSupportedException>();
+    }
+
+    [Fact]
+    public void PHY_NotAvailableOn6510()
+    {
+        var proc = new Processor(ProcessorType.MOS6510);
+        proc.Reset();
+
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x5A); // PHY (65C02 only)
+        proc.ProgramCounter = 0x0200;
+
+        var action = () => proc.NextStep();
+        action.Should().Throw<System.NotSupportedException>();
+    }
+
+    [Fact]
+    public void PLY_NotAvailableOn6502()
+    {
+        var proc = new Processor(ProcessorType.MOS6502);
+        proc.Reset();
+
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x7A); // PLY (65C02 only)
+        proc.ProgramCounter = 0x0200;
+
+        var action = () => proc.NextStep();
+        action.Should().Throw<System.NotSupportedException>();
+    }
+
+    [Fact]
+    public void PLY_NotAvailableOn6510()
+    {
+        var proc = new Processor(ProcessorType.MOS6510);
+        proc.Reset();
+
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x7A); // PLY (65C02 only)
+        proc.ProgramCounter = 0x0200;
+
+        var action = () => proc.NextStep();
+        action.Should().Throw<System.NotSupportedException>();
+    }
+
+    [Theory]
+    [InlineData(0x00, true)]
+    [InlineData(0x01, false)]
+    [InlineData(0xFF, false)]
+    public void PLX_Zero_Flag_Has_Correct_Value(byte valueToLoad, bool expectedResult)
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+
+        // Push value onto stack manually
+        proc.WriteMemoryValueWithoutIncrement(0x1FF, valueToLoad);
+        proc.StackPointer = 0xFE;
+
+        // PLX at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0xFA); // PLX
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        proc.ZeroFlag.Should().Be(expectedResult);
+    }
+
+    [Theory]
+    [InlineData(0x7F, false)]
+    [InlineData(0x80, true)]
+    [InlineData(0xFF, true)]
+    public void PLX_Negative_Flag_Has_Correct_Value(byte valueToLoad, bool expectedResult)
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+
+        // Push value onto stack manually
+        proc.WriteMemoryValueWithoutIncrement(0x1FF, valueToLoad);
+        proc.StackPointer = 0xFE;
+
+        // PLX at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0xFA); // PLX
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        proc.NegativeFlag.Should().Be(expectedResult);
+    }
+
+    [Theory]
+    [InlineData(0x00, true)]
+    [InlineData(0x01, false)]
+    [InlineData(0xFF, false)]
+    public void PLY_Zero_Flag_Has_Correct_Value(byte valueToLoad, bool expectedResult)
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+
+        // Push value onto stack manually
+        proc.WriteMemoryValueWithoutIncrement(0x1FF, valueToLoad);
+        proc.StackPointer = 0xFE;
+
+        // PLY at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x7A); // PLY
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        proc.ZeroFlag.Should().Be(expectedResult);
+    }
+
+    [Theory]
+    [InlineData(0x7F, false)]
+    [InlineData(0x80, true)]
+    [InlineData(0xFF, true)]
+    public void PLY_Negative_Flag_Has_Correct_Value(byte valueToLoad, bool expectedResult)
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+
+        // Push value onto stack manually
+        proc.WriteMemoryValueWithoutIncrement(0x1FF, valueToLoad);
+        proc.StackPointer = 0xFE;
+
+        // PLY at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x7A); // PLY
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        proc.NegativeFlag.Should().Be(expectedResult);
+    }
 }
