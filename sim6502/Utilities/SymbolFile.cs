@@ -103,6 +103,11 @@ namespace sim6502.Utilities
             return Symbols.ContainsKey(symbol);
         }
 
+        public IReadOnlyDictionary<string, int> GetAllSymbols()
+        {
+            return Symbols;
+        }
+
         public int SymbolToAddress(string symbol)
         {
             return Symbols[symbol];

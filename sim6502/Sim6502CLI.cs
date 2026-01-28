@@ -1,14 +1,14 @@
-﻿/*
+/*
 Copyright (c) 2020 Barry Walker. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met: 
+modification, are permitted provided that the following conditions are met:
 
 1. Redistributions of source code must retain the above copyright notice, this
-list of conditions and the following disclaimer. 
+list of conditions and the following disclaimer.
 2. Redistributions in binary form must reproduce the above copyright notice,
 this list of conditions and the following disclaimer in the documentation
-and/or other materials provided with the distribution. 
+and/or other materials provided with the distribution.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -30,6 +30,7 @@ using Antlr4.Runtime;
 using Antlr4.Runtime.Tree;
 using CommandLine;
 using NLog;
+using sim6502.Errors;
 using sim6502.Grammar;
 using sim6502.Grammar.Generated;
 using Parser = CommandLine.Parser;
@@ -38,6 +39,14 @@ using Parser = CommandLine.Parser;
 
 namespace sim6502
 {
+    internal static class ExitCode
+    {
+        public const int Success = 0;
+        public const int TestFailure = 1;
+        public const int ParseError = 2;
+        public const int SemanticError = 3;
+    }
+
     internal class Sim6502Cli
     {
         private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
@@ -76,7 +85,7 @@ namespace sim6502
         {
             var assembly = Assembly.GetEntryAssembly()?.Location;
             var versionInfo = FileVersionInfo.GetVersionInfo(assembly);
-            
+
             Logger.Info($"{versionInfo.ProductName} v{versionInfo.ProductVersion} {versionInfo.LegalCopyright}");
             Logger.Info("https://github.com/barryw/sim6502");
 
@@ -95,23 +104,45 @@ namespace sim6502
             {
                 if(!File.Exists(opts.SuiteFile))
                     throw new FileNotFoundException($"The suite file {opts.SuiteFile} could not be found.");
-                
+
                 return RunTests(opts);
             }
             catch (Exception ex)
             {
                 Logger.Fatal(ex, $"Failed to run tests: {ex.Message}, {ex.StackTrace}");
-                return 1;
+                return ExitCode.TestFailure;
             }
         }
 
         private static int RunTests(Options opts)
         {
-            var afs = new AntlrFileStream(opts.SuiteFile);
-            var lexer = new sim6502Lexer(afs);
+            // Create error collector and load source
+            var collector = new ErrorCollector();
+            var source = File.ReadAllText(opts.SuiteFile);
+            collector.SetSource(source, opts.SuiteFile);
+
+            // Setup lexer with error listener
+            var inputStream = new AntlrInputStream(source);
+            var lexer = new sim6502Lexer(inputStream);
+            lexer.RemoveErrorListeners();
+            lexer.AddErrorListener(new SimErrorListener(collector));
+
+            // Setup parser with error listener
             var tokens = new CommonTokenStream(lexer);
-            var parser = new sim6502Parser(tokens) {BuildParseTree = true};
+            var parser = new sim6502Parser(tokens) { BuildParseTree = true };
+            parser.RemoveErrorListeners();
+            parser.AddErrorListener(new SimErrorListener(collector));
+
+            // Parse
             var tree = parser.suites();
+
+            // Check for parse errors - don't walk a broken tree
+            if (collector.HasErrors)
+            {
+                return ReportErrorsAndExit(collector, ExitCode.ParseError);
+            }
+
+            // Walk tree, collecting semantic/runtime errors
             var walker = new ParseTreeWalker();
             var sbl = new SimBaseListener
             {
@@ -119,12 +150,33 @@ namespace sim6502
                 SingleTest = opts.SingleTest,
                 FilterTags = opts.FilterTags,
                 ExcludeTags = opts.ExcludeTags,
-                ListOnly = opts.ListOnly
+                ListOnly = opts.ListOnly,
+                Errors = collector
             };
 
             walker.Walk(sbl, tree);
 
-            return sbl.TotalSuitesFailed == 0 ? 0 : 1;
+            // Check for semantic errors
+            if (collector.HasErrors)
+            {
+                return ReportErrorsAndExit(collector, ExitCode.SemanticError);
+            }
+
+            // Report any warnings (but don't fail)
+            if (collector.HasWarnings)
+            {
+                var output = ErrorRenderer.Render(collector);
+                Console.Error.WriteLine(output);
+            }
+
+            return sbl.TotalSuitesFailed == 0 ? ExitCode.Success : ExitCode.TestFailure;
+        }
+
+        private static int ReportErrorsAndExit(ErrorCollector collector, int exitCode)
+        {
+            var output = ErrorRenderer.Render(collector);
+            Console.Error.WriteLine(output);
+            return exitCode;
         }
 
         private static void SetLogLevel(Options opts)

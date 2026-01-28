@@ -1,6 +1,7 @@
 using Antlr4.Runtime;
 using Antlr4.Runtime.Tree;
 using FluentAssertions;
+using sim6502.Errors;
 using sim6502.Grammar;
 using sim6502.Grammar.Generated;
 using sim6502.Utilities;
@@ -12,12 +13,19 @@ public class TestSuiteParser
 {
     private static sim6502Parser.SuitesContext GetContext(string test)
     {
-        var afs = new AntlrFileStream(test);
-        var lexer = new sim6502Lexer(afs);
+        var source = File.ReadAllText(test);
+        var collector = new ErrorCollector();
+        collector.SetSource(source, test);
+
+        var inputStream = new AntlrInputStream(source);
+        var lexer = new sim6502Lexer(inputStream);
+        lexer.RemoveErrorListeners();
+        lexer.AddErrorListener(new SimErrorListener(collector));
+
         var tokens = new CommonTokenStream(lexer);
         var parser = new sim6502Parser(tokens);
         parser.RemoveErrorListeners();
-        parser.AddErrorListener(new SimErrorListener());
+        parser.AddErrorListener(new SimErrorListener(collector));
         parser.BuildParseTree = true;
         return parser.suites();
     }

@@ -1,52 +1,185 @@
+/*
+Copyright (c) 2020 Barry Walker. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
 using System.IO;
-using System.Text;
 using Antlr4.Runtime;
-using Antlr4.Runtime.Atn;
-using Antlr4.Runtime.Dfa;
-using Antlr4.Runtime.Sharpen;
-using NLog;
+using sim6502.Errors;
 
 namespace sim6502.Grammar
 {
-    public class SimErrorListener : BaseErrorListener
+    /// <summary>
+    /// Error listener that collects lexer and parser errors into an ErrorCollector.
+    /// Implements both BaseErrorListener (for parser) and IAntlrErrorListener&lt;int&gt; (for lexer).
+    /// </summary>
+    public class SimErrorListener : BaseErrorListener, IAntlrErrorListener<int>
     {
-        private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
-        public override void SyntaxError(TextWriter output, IRecognizer recognizer, IToken offendingSymbol, int line, int charPositionInLine,
-            string msg, RecognitionException e)
+        private readonly ErrorCollector _collector;
+
+        public SimErrorListener(ErrorCollector collector)
         {
-            Logger.Fatal($"Line {line.ToString()}:{charPositionInLine.ToString()} {msg}");
-            UnderlineError(recognizer, offendingSymbol, line, charPositionInLine);
+            _collector = collector;
         }
 
-        private static void UnderlineError(IRecognizer recognizer, IToken offendingToken, int line, int charPosition)
+        /// <summary>
+        /// Handle parser syntax errors.
+        /// </summary>
+        public override void SyntaxError(
+            TextWriter output,
+            IRecognizer recognizer,
+            IToken offendingSymbol,
+            int line,
+            int charPositionInLine,
+            string msg,
+            RecognitionException e)
         {
-            var tokens = (CommonTokenStream)recognizer.InputStream;
-            var input = tokens.TokenSource.InputStream.ToString();
-            var lines = input.Split("\n");
-            var errorLine = lines[line - 1];
-            Logger.Fatal(errorLine);
-            var output = new StringBuilder();
-            
-            for (var i = 0; i < charPosition; i++)
+            var tokenText = offendingSymbol?.Text ?? "";
+            var tokenLength = tokenText.Length > 0 ? tokenText.Length : 1;
+
+            // Try to provide a helpful suggestion
+            var hint = GenerateHint(tokenText, msg);
+
+            _collector.AddError(
+                ErrorPhase.Parser,
+                line,
+                charPositionInLine,
+                tokenLength,
+                CleanMessage(msg),
+                hint);
+        }
+
+        /// <summary>
+        /// Handle lexer syntax errors.
+        /// </summary>
+        public void SyntaxError(
+            TextWriter output,
+            IRecognizer recognizer,
+            int offendingSymbol,
+            int line,
+            int charPositionInLine,
+            string msg,
+            RecognitionException e)
+        {
+            _collector.AddError(
+                ErrorPhase.Lexer,
+                line,
+                charPositionInLine,
+                1,
+                CleanMessage(msg),
+                null);
+        }
+
+        /// <summary>
+        /// Clean up ANTLR's default error messages to be more user-friendly.
+        /// </summary>
+        private static string CleanMessage(string msg)
+        {
+            // Replace ANTLR's token names with more readable versions
+            msg = msg.Replace("'<EOF>'", "end of file");
+            msg = msg.Replace("EOF", "end of file");
+
+            // Simplify "no viable alternative" messages
+            if (msg.Contains("no viable alternative"))
             {
-                output.Append(" ");
+                msg = "unexpected token";
             }
-            var start = offendingToken.StartIndex;
-            var stop = offendingToken.StopIndex;
-            if (start >= 0 && stop >= 0)
+
+            // Simplify "mismatched input" messages
+            if (msg.StartsWith("mismatched input"))
             {
-                for (var i = start; i <= stop; i++)
+                var parts = msg.Split(" expecting ");
+                if (parts.Length == 2)
                 {
-                    output.Append("^");
+                    msg = $"unexpected {parts[0].Replace("mismatched input ", "")}, expected {CleanExpectingList(parts[1])}";
                 }
             }
-            Logger.Fatal(output.ToString());
+
+            // Simplify "extraneous input" messages
+            if (msg.StartsWith("extraneous input"))
+            {
+                msg = msg.Replace("extraneous input", "unexpected");
+            }
+
+            // Simplify "missing" messages
+            if (msg.StartsWith("missing "))
+            {
+                var expected = msg.Replace("missing ", "");
+                msg = $"missing {CleanExpectingList(expected)}";
+            }
+
+            return msg;
         }
 
-        public override void ReportAmbiguity(Parser recognizer, DFA dfa, int startIndex, int stopIndex, bool exact, BitSet ambigAlts,
-            ATNConfigSet configs)
+        /// <summary>
+        /// Clean up ANTLR's "expecting" lists to be more readable.
+        /// </summary>
+        private static string CleanExpectingList(string expecting)
         {
-            base.ReportAmbiguity(recognizer, dfa, startIndex, stopIndex, exact, ambigAlts, configs);
+            // Remove curly braces from sets
+            expecting = expecting.Trim('{', '}');
+
+            // Replace common token names
+            expecting = expecting.Replace("'('", "'('");
+            expecting = expecting.Replace("')'", "')'");
+            expecting = expecting.Replace("'{'", "'{'");
+            expecting = expecting.Replace("'}'", "'}'");
+            expecting = expecting.Replace("','", "','");
+
+            return expecting;
+        }
+
+        /// <summary>
+        /// Generate a helpful hint based on the error context.
+        /// </summary>
+        private static string? GenerateHint(string tokenText, string msg)
+        {
+            if (string.IsNullOrEmpty(tokenText) || tokenText == "<EOF>")
+                return null;
+
+            // Try to suggest a similar keyword
+            var suggestion = SuggestionEngine.SuggestKeyword(tokenText);
+            if (suggestion != null)
+            {
+                return $"Did you mean '{suggestion}'?";
+            }
+
+            // Provide hints for common mistakes
+            if (msg.Contains("expecting ')'"))
+            {
+                return "Check for matching parentheses";
+            }
+
+            if (msg.Contains("expecting '}'"))
+            {
+                return "Check for matching braces";
+            }
+
+            if (msg.Contains("expecting '\"'"))
+            {
+                return "Check for matching quotes";
+            }
+
+            return null;
         }
     }
 }

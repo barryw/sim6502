@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using Antlr4.Runtime.Tree;
 using NLog;
+using sim6502.Errors;
 using sim6502.Expressions;
 using sim6502.Grammar.Generated;
 using sim6502.Proc;
@@ -126,6 +127,9 @@ namespace sim6502.Grammar
         public string? ExcludeTags { get; set; }
         public bool ListOnly { get; set; }
 
+        // Error collector for semantic errors
+        public ErrorCollector Errors { get; set; } = new();
+
         public Processor Proc { get; set; }
         public SymbolFile Symbols { get; set; }
 
@@ -157,6 +161,66 @@ namespace sim6502.Grammar
             _currentSuitePassed = false;
             _allSuitesPassed = false;
         }
+
+        #region Validation Helpers
+
+        private bool ValidateAddress(int address, int line, int col, string context = "address")
+        {
+            if (address >= 0 && address <= 0xFFFF)
+                return true;
+
+            Errors.AddError(
+                ErrorPhase.Semantic,
+                line,
+                col,
+                1,
+                $"{context} ${address:X} out of range (valid: $0000-$FFFF)",
+                null);
+            return false;
+        }
+
+        private bool ValidateByteValue(int value, int line, int col)
+        {
+            if (value >= 0 && value <= 0xFF)
+                return true;
+
+            Errors.AddError(
+                ErrorPhase.Semantic,
+                line,
+                col,
+                1,
+                $"value ${value:X} too large for byte (max $FF)",
+                null);
+            return false;
+        }
+
+        private bool ValidateWordValue(int value, int line, int col)
+        {
+            if (value >= 0 && value <= 0xFFFF)
+                return true;
+
+            Errors.AddError(
+                ErrorPhase.Semantic,
+                line,
+                col,
+                1,
+                $"value ${value:X} too large for word (max $FFFF)",
+                null);
+            return false;
+        }
+
+        private void AddFileError(string filePath, int line, int col, string message)
+        {
+            Errors.AddError(
+                ErrorPhase.Runtime,
+                line,
+                col,
+                filePath.Length,
+                message,
+                null);
+        }
+
+        #endregion
 
         private void OutputTrace()
         {
@@ -280,7 +344,20 @@ namespace sim6502.Grammar
             }
             else
             {
-                FailAssertion($"Symbol [{symbol}] was not found @ line {line.ToString()}:{col.ToString()}");
+                // Try to suggest a similar symbol
+                var hint = SuggestionEngine.SuggestSymbol(symbol, Symbols.GetAllSymbols().Keys);
+                var hintMsg = hint != null ? $"Did you mean '{hint}'?" : null;
+
+                Errors.AddError(
+                    ErrorPhase.Semantic,
+                    line,
+                    col,
+                    symbol.Length,
+                    $"undefined symbol '{symbol}'",
+                    hintMsg);
+
+                // Set a default value so we can continue finding more errors
+                SetIntValue(context, 0);
             }
         }
 
@@ -403,7 +480,13 @@ namespace sim6502.Grammar
             var address = GetIntValue(context.expression(0));
             var value = GetIntValue(context.expression(1));
 
-            if (!_inSetupBlockDefinition && !_currentTestSkipped)
+            // Validate address and value (word values supported for auto byte/word write)
+            var addrExpr = context.expression(0);
+            var valExpr = context.expression(1);
+            var addrValid = ValidateAddress(address, addrExpr.Start.Line, addrExpr.Start.Column);
+            var valValid = ValidateWordValue(value, valExpr.Start.Line, valExpr.Start.Column);
+
+            if (!_inSetupBlockDefinition && !_currentTestSkipped && addrValid && valValid)
             {
                 Proc.WriteMemoryValue(address, value);
             }
@@ -415,7 +498,13 @@ namespace sim6502.Grammar
             var address = GetIntValue(context.address());
             var value = GetIntValue(context.expression());
 
-            if (!_inSetupBlockDefinition && !_currentTestSkipped)
+            // Validate address and value (word values supported for auto byte/word write)
+            var addrCtx = context.address();
+            var valExpr = context.expression();
+            var addrValid = ValidateAddress(address, addrCtx.Start.Line, addrCtx.Start.Column);
+            var valValid = ValidateWordValue(value, valExpr.Start.Line, valExpr.Start.Column);
+
+            if (!_inSetupBlockDefinition && !_currentTestSkipped && addrValid && valValid)
             {
                 WriteValueToMemory(address, value);
             }
@@ -603,19 +692,59 @@ namespace sim6502.Grammar
         public override void ExitSymbolsFunction(sim6502Parser.SymbolsFunctionContext context)
         {
             var filename = StripQuotes(context.symbolsFilename().StringLiteral().GetText());
+            var filenameCtx = context.symbolsFilename();
+
+            if (!File.Exists(filename))
+            {
+                Errors.AddError(
+                    ErrorPhase.Runtime,
+                    filenameCtx.Start.Line,
+                    filenameCtx.Start.Column,
+                    filename.Length + 2,
+                    $"symbol file not found: '{filename}'",
+                    null);
+                return;
+            }
+
             Logger.Trace($"Loading symbol file {filename}");
             var symbols = File.ReadAllText(filename);
             Symbols = new SymbolFile(symbols);
             Logger.Trace($"{Symbols.SymbolCount.ToString()} symbols loaded.");
         }
-        
+
         public override void ExitLoadFunction(sim6502Parser.LoadFunctionContext context)
         {
             var filename = StripQuotes(context.loadFilename().StringLiteral().GetText());
+            var filenameCtx = context.loadFilename();
             var addrCtx = context.loadAddress();
             var strip = false;
             if (context.stripHeader() != null)
                 strip = GetBoolValue(context.stripHeader());
+
+            if (!File.Exists(filename))
+            {
+                Errors.AddError(
+                    ErrorPhase.Runtime,
+                    filenameCtx.Start.Line,
+                    filenameCtx.Start.Column,
+                    filename.Length + 2,
+                    $"file not found: '{filename}'",
+                    null);
+                return;
+            }
+
+            var fileInfo = new FileInfo(filename);
+            if (fileInfo.Length == 0)
+            {
+                Errors.AddError(
+                    ErrorPhase.Runtime,
+                    filenameCtx.Start.Line,
+                    filenameCtx.Start.Column,
+                    filename.Length + 2,
+                    $"file is empty: '{filename}'",
+                    null);
+                return;
+            }
 
             var address = addrCtx == null ? Utility.GetProgramLoadAddress(filename) : GetIntValue(context.loadAddress().address());
 
