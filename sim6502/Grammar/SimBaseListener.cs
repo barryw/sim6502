@@ -522,6 +522,48 @@ namespace sim6502.Grammar
             }
         }
 
+        public override void ExitSymbolRegisterAssignment(sim6502Parser.SymbolRegisterAssignmentContext context)
+        {
+            // Store register value to memory at symbol address
+            var address = GetIntValue(context.symbolRef());
+            var value = GetRegisterValue(context.Register().GetText());
+
+            if (!_inSetupBlockDefinition && !_currentTestSkipped)
+            {
+                Proc.WriteMemoryValueWithoutIncrement(address, (byte)value);
+                Logger.Trace($"Stored register value ${value:X2} to ${address:X4}");
+            }
+        }
+
+        public override void ExitAddressRegisterAssignment(sim6502Parser.AddressRegisterAssignmentContext context)
+        {
+            // Store register value to memory at numeric address
+            var address = GetIntValue(context.address());
+            var value = GetRegisterValue(context.Register().GetText());
+
+            // Validate address
+            var addrCtx = context.address();
+            if (!ValidateAddress(address, addrCtx.Start.Line, addrCtx.Start.Column))
+                return;
+
+            if (!_inSetupBlockDefinition && !_currentTestSkipped)
+            {
+                Proc.WriteMemoryValueWithoutIncrement(address, (byte)value);
+                Logger.Trace($"Stored register value ${value:X2} to ${address:X4}");
+            }
+        }
+
+        private int GetRegisterValue(string register)
+        {
+            return register.ToLower() switch
+            {
+                "a" => Proc.Accumulator,
+                "x" => Proc.XRegister,
+                "y" => Proc.YRegister,
+                _ => throw new InvalidOperationException($"Unknown register: {register}")
+            };
+        }
+
         public override void ExitRegisterAssignment(sim6502Parser.RegisterAssignmentContext context)
         {
             var register = context.Register().GetText();

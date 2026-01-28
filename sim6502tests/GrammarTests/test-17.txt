@@ -1,0 +1,120 @@
+suites {
+  suite("Test Suite 17 - Register to memory assignments (Issue #3)") {
+    symbols("TestPrograms/include_me_full.sym")
+    load("TestPrograms/include_me_full.prg", strip_header = true)
+
+    test("symbol-register-a", "Store accumulator to symbol address") {
+      ; Set up accumulator
+      a = $42
+
+      ; Store to symbol address (EXTCOL = $d020)
+      [EXTCOL] = a
+
+      ; Need a JSR call to trigger test execution
+      $61 = $01
+      $62 = $00
+      $fd = $00
+      $fe = $c0
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
+
+      ; Verify the value was stored
+      assert(peekbyte([EXTCOL]) == $42, "Accumulator should be stored at symbol address")
+    }
+
+    test("symbol-register-x", "Store X register to symbol address") {
+      ; Set up X register
+      x = $7f
+
+      ; Store to symbol address (use vic.EXTCOL which works - no .B in name)
+      [vic.EXTCOL] = x
+
+      ; Need a JSR call
+      $61 = $01
+      $62 = $00
+      $fd = $00
+      $fe = $c0
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
+
+      ; Verify the value was stored
+      assert(peekbyte([vic.EXTCOL]) == $7f, "X register should be stored at symbol address")
+    }
+
+    test("symbol-register-y", "Store Y register to symbol address") {
+      ; Set up Y register
+      y = $ab
+
+      ; Store to symbol address (vic.SCROLY doesn't have .B problem)
+      [vic.SCROLY] = y
+
+      ; Need a JSR call
+      $61 = $01
+      $62 = $00
+      $fd = $00
+      $fe = $c0
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
+
+      ; Verify the value was stored
+      assert(peekbyte([vic.SCROLY]) == $ab, "Y register should be stored at symbol address")
+    }
+
+    test("address-register-a", "Store accumulator to numeric address") {
+      ; Set up accumulator
+      a = $cd
+
+      ; Store to numeric address
+      $5000 = a
+
+      ; Need a JSR call
+      $61 = $01
+      $62 = $00
+      $fd = $00
+      $fe = $c0
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
+
+      ; Verify the value was stored
+      assert(peekbyte($5000) == $cd, "Accumulator should be stored at numeric address")
+    }
+
+    test("address-register-x", "Store X register to numeric address") {
+      ; Set up X register
+      x = $ef
+
+      ; Store to numeric address
+      $5001 = x
+
+      ; Need a JSR call
+      $61 = $01
+      $62 = $00
+      $fd = $00
+      $fe = $c0
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
+
+      ; Verify the value was stored
+      assert(peekbyte($5001) == $ef, "X register should be stored at numeric address")
+    }
+
+    test("multiple-register-stores", "Store multiple registers and compare") {
+      ; Set up all registers with different values
+      a = $10
+      x = $20
+      y = $30
+
+      ; Store all three to memory
+      $6000 = a
+      $6001 = x
+      $6002 = y
+
+      ; Need a JSR call
+      $61 = $01
+      $62 = $00
+      $fd = $00
+      $fe = $c0
+      jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
+
+      ; Verify all values
+      assert(peekbyte($6000) == $10, "A register value should be at $6000")
+      assert(peekbyte($6001) == $20, "X register value should be at $6001")
+      assert(peekbyte($6002) == $30, "Y register value should be at $6002")
+    }
+  }
+}

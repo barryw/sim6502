@@ -101,6 +101,20 @@ public partial class sim6502BaseListener : Isim6502Listener {
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitFlagAssignment([NotNull] sim6502Parser.FlagAssignmentContext context) { }
 	/// <summary>
+	/// Enter a parse tree produced by the <c>symbolRegisterAssignment</c>
+	/// labeled alternative in <see cref="sim6502Parser.assignment"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterSymbolRegisterAssignment([NotNull] sim6502Parser.SymbolRegisterAssignmentContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by the <c>symbolRegisterAssignment</c>
+	/// labeled alternative in <see cref="sim6502Parser.assignment"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitSymbolRegisterAssignment([NotNull] sim6502Parser.SymbolRegisterAssignmentContext context) { }
+	/// <summary>
 	/// Enter a parse tree produced by the <c>symbolAssignment</c>
 	/// labeled alternative in <see cref="sim6502Parser.assignment"/>.
 	/// <para>The default implementation does nothing.</para>
@@ -114,6 +128,20 @@ public partial class sim6502BaseListener : Isim6502Listener {
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitSymbolAssignment([NotNull] sim6502Parser.SymbolAssignmentContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by the <c>addressRegisterAssignment</c>
+	/// labeled alternative in <see cref="sim6502Parser.assignment"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterAddressRegisterAssignment([NotNull] sim6502Parser.AddressRegisterAssignmentContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by the <c>addressRegisterAssignment</c>
+	/// labeled alternative in <see cref="sim6502Parser.assignment"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitAddressRegisterAssignment([NotNull] sim6502Parser.AddressRegisterAssignmentContext context) { }
 	/// <summary>
 	/// Enter a parse tree produced by the <c>addressAssignment</c>
 	/// labeled alternative in <see cref="sim6502Parser.assignment"/>.

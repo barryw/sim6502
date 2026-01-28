@@ -293,4 +293,18 @@ public class TestSuiteParser
 
         walker.Walk(sbl, tree);
     }
+
+    [Fact]
+    public void TestSuite17_RegisterToMemory()
+    {
+        // This test validates the fix for GitHub issue #3:
+        // Support assigning register values to memory locations
+        // e.g., [symbol] = a, $addr = x
+        var tree = GetContext("GrammarTests/test-17.txt");
+
+        var walker = new ParseTreeWalker();
+        var sbl = new SimBaseListener();
+
+        walker.Walk(sbl, tree);
+    }
 }

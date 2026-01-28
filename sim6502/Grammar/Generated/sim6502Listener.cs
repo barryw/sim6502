@@ -86,6 +86,18 @@ public interface Isim6502Listener : IParseTreeListener {
 	/// <param name="context">The parse tree.</param>
 	void ExitFlagAssignment([NotNull] sim6502Parser.FlagAssignmentContext context);
 	/// <summary>
+	/// Enter a parse tree produced by the <c>symbolRegisterAssignment</c>
+	/// labeled alternative in <see cref="sim6502Parser.assignment"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterSymbolRegisterAssignment([NotNull] sim6502Parser.SymbolRegisterAssignmentContext context);
+	/// <summary>
+	/// Exit a parse tree produced by the <c>symbolRegisterAssignment</c>
+	/// labeled alternative in <see cref="sim6502Parser.assignment"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitSymbolRegisterAssignment([NotNull] sim6502Parser.SymbolRegisterAssignmentContext context);
+	/// <summary>
 	/// Enter a parse tree produced by the <c>symbolAssignment</c>
 	/// labeled alternative in <see cref="sim6502Parser.assignment"/>.
 	/// </summary>
@@ -97,6 +109,18 @@ public interface Isim6502Listener : IParseTreeListener {
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	void ExitSymbolAssignment([NotNull] sim6502Parser.SymbolAssignmentContext context);
+	/// <summary>
+	/// Enter a parse tree produced by the <c>addressRegisterAssignment</c>
+	/// labeled alternative in <see cref="sim6502Parser.assignment"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterAddressRegisterAssignment([NotNull] sim6502Parser.AddressRegisterAssignmentContext context);
+	/// <summary>
+	/// Exit a parse tree produced by the <c>addressRegisterAssignment</c>
+	/// labeled alternative in <see cref="sim6502Parser.assignment"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitAddressRegisterAssignment([NotNull] sim6502Parser.AddressRegisterAssignmentContext context);
 	/// <summary>
 	/// Enter a parse tree produced by the <c>addressAssignment</c>
 	/// labeled alternative in <see cref="sim6502Parser.assignment"/>.

@@ -40,7 +40,9 @@ suiteName
 assignment
     : Register Assign expression        # registerAssignment
     | ProcessorFlag Assign expression   # flagAssignment
+    | symbolRef Assign Register         # symbolRegisterAssignment
     | symbolRef Assign expression       # symbolAssignment
+    | address Assign Register           # addressRegisterAssignment
     | address Assign expression         # addressAssignment
     | expression Assign expression      # expressionAssignment
     ;
