@@ -44,6 +44,11 @@ public partial class Processor
     #region Properties
 
     /// <summary>
+    /// The processor variant being emulated.
+    /// </summary>
+    public ProcessorType ProcessorType { get; }
+
+    /// <summary>
     /// Our 64k address space
     /// </summary>
     protected byte[] Memory { get; private set; }
@@ -253,6 +258,18 @@ public partial class Processor
     {
         return value & 0xFFFF;
     }
+
+    /// <summary>
+    /// Gets the display name for the current processor type
+    /// </summary>
+    /// <returns>The processor name</returns>
+    private string GetProcessorName() => ProcessorType switch
+    {
+        ProcessorType.MOS6502 => "6502",
+        ProcessorType.MOS6510 => "6510",
+        ProcessorType.WDC65C02 => "65C02",
+        _ => "6502"
+    };
 
     #endregion
 }

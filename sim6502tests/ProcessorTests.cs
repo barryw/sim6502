@@ -83,6 +83,32 @@ namespace sim6502tests
             processor.StackPointer.Should().Be(0xFD);
         }
 
+        [Fact]
+        public void Processor_DefaultProcessorTypeIs6502()
+        {
+            var proc = new Processor();
+            proc.ProcessorType.Should().Be(ProcessorType.MOS6502);
+        }
+
+        [Fact]
+        public void Processor_CanSetProcessorType()
+        {
+            var proc = new Processor(ProcessorType.WDC65C02);
+            proc.ProcessorType.Should().Be(ProcessorType.WDC65C02);
+        }
+
+        [Fact]
+        public void Processor_6510_HasSameDefaultBehaviorAs6502()
+        {
+            var proc6502 = new Processor(ProcessorType.MOS6502);
+            var proc6510 = new Processor(ProcessorType.MOS6510);
+
+            // Basic behavior should be identical
+            proc6502.Accumulator.Should().Be(proc6510.Accumulator);
+            proc6502.XRegister.Should().Be(proc6510.XRegister);
+            proc6502.YRegister.Should().Be(proc6510.YRegister);
+        }
+
         #endregion
 
         #region ADC - Add with Carry Tests

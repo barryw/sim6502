@@ -41,9 +41,18 @@ namespace sim6502.Proc
         /// <summary>
         /// Default Constructor, Instantiates a new instance of the processor.
         /// </summary>
-        public Processor()
+        public Processor() : this(ProcessorType.MOS6502)
         {
-            Logger.Info("6502 Simulator Copyright © 2013 Aaron Mell. All Rights Reserved.");
+        }
+
+        /// <summary>
+        /// Constructor that creates a processor of a specific type.
+        /// </summary>
+        /// <param name="processorType">The processor variant to emulate</param>
+        public Processor(ProcessorType processorType)
+        {
+            ProcessorType = processorType;
+            Logger.Info($"{GetProcessorName()} Simulator Copyright © 2013 Aaron Mell. All Rights Reserved.");
             Logger.Info("https://github.com/aaronmell/6502Net");
             ResetMemory();
             StackPointer = 0x100;
