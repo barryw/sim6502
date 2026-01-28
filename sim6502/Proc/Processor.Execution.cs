@@ -208,12 +208,12 @@ namespace sim6502.Proc
         /// </summary>
         private void ExecuteOpCode()
         {
-            var opcodeInfo = OpcodeRegistry.GetOpcode((byte)CurrentOpCode);
+            var opcodeInfo = OpcodeRegistry.GetOpcode((byte)CurrentOpCode, ProcessorType);
 
             if (opcodeInfo == null)
             {
                 throw new NotSupportedException(
-                    $"The OpCode {CurrentOpCode:X2} @ address {ProgramCounter:X4} is not supported.");
+                    $"The OpCode {CurrentOpCode:X2} @ address {ProgramCounter:X4} is not supported on {ProcessorType}.");
             }
 
             opcodeInfo.Handler(this);
