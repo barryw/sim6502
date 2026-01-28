@@ -2,6 +2,13 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.4.3 - 2026-01-28
+#### Bug Fixes
+- (**ci**) use --no-build flag for dotnet test - (06f87c4) - Barry Walker
+- (**grammar**) peekbyte returns expression value directly in comparisons - (47c718c) - Barry Walker
+
+- - -
+
 ## v3.4.2 - 2026-01-27
 #### Bug Fixes
 - (**loader**) add validation before stripping header bytes - (ac456b9) - Barry Walker
