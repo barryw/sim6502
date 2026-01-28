@@ -678,4 +678,48 @@ public partial class Processor
     }
 
     #endregion
+
+    #region 65C02 Bit Test and Modify Operations
+
+    /// <summary>
+    /// TRB - Test and Reset Bits (65C02)
+    /// Tests if A AND memory == 0 and sets Z flag, then clears bits in memory where A has 1s
+    /// </summary>
+    /// <param name="addressingMode">The addressing mode used to determine the target address</param>
+    public void TestAndResetBitsOperation(AddressingMode addressingMode)
+    {
+        var address = GetAddressByAddressingMode(addressingMode);
+        var value = ReadMemoryValue(address);
+
+        // Dummy Write (Read-Modify-Write instruction)
+        WriteMemoryValue(address, (byte)value);
+
+        // Set Z flag based on A AND memory (BEFORE modification)
+        SetZeroFlag((byte)(Accumulator & value));
+
+        // Clear bits in memory where A has 1s
+        WriteMemoryValue(address, (byte)(value & ~Accumulator));
+    }
+
+    /// <summary>
+    /// TSB - Test and Set Bits (65C02)
+    /// Tests if A AND memory == 0 and sets Z flag, then sets bits in memory where A has 1s
+    /// </summary>
+    /// <param name="addressingMode">The addressing mode used to determine the target address</param>
+    public void TestAndSetBitsOperation(AddressingMode addressingMode)
+    {
+        var address = GetAddressByAddressingMode(addressingMode);
+        var value = ReadMemoryValue(address);
+
+        // Dummy Write (Read-Modify-Write instruction)
+        WriteMemoryValue(address, (byte)value);
+
+        // Set Z flag based on A AND memory (BEFORE modification)
+        SetZeroFlag((byte)(Accumulator & value));
+
+        // Set bits in memory where A has 1s
+        WriteMemoryValue(address, (byte)(value | Accumulator));
+    }
+
+    #endregion
 }

@@ -953,6 +953,24 @@ public partial class Processor
                 p => p.DecrementAccumulatorOperation());
 
             #endregion
+
+            #region 65C02 Bit Test and Modify Operations
+
+            // TRB - Test and Reset Bits (65C02 only)
+            Register65C02(0x14, "TRB", AddressingMode.ZeroPage, 2, 5,
+                p => p.TestAndResetBitsOperation(AddressingMode.ZeroPage));
+
+            Register65C02(0x1C, "TRB", AddressingMode.Absolute, 3, 6,
+                p => p.TestAndResetBitsOperation(AddressingMode.Absolute));
+
+            // TSB - Test and Set Bits (65C02 only)
+            Register65C02(0x04, "TSB", AddressingMode.ZeroPage, 2, 5,
+                p => p.TestAndSetBitsOperation(AddressingMode.ZeroPage));
+
+            Register65C02(0x0C, "TSB", AddressingMode.Absolute, 3, 6,
+                p => p.TestAndSetBitsOperation(AddressingMode.Absolute));
+
+            #endregion
         }
     }
 }

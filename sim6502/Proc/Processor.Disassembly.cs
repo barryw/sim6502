@@ -521,6 +521,16 @@ public partial class Processor
             {
                 return "STZ";
             }
+            case 0x14: // TRB Zero Page (65C02)
+            case 0x1C: // TRB Absolute (65C02)
+            {
+                return "TRB";
+            }
+            case 0x04: // TSB Zero Page (65C02)
+            case 0x0C: // TSB Absolute (65C02)
+            {
+                return "TSB";
+            }
             case 0xAA: // TAX Implied
             {
                 return "TAX";

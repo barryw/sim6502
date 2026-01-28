@@ -180,6 +180,8 @@ public partial class Processor
             case 0xEC: //CPX
             case 0x20: //JSR
             case 0x9C: //STZ (65C02)
+            case 0x0C: //TSB (65C02)
+            case 0x1C: //TRB (65C02)
             {
                 return AddressingMode.Absolute;
             }
@@ -331,6 +333,8 @@ public partial class Processor
             case 0x86: //STX
             case 0x84: //STY
             case 0x64: //STZ (65C02)
+            case 0x04: //TSB (65C02)
+            case 0x14: //TRB (65C02)
             {
                 return AddressingMode.ZeroPage;
             }

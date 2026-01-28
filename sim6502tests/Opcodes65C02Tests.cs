@@ -770,4 +770,344 @@ public class Opcodes65C02Tests
     }
 
     #endregion
+
+    #region TRB Tests
+
+    [Fact]
+    public void TRB_ZeroPage_ClearsBitsCorrectly()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+
+        // Set A to 0b00001111 (0x0F) to clear lower 4 bits
+        proc.Accumulator = 0x0F;
+
+        // Set memory to 0b11111111 (0xFF)
+        proc.WriteMemoryValueWithoutIncrement(0x0042, 0xFF);
+
+        // TRB $42 at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x14); // TRB
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0x42); // Zero page address
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        // Memory should be 0b11110000 (0xF0) - lower 4 bits cleared
+        proc.ReadMemoryValueWithoutCycle(0x0042).Should().Be(0xF0);
+        proc.ProgramCounter.Should().Be(0x0202);
+    }
+
+    [Fact]
+    public void TRB_Absolute_ClearsBitsCorrectly()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+
+        // Set A to 0b10101010 (0xAA)
+        proc.Accumulator = 0xAA;
+
+        // Set memory to 0b11111111 (0xFF)
+        proc.WriteMemoryValueWithoutIncrement(0x1234, 0xFF);
+
+        // TRB $1234 at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x1C); // TRB
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0x34); // Low byte
+        proc.WriteMemoryValueWithoutIncrement(0x0202, 0x12); // High byte
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        // Memory should be 0b01010101 (0x55) - alternating bits cleared
+        proc.ReadMemoryValueWithoutCycle(0x1234).Should().Be(0x55);
+        proc.ProgramCounter.Should().Be(0x0203);
+    }
+
+    [Fact]
+    public void TRB_SetsZeroFlag_WhenNoCommonBits()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+
+        // Set A to 0b00001111 (0x0F)
+        proc.Accumulator = 0x0F;
+
+        // Set memory to 0b11110000 (0xF0) - no overlapping bits with A
+        proc.WriteMemoryValueWithoutIncrement(0x0042, 0xF0);
+
+        // TRB $42 at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x14); // TRB
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0x42);
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        // Z flag should be set because A AND memory (before modification) == 0
+        proc.ZeroFlag.Should().BeTrue();
+        // Memory should still be 0xF0 (no bits to clear)
+        proc.ReadMemoryValueWithoutCycle(0x0042).Should().Be(0xF0);
+    }
+
+    [Fact]
+    public void TRB_ClearsZeroFlag_WhenCommonBits()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+
+        // Set A to 0b00001111 (0x0F)
+        proc.Accumulator = 0x0F;
+
+        // Set memory to 0b11111111 (0xFF) - has overlapping bits with A
+        proc.WriteMemoryValueWithoutIncrement(0x0042, 0xFF);
+
+        // TRB $42 at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x14); // TRB
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0x42);
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        // Z flag should be clear because A AND memory (before modification) != 0
+        proc.ZeroFlag.Should().BeFalse();
+        // Memory should be 0xF0 (lower 4 bits cleared)
+        proc.ReadMemoryValueWithoutCycle(0x0042).Should().Be(0xF0);
+    }
+
+    [Theory]
+    [InlineData(0x14)] // TRB Zero Page
+    [InlineData(0x1C)] // TRB Absolute
+    public void TRB_NotAvailableOn6502(byte opcode)
+    {
+        var proc = new Processor(ProcessorType.MOS6502);
+        proc.Reset();
+
+        proc.WriteMemoryValueWithoutIncrement(0x0200, opcode);
+        proc.ProgramCounter = 0x0200;
+
+        var action = () => proc.NextStep();
+        action.Should().Throw<System.NotSupportedException>();
+    }
+
+    [Theory]
+    [InlineData(0x14)] // TRB Zero Page
+    [InlineData(0x1C)] // TRB Absolute
+    public void TRB_NotAvailableOn6510(byte opcode)
+    {
+        var proc = new Processor(ProcessorType.MOS6510);
+        proc.Reset();
+
+        proc.WriteMemoryValueWithoutIncrement(0x0200, opcode);
+        proc.ProgramCounter = 0x0200;
+
+        var action = () => proc.NextStep();
+        action.Should().Throw<System.NotSupportedException>();
+    }
+
+    [Fact]
+    public void TRB_ZeroPage_HasCorrectCycles()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+        proc.Accumulator = 0x0F;
+        proc.WriteMemoryValueWithoutIncrement(0x0042, 0xFF);
+
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x14);
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0x42);
+        proc.ProgramCounter = 0x0200;
+
+        var initialCycles = proc.CycleCount;
+        proc.NextStep();
+
+        (proc.CycleCount - initialCycles).Should().Be(5);
+    }
+
+    [Fact]
+    public void TRB_Absolute_HasCorrectCycles()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+        proc.Accumulator = 0x0F;
+        proc.WriteMemoryValueWithoutIncrement(0x1234, 0xFF);
+
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x1C);
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0x34);
+        proc.WriteMemoryValueWithoutIncrement(0x0202, 0x12);
+        proc.ProgramCounter = 0x0200;
+
+        var initialCycles = proc.CycleCount;
+        proc.NextStep();
+
+        (proc.CycleCount - initialCycles).Should().Be(6);
+    }
+
+    #endregion
+
+    #region TSB Tests
+
+    [Fact]
+    public void TSB_ZeroPage_SetsBitsCorrectly()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+
+        // Set A to 0b00001111 (0x0F) to set lower 4 bits
+        proc.Accumulator = 0x0F;
+
+        // Set memory to 0b00000000 (0x00)
+        proc.WriteMemoryValueWithoutIncrement(0x0042, 0x00);
+
+        // TSB $42 at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x04); // TSB
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0x42); // Zero page address
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        // Memory should be 0b00001111 (0x0F) - lower 4 bits set
+        proc.ReadMemoryValueWithoutCycle(0x0042).Should().Be(0x0F);
+        proc.ProgramCounter.Should().Be(0x0202);
+    }
+
+    [Fact]
+    public void TSB_Absolute_SetsBitsCorrectly()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+
+        // Set A to 0b10101010 (0xAA)
+        proc.Accumulator = 0xAA;
+
+        // Set memory to 0b01010101 (0x55)
+        proc.WriteMemoryValueWithoutIncrement(0x1234, 0x55);
+
+        // TSB $1234 at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x0C); // TSB
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0x34); // Low byte
+        proc.WriteMemoryValueWithoutIncrement(0x0202, 0x12); // High byte
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        // Memory should be 0b11111111 (0xFF) - all bits set
+        proc.ReadMemoryValueWithoutCycle(0x1234).Should().Be(0xFF);
+        proc.ProgramCounter.Should().Be(0x0203);
+    }
+
+    [Fact]
+    public void TSB_SetsZeroFlag_WhenNoCommonBits()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+
+        // Set A to 0b00001111 (0x0F)
+        proc.Accumulator = 0x0F;
+
+        // Set memory to 0b11110000 (0xF0) - no overlapping bits with A
+        proc.WriteMemoryValueWithoutIncrement(0x0042, 0xF0);
+
+        // TSB $42 at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x04); // TSB
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0x42);
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        // Z flag should be set because A AND memory (before modification) == 0
+        proc.ZeroFlag.Should().BeTrue();
+        // Memory should now be 0xFF (bits from A set)
+        proc.ReadMemoryValueWithoutCycle(0x0042).Should().Be(0xFF);
+    }
+
+    [Fact]
+    public void TSB_ClearsZeroFlag_WhenCommonBits()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+
+        // Set A to 0b00001111 (0x0F)
+        proc.Accumulator = 0x0F;
+
+        // Set memory to 0b11111111 (0xFF) - has overlapping bits with A
+        proc.WriteMemoryValueWithoutIncrement(0x0042, 0xFF);
+
+        // TSB $42 at address $0200
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x04); // TSB
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0x42);
+        proc.ProgramCounter = 0x0200;
+
+        proc.NextStep();
+
+        // Z flag should be clear because A AND memory (before modification) != 0
+        proc.ZeroFlag.Should().BeFalse();
+        // Memory should still be 0xFF (all bits already set)
+        proc.ReadMemoryValueWithoutCycle(0x0042).Should().Be(0xFF);
+    }
+
+    [Theory]
+    [InlineData(0x04)] // TSB Zero Page
+    [InlineData(0x0C)] // TSB Absolute
+    public void TSB_NotAvailableOn6502(byte opcode)
+    {
+        var proc = new Processor(ProcessorType.MOS6502);
+        proc.Reset();
+
+        proc.WriteMemoryValueWithoutIncrement(0x0200, opcode);
+        proc.ProgramCounter = 0x0200;
+
+        var action = () => proc.NextStep();
+        action.Should().Throw<System.NotSupportedException>();
+    }
+
+    [Theory]
+    [InlineData(0x04)] // TSB Zero Page
+    [InlineData(0x0C)] // TSB Absolute
+    public void TSB_NotAvailableOn6510(byte opcode)
+    {
+        var proc = new Processor(ProcessorType.MOS6510);
+        proc.Reset();
+
+        proc.WriteMemoryValueWithoutIncrement(0x0200, opcode);
+        proc.ProgramCounter = 0x0200;
+
+        var action = () => proc.NextStep();
+        action.Should().Throw<System.NotSupportedException>();
+    }
+
+    [Fact]
+    public void TSB_ZeroPage_HasCorrectCycles()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+        proc.Accumulator = 0x0F;
+        proc.WriteMemoryValueWithoutIncrement(0x0042, 0x00);
+
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x04);
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0x42);
+        proc.ProgramCounter = 0x0200;
+
+        var initialCycles = proc.CycleCount;
+        proc.NextStep();
+
+        (proc.CycleCount - initialCycles).Should().Be(5);
+    }
+
+    [Fact]
+    public void TSB_Absolute_HasCorrectCycles()
+    {
+        var proc = new Processor(ProcessorType.WDC65C02);
+        proc.Reset();
+        proc.Accumulator = 0x0F;
+        proc.WriteMemoryValueWithoutIncrement(0x1234, 0x00);
+
+        proc.WriteMemoryValueWithoutIncrement(0x0200, 0x0C);
+        proc.WriteMemoryValueWithoutIncrement(0x0201, 0x34);
+        proc.WriteMemoryValueWithoutIncrement(0x0202, 0x12);
+        proc.ProgramCounter = 0x0200;
+
+        var initialCycles = proc.CycleCount;
+        proc.NextStep();
+
+        (proc.CycleCount - initialCycles).Should().Be(6);
+    }
+
+    #endregion
 }
