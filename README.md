@@ -851,6 +851,56 @@ There is absolutely no concept of hardware other than the 6502. There's no VIC, 
 
 This is a vanilla 6502 with no concept of any C64 specific hardware. I would LOVE to have a full c64 simulator, but that's not where we are right now.
 
+---
+
+## Language Server (LSP)
+
+sim6502 includes a Language Server Protocol implementation for IDE integration. This provides real-time feedback while writing `.6502` test files.
+
+### Features
+
+- **Syntax Highlighting** - TextMate grammar for VS Code and compatible editors
+- **Real-time Diagnostics** - Syntax errors and warnings as you type
+- **Code Completion** - Keywords, registers, flags, system types, and built-in functions
+- **Hover Information** - Documentation tooltips for keywords and symbols
+- **Go-to-Definition** - Navigate to symbol definitions (from loaded `.sym` files)
+
+### VS Code Extension
+
+The `sim6502-vscode/` directory contains a VS Code extension:
+
+```bash
+cd sim6502-vscode
+npm install
+npm run compile
+```
+
+To test the extension:
+1. Open VS Code in the sim6502 directory
+2. Press F5 to launch the Extension Development Host
+3. Open a `.6502` file to see syntax highlighting and LSP features
+
+### Configuration
+
+The extension supports these settings in VS Code:
+
+| Setting | Description |
+|---------|-------------|
+| `sim6502.lspPath` | Path to custom sim6502-lsp executable (optional) |
+| `sim6502.trace.server` | LSP trace level: `off`, `messages`, or `verbose` |
+
+### Running the LSP Server
+
+The language server can be run directly:
+
+```bash
+dotnet run --project sim6502-lsp/sim6502-lsp.csproj
+```
+
+The server communicates via stdin/stdout using the Language Server Protocol.
+
+---
+
 #### Thanks
 
 Thanks to Aaron Mell for building the 6502 simulator (https://github.com/aaronmell/6502Net). It was a tremendous help in building this tool.
