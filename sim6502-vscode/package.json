@@ -1,0 +1,58 @@
+{
+  "name": "sim6502-vscode",
+  "displayName": "sim6502 Language Support",
+  "description": "Language support for sim6502 test files",
+  "version": "0.1.0",
+  "publisher": "barryw",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Programming Languages"],
+  "activationEvents": [
+    "onLanguage:sim6502"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [{
+      "id": "sim6502",
+      "aliases": ["sim6502", "6502 Test"],
+      "extensions": [".6502"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "sim6502",
+      "scopeName": "source.sim6502",
+      "path": "./syntaxes/sim6502.tmLanguage.json"
+    }],
+    "configuration": {
+      "type": "object",
+      "title": "sim6502",
+      "properties": {
+        "sim6502.lspPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to sim6502-lsp executable (uses bundled if empty)"
+        },
+        "sim6502.trace.server": {
+          "type": "string",
+          "enum": ["off", "messages", "verbose"],
+          "default": "off",
+          "description": "Traces the communication between VS Code and the sim6502 language server"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0"
+  }
+}

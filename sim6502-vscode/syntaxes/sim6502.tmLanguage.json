@@ -1,0 +1,73 @@
+{
+  "name": "sim6502",
+  "scopeName": "source.sim6502",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#functions" },
+    { "include": "#registers" },
+    { "include": "#numbers" },
+    { "include": "#symbols" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [{
+        "name": "comment.line.semicolon.sim6502",
+        "match": ";.*$"
+      }]
+    },
+    "strings": {
+      "patterns": [{
+        "name": "string.quoted.double.sim6502",
+        "begin": "\"",
+        "end": "\""
+      }]
+    },
+    "keywords": {
+      "patterns": [{
+        "name": "keyword.control.sim6502",
+        "match": "\\b(suites|suite|test|setup|assert|jsr|load|symbols|system|processor|rom)\\b"
+      }, {
+        "name": "keyword.other.sim6502",
+        "match": "\\b(stop_on_rts|stop_on_address|fail_on_brk|skip|trace|timeout|tags|address|strip_header)\\b"
+      }, {
+        "name": "constant.language.sim6502",
+        "match": "\\b(true|false|c64|generic_6502|generic_6510|generic_65c02|6502|6510|65c02)\\b"
+      }]
+    },
+    "functions": {
+      "patterns": [{
+        "name": "support.function.sim6502",
+        "match": "\\b(peekbyte|peekword|memcmp|memchk|memfill|memdump)\\b"
+      }]
+    },
+    "registers": {
+      "patterns": [{
+        "name": "variable.language.register.sim6502",
+        "match": "\\b[aAxXyY]\\b"
+      }, {
+        "name": "variable.language.flag.sim6502",
+        "match": "\\b[cCnNzZdDvV]\\b"
+      }]
+    },
+    "numbers": {
+      "patterns": [{
+        "name": "constant.numeric.hex.sim6502",
+        "match": "\\$[0-9a-fA-F]+"
+      }, {
+        "name": "constant.numeric.binary.sim6502",
+        "match": "%[01]+"
+      }, {
+        "name": "constant.numeric.decimal.sim6502",
+        "match": "\\b[0-9]+\\b"
+      }]
+    },
+    "symbols": {
+      "patterns": [{
+        "name": "variable.other.symbol.sim6502",
+        "match": "\\[[a-zA-Z_][a-zA-Z0-9_.]*\\]"
+      }]
+    }
+  }
+}
