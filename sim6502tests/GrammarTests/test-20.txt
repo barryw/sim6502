@@ -1,0 +1,43 @@
+; Test system() declaration
+suites {
+  suite("System Declaration Tests") {
+    system(generic_6502)
+
+    test("generic-6502-works", "Basic generic 6502 system test") {
+      a = $42
+      $0300 = $a9  ; LDA immediate
+      $0301 = $ff  ; #$FF
+      $0302 = $60  ; RTS
+      jsr($0300, stop_on_rts = true, fail_on_brk = false)
+      assert(a == $ff, "A should be $FF after LDA #$FF")
+    }
+  }
+
+  suite("System Generic 6510 Tests") {
+    system(generic_6510)
+
+    test("6510-io-port", "6510 I/O port at $00/$01") {
+      ; Set up I/O port values
+      $00 = $2f  ; DDR
+      $01 = $37  ; Data port
+      ; Execute a minimal routine (just RTS)
+      $0300 = $60  ; RTS
+      jsr($0300, stop_on_rts = true, fail_on_brk = false)
+      ; Verify I/O port values
+      assert(peekbyte($00) == $2f, "DDR should be $2F")
+      assert(peekbyte($01) == $37, "Data port should be $37")
+    }
+  }
+
+  suite("System Generic 65C02 Tests") {
+    system(generic_65c02)
+
+    test("65c02-inc-a", "65C02 INC A opcode works") {
+      a = $41
+      $0310 = $1a  ; INC A
+      $0311 = $60  ; RTS
+      jsr($0310, stop_on_rts = true, fail_on_brk = false)
+      assert(a == $42, "A should be $42 after INC A")
+    }
+  }
+}
