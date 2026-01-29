@@ -2,6 +2,30 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.8.0 - 2026-01-29
+#### Features
+- (**grammar**) implement system() and rom() handlers in SimBaseListener - (479b82a) - Barry Walker
+- (**grammar**) add system() and rom() declarations - (375daee) - Barry Walker
+- (**processor**) integrate IMemoryMap support with backward compatibility - (8eba654) - Barry Walker
+- (**systems**) implement MemoryMapFactory - (1ea2d59) - Barry Walker
+- (**systems**) implement C64MemoryMap with full $01 banking support - (ba347eb) - Barry Walker
+- (**systems**) implement Generic6510MemoryMap with $00/$01 I/O port - (1a00928) - Barry Walker
+- (**systems**) implement GenericMemoryMap with flat 64KB RAM - (b02cf19) - Barry Walker
+- (**systems**) add SystemType enum for system identification - (b450182) - Barry Walker
+- (**systems**) add IIOHandler interface for I/O region callbacks - (883da65) - Barry Walker
+- (**systems**) add IMemoryMap interface for system memory abstraction - (1aa7dc0) - Barry Walker
+#### Bug Fixes
+- (**grammar**) correct lexer token order for processor types - (6d0b949) - Barry Walker
+#### Documentation
+- update documentation with system() syntax - (5496c90) - Barry Walker
+#### Tests
+- (**grammar**) add C64 memory banking tests - (8b05a0d) - Barry Walker
+- (**grammar**) add system() declaration tests - (e7acdea) - Barry Walker
+#### Chores
+- add LaTeX build artifacts to .gitignore - (f1250db) - Barry Walker
+
+- - -
+
 ## v3.7.0 - 2026-01-28
 #### Features
 - (**6510**) add I/O port emulation at $00-$01 - (e1f6214) - Barry Walker
