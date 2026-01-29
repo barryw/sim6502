@@ -865,39 +865,179 @@ sim6502 includes a Language Server Protocol implementation for IDE integration. 
 - **Hover Information** - Documentation tooltips for keywords and symbols
 - **Go-to-Definition** - Navigate to symbol definitions (from loaded `.sym` files)
 
-### VS Code Extension
+### Building the Language Server
 
-The `sim6502-vscode/` directory contains a VS Code extension:
+```bash
+cd sim6502-lsp
+dotnet build
+```
+
+The compiled server will be at `sim6502-lsp/bin/Debug/net10.0/sim6502-lsp.dll`.
+
+### VS Code
+
+The `sim6502-vscode/` directory contains a ready-to-use VS Code extension.
+
+**Install from source:**
 
 ```bash
 cd sim6502-vscode
 npm install
 npm run compile
+npx @vscode/vsce package --allow-missing-repository
+code --install-extension sim6502-vscode-0.1.0.vsix
 ```
 
-To test the extension:
-1. Open VS Code in the sim6502 directory
-2. Press F5 to launch the Extension Development Host
-3. Open a `.6502` file to see syntax highlighting and LSP features
-
-### Configuration
-
-The extension supports these settings in VS Code:
+**Configuration** (in VS Code settings):
 
 | Setting | Description |
 |---------|-------------|
-| `sim6502.lspPath` | Path to custom sim6502-lsp executable (optional) |
+| `sim6502.lspPath` | Path to sim6502-lsp project directory (auto-detected if in workspace) |
 | `sim6502.trace.server` | LSP trace level: `off`, `messages`, or `verbose` |
 
-### Running the LSP Server
+**Troubleshooting:**
 
-The language server can be run directly:
-
-```bash
-dotnet run --project sim6502-lsp/sim6502-lsp.csproj
+If the language server doesn't start, set the path explicitly in settings:
+```json
+"sim6502.lspPath": "/path/to/sim6502/sim6502-lsp/sim6502-lsp.csproj"
 ```
 
-The server communicates via stdin/stdout using the Language Server Protocol.
+Check **Output** → **sim6502 Language Server** for diagnostic messages.
+
+### Neovim
+
+Using [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig):
+
+```lua
+-- In your init.lua or lua/plugins/lsp.lua
+local lspconfig = require('lspconfig')
+local configs = require('lspconfig.configs')
+
+-- Register sim6502 as a custom filetype
+vim.filetype.add({
+  extension = {
+    ['6502'] = 'sim6502',
+  },
+})
+
+-- Define the LSP configuration
+if not configs.sim6502 then
+  configs.sim6502 = {
+    default_config = {
+      cmd = { 'dotnet', 'run', '--project', '/path/to/sim6502/sim6502-lsp/sim6502-lsp.csproj' },
+      filetypes = { 'sim6502' },
+      root_dir = function(fname)
+        return lspconfig.util.find_git_ancestor(fname) or vim.fn.getcwd()
+      end,
+      settings = {},
+    },
+  }
+end
+
+lspconfig.sim6502.setup({})
+```
+
+**Alternative using the compiled DLL:**
+
+```lua
+cmd = { 'dotnet', '/path/to/sim6502/sim6502-lsp/bin/Debug/net10.0/sim6502-lsp.dll' },
+```
+
+### Sublime Text
+
+Using [LSP for Sublime Text](https://github.com/sublimelsp/LSP):
+
+1. Install the LSP package via Package Control
+2. Create `~/.config/sublime-text/Packages/User/LSP-sim6502.sublime-settings`:
+
+```json
+{
+  "clients": {
+    "sim6502": {
+      "enabled": true,
+      "command": ["dotnet", "run", "--project", "/path/to/sim6502/sim6502-lsp/sim6502-lsp.csproj"],
+      "selector": "source.sim6502",
+      "schemes": ["file"]
+    }
+  }
+}
+```
+
+3. Create a syntax definition for `.6502` files or associate them with a generic syntax.
+
+### Emacs
+
+Using [lsp-mode](https://emacs-lsp.github.io/lsp-mode/):
+
+```elisp
+;; In your init.el or .emacs
+(require 'lsp-mode)
+
+;; Register .6502 files
+(add-to-list 'auto-mode-alist '("\\.6502\\'" . prog-mode))
+
+;; Configure sim6502 LSP
+(lsp-register-client
+ (make-lsp-client
+  :new-connection (lsp-stdio-connection
+                   '("dotnet" "run" "--project" "/path/to/sim6502/sim6502-lsp/sim6502-lsp.csproj"))
+  :major-modes '(prog-mode)
+  :server-id 'sim6502-lsp
+  :activation-fn (lsp-activate-on "sim6502")))
+
+;; Enable LSP for .6502 files
+(add-hook 'prog-mode-hook
+          (lambda ()
+            (when (string-match-p "\\.6502\\'" (buffer-file-name))
+              (lsp))))
+```
+
+Using [eglot](https://github.com/joaotavora/eglot) (built into Emacs 29+):
+
+```elisp
+(require 'eglot)
+
+(add-to-list 'auto-mode-alist '("\\.6502\\'" . prog-mode))
+
+(add-to-list 'eglot-server-programs
+             '(prog-mode . ("dotnet" "run" "--project" "/path/to/sim6502/sim6502-lsp/sim6502-lsp.csproj")))
+
+(add-hook 'prog-mode-hook
+          (lambda ()
+            (when (string-match-p "\\.6502\\'" (buffer-file-name))
+              (eglot-ensure))))
+```
+
+### Helix
+
+Add to `~/.config/helix/languages.toml`:
+
+```toml
+[[language]]
+name = "sim6502"
+scope = "source.sim6502"
+file-types = ["6502"]
+language-servers = ["sim6502-lsp"]
+comment-token = ";"
+
+[language-server.sim6502-lsp]
+command = "dotnet"
+args = ["run", "--project", "/path/to/sim6502/sim6502-lsp/sim6502-lsp.csproj"]
+```
+
+### Other Editors
+
+The language server uses standard LSP over stdin/stdout. Any editor with LSP support can use it:
+
+```bash
+# Run the server directly
+dotnet run --project /path/to/sim6502/sim6502-lsp/sim6502-lsp.csproj
+
+# Or use the compiled DLL
+dotnet /path/to/sim6502/sim6502-lsp/bin/Debug/net10.0/sim6502-lsp.dll
+```
+
+Configure your editor's LSP client to launch the server with one of these commands and associate it with `.6502` files.
 
 ---
 

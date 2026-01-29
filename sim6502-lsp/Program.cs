@@ -1,7 +1,6 @@
 // sim6502-lsp/Program.cs
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using NLog.Extensions.Logging;
 using OmniSharp.Extensions.LanguageServer.Server;
 using sim6502_lsp.Handlers;
 using sim6502_lsp.Server;
@@ -17,8 +16,8 @@ class Program
                 .WithInput(Console.OpenStandardInput())
                 .WithOutput(Console.OpenStandardOutput())
                 .ConfigureLogging(x => x
-                    .AddNLog()
-                    .SetMinimumLevel(LogLevel.Debug))
+                    .ClearProviders()
+                    .SetMinimumLevel(LogLevel.Warning))
                 .WithServices(ConfigureServices)
                 .WithHandler<TextDocumentHandler>()
                 .WithHandler<CompletionHandler>()
