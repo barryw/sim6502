@@ -24,14 +24,18 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 grammar sim6502;
 
+@header {
+namespace sim6502.Grammar.Generated;
+}
+
 suites
     : Suites LBrace (suite)* RBrace
     ;
 
 suite
     : Suite LParen suiteName RParen LBrace
-        (processorDeclaration)?
-        (testFunction | symbolsFunction | loadFunction | setupBlock)+
+        (systemDeclaration | processorDeclaration)?
+        (testFunction | symbolsFunction | loadFunction | romDeclaration | setupBlock)+
       RBrace
     ;
     
@@ -48,7 +52,31 @@ processorTypeValue
     | ProcessorType6510
     | ProcessorType65C02
     ;
-   
+
+// System declaration (takes precedence over processor)
+systemDeclaration
+    : System LParen systemTypeValue RParen
+    ;
+
+systemTypeValue
+    : SystemC64
+    | SystemGeneric6502
+    | SystemGeneric6510
+    | SystemGeneric65C02
+    ;
+
+romDeclaration
+    : Rom LParen romName Comma romFilename RParen
+    ;
+
+romName
+    : StringLiteral
+    ;
+
+romFilename
+    : StringLiteral
+    ;
+
 // Assignment rule - order matters: most specific first, general expression last
 assignment
     : Register Assign expression        # registerAssignment
@@ -383,6 +411,12 @@ Processor:      'processor';
 ProcessorType6502:  '6502';
 ProcessorType6510:  '6510';
 ProcessorType65C02: '65c02' | '65C02';
+System:             'system';
+Rom:                'rom';
+SystemC64:          'c64' | 'C64';
+SystemGeneric6502:  'generic_6502';
+SystemGeneric6510:  'generic_6510';
+SystemGeneric65C02: 'generic_65c02' | 'generic_65C02';
 
 LoByte: '.l' | '.L' ;
 HiByte: '.h' | '.H' ;
