@@ -1,0 +1,82 @@
+; Test C64 memory banking
+suites {
+  suite("C64 Memory Banking Tests") {
+    system(c64)
+
+    test("c64-write-under-rom", "Write to RAM under BASIC ROM") {
+      ; Default banking: ROMs visible
+      ; Write to $A000 - should go to RAM underneath
+      $A000 = $42
+
+      ; Bank out BASIC ROM: $01 = $35 (LORAM=1, HIRAM=0, CHAREN=1)
+      $01 = $35
+
+      ; Execute minimal routine
+      $0300 = $60  ; RTS
+      jsr($0300, stop_on_rts = true, fail_on_brk = false)
+
+      ; Now we should see RAM
+      assert(peekbyte($A000) == $42, "Should see RAM value $42 at $A000")
+    }
+
+    test("c64-kernal-banking", "KERNAL ROM banking") {
+      ; Write to RAM under KERNAL
+      $E000 = $99
+
+      ; Default: KERNAL visible, can't see our write
+      ; Bank out: $01 = $35
+      $01 = $35
+
+      ; Execute minimal routine
+      $0300 = $60  ; RTS
+      jsr($0300, stop_on_rts = true, fail_on_brk = false)
+
+      assert(peekbyte($E000) == $99, "Should see RAM value $99 at $E000")
+    }
+
+    test("c64-all-ram-mode", "All RAM mode with $01 = $34") {
+      ; Write values under ROM regions
+      $A000 = $AA
+      $D000 = $DD
+      $E000 = $EE
+
+      ; All RAM, no I/O: $01 = $34
+      $01 = $34
+
+      ; Execute minimal routine
+      $0300 = $60  ; RTS
+      jsr($0300, stop_on_rts = true, fail_on_brk = false)
+
+      assert(peekbyte($A000) == $AA, "BASIC region shows RAM")
+      assert(peekbyte($D000) == $DD, "I/O region shows RAM")
+      assert(peekbyte($E000) == $EE, "KERNAL region shows RAM")
+    }
+
+    test("c64-low-ram-unaffected", "Low RAM always accessible") {
+      $0800 = $42
+
+      ; Change banking
+      $01 = $34
+
+      ; Execute minimal routine
+      $0300 = $60  ; RTS
+      jsr($0300, stop_on_rts = true, fail_on_brk = false)
+
+      assert(peekbyte($0800) == $42, "Low RAM unaffected by banking")
+    }
+
+    test("c64-partial-banking", "BASIC off, KERNAL on ($01 = $36)") {
+      $A000 = $BB  ; Write RAM under BASIC
+
+      ; $01 = $36: LORAM=0 (no BASIC), HIRAM=1 (KERNAL), CHAREN=1 (I/O)
+      $01 = $36
+
+      ; Execute minimal routine
+      $0300 = $60  ; RTS
+      jsr($0300, stop_on_rts = true, fail_on_brk = false)
+
+      ; BASIC region shows RAM
+      assert(peekbyte($A000) == $BB, "BASIC region shows RAM when LORAM=0")
+    }
+  }
+}
