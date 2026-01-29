@@ -3,6 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NLog.Extensions.Logging;
 using OmniSharp.Extensions.LanguageServer.Server;
+using sim6502_lsp.Handlers;
+using sim6502_lsp.Server;
 
 namespace sim6502_lsp;
 
@@ -18,6 +20,7 @@ class Program
                     .AddNLog()
                     .SetMinimumLevel(LogLevel.Debug))
                 .WithServices(ConfigureServices)
+                .WithHandler<TextDocumentHandler>()
         );
 
         await server.WaitForExit;
@@ -25,6 +28,7 @@ class Program
 
     static void ConfigureServices(IServiceCollection services)
     {
-        // Services will be added here as we build features
+        services.AddSingleton<DocumentManager>();
+        services.AddSingleton<DiagnosticsProvider>();
     }
 }
