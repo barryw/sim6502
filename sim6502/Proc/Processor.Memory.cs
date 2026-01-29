@@ -24,6 +24,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 using System;
+using sim6502.Systems;
 
 namespace sim6502.Proc;
 
@@ -60,6 +61,9 @@ public partial class Processor
     /// <returns>the byte being returned</returns>
     public virtual byte ReadMemoryValue(int address)
     {
+        if (MemoryMap != null)
+            return MemoryMap.Read(address);
+
         // Handle 6510 I/O port reads
         if (ProcessorType == ProcessorType.MOS6510)
         {
@@ -87,6 +91,9 @@ public partial class Processor
     /// <returns></returns>
     public virtual byte ReadMemoryValueWithoutCycle(int address)
     {
+        if (MemoryMap != null)
+            return MemoryMap.ReadWithoutCycle(address);
+
         // Handle 6510 I/O port reads
         if (ProcessorType == ProcessorType.MOS6510)
         {
@@ -132,6 +139,12 @@ public partial class Processor
     /// <param name="data">The data to write</param>
     public virtual void WriteMemoryValue(int address, byte data)
     {
+        if (MemoryMap != null)
+        {
+            MemoryMap.Write(address, data);
+            return;
+        }
+
         IncrementCycleCount();
 
         // Handle 6510 I/O port writes
@@ -161,6 +174,12 @@ public partial class Processor
     /// <param name="data">The data to write</param>
     public virtual void WriteMemoryValueWithoutIncrement(int address, byte data)
     {
+        if (MemoryMap != null)
+        {
+            MemoryMap.WriteWithoutCycle(address, data);
+            return;
+        }
+
         // Handle 6510 I/O port writes
         if (ProcessorType == ProcessorType.MOS6510)
         {
@@ -253,6 +272,12 @@ public partial class Processor
     /// <param name="program">The program to be loaded</param>
     public void LoadProgram(int offset, byte[] program)
     {
+        if (MemoryMap != null)
+        {
+            MemoryMap.LoadProgram(offset, program);
+            return;
+        }
+
         if (offset > Memory.Length)
             throw new InvalidOperationException("Offset '{0}' is larger than memory size '{1}'");
 

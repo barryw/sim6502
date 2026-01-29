@@ -25,6 +25,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using NLog;
 using System;
+using sim6502.Systems;
 
 namespace sim6502.Proc;
 
@@ -176,6 +177,12 @@ public partial class Processor
     /// Buffered trace lines for failure-only output
     /// </summary>
     private readonly System.Collections.Generic.List<string> _traceBuffer = new();
+
+    /// <summary>
+    /// The memory map implementation for this processor.
+    /// Allows system-specific memory banking and ROM overlays.
+    /// </summary>
+    public IMemoryMap? MemoryMap { get; private set; }
 
     #endregion
 

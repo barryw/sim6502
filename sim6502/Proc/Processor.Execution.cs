@@ -27,6 +27,7 @@ using NLog;
 using System;
 using System.ComponentModel;
 using System.Globalization;
+using sim6502.Systems;
 
 namespace sim6502.Proc
 {
@@ -58,6 +59,17 @@ namespace sim6502.Proc
             StackPointer = 0x100;
 
             CycleCountIncrementedAction = () => { };
+        }
+
+        /// <summary>
+        /// Constructor that creates a processor with a specific memory map.
+        /// </summary>
+        /// <param name="processorType">The processor variant to emulate</param>
+        /// <param name="memoryMap">The memory map implementation for system-specific memory banking</param>
+        public Processor(ProcessorType processorType, IMemoryMap memoryMap) : this(processorType)
+        {
+            MemoryMap = memoryMap;
+            MemoryMap.IncrementCycleCount = IncrementCycleCount;
         }
 
         /// <summary>
