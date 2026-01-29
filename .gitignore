@@ -1,3 +1,9 @@
 bin/
 obj/
 /packages/
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.toc
