@@ -31,7 +31,91 @@
 
 sim6502 is a tool to help you unit test your 6502 assembly language programs. It works by running your assembled programs with a 6502 simulator and then allowing you to make assertions on memory and CPU state.
 
-\section{Processor Selection}
+\section{System Emulation}
+
+sim6502 supports both simple processor emulation and full system emulation. The \texttt{system()} declaration is the recommended way to configure your test environment, as it provides proper memory mapping for specific systems.
+
+\subsection{Available Systems}
+
+\begin{itemize}
+    \item \textbf{c64} - Commodore 64 with full memory banking support
+    \item \textbf{generic\_6502} - Flat 64KB RAM with MOS 6502 processor
+    \item \textbf{generic\_6510} - Flat 64KB RAM with 6510 I/O port at \$00-\$01
+    \item \textbf{generic\_65c02} - Flat 64KB RAM with WDC 65C02 processor
+\end{itemize}
+
+\subsection{System Declaration}
+
+Use the \texttt{system()} statement at the beginning of a suite:
+
+\begin{verbatim}
+suites {
+  suite("C64 Tests") {
+    system(c64)
+
+    test("banking-test", "Test C64 memory banking") {
+      // Full C64 memory banking available
+    }
+  }
+}
+\end{verbatim}
+
+\subsection{C64 System}
+
+The C64 system provides accurate memory banking controlled by the 6510 processor port at \$01:
+
+\begin{itemize}
+    \item \textbf{LORAM (bit 0)} - BASIC ROM visibility at \$A000-\$BFFF
+    \item \textbf{HIRAM (bit 1)} - KERNAL ROM visibility at \$E000-\$FFFF
+    \item \textbf{CHAREN (bit 2)} - Character ROM vs I/O registers at \$D000-\$DFFF
+\end{itemize}
+
+\textbf{Critical behavior:} Writes \emph{always} go to RAM underneath, even when ROM is visible. This enables ``under-ROM'' RAM techniques commonly used in C64 programs.
+
+\begin{verbatim}
+suites {
+  suite("C64 Banking Example") {
+    system(c64)
+
+    test("write-under-rom", "Write to RAM under BASIC ROM") {
+      ; Write to RAM at $A000 (BASIC ROM region)
+      $A000 = $42
+
+      ; Bank out BASIC: $01 = $35 (LORAM=0)
+      $01 = $35
+
+      ; Execute code
+      $0300 = $60  ; RTS
+      jsr($0300, stop_on_rts = true, fail_on_brk = false)
+
+      ; Now RAM is visible at $A000
+      assert(peekbyte($A000) == $42, "RAM value visible")
+    }
+  }
+}
+\end{verbatim}
+
+\subsection{Loading ROMs}
+
+For systems that support ROMs (like C64), use the \texttt{rom()} declaration:
+
+\begin{verbatim}
+suites {
+  suite("C64 with Custom ROMs") {
+    system(c64)
+    rom("basic", "basic.rom")
+    rom("kernal", "kernal.rom")
+
+    test("with-roms", "Test with loaded ROMs") {
+      // ROMs are now available for banking
+    }
+  }
+}
+\end{verbatim}
+
+\section{Processor Selection (Legacy)}
+
+The \texttt{processor()} declaration is still supported for backward compatibility but is deprecated. Use \texttt{system()} instead for new code.
 
 sim6502 supports multiple processor variants in the 65xx family:
 
@@ -41,14 +125,14 @@ sim6502 supports multiple processor variants in the 65xx family:
     \item \textbf{65C02} - WDC CMOS variant with additional instructions
 \end{itemize}
 
-\subsection{Specifying Processor Type}
+\subsection{Specifying Processor Type (Deprecated)}
 
 Use the \texttt{processor()} statement at the beginning of a suite:
 
 \begin{verbatim}
 suites {
   suite("My 65C02 Tests") {
-    processor(65c02)
+    processor(65c02)  ; Deprecated - use system(generic_65c02)
 
     test("test-1", "Uses 65C02 opcodes") {
       // PHX, PLX, STZ, BRA, etc. available
@@ -57,7 +141,7 @@ suites {
 }
 \end{verbatim}
 
-If no \texttt{processor()} statement is specified, the default is 6502.
+If no \texttt{processor()} or \texttt{system()} statement is specified, the default is generic\_6502.
 
 \subsection{65C02 Additional Instructions}
 
@@ -163,35 +247,57 @@ LDA #$37
 STA $01
 \end{verbatim}
 
-\subsection{Processor Examples}
+\subsection{System Examples}
 
-\subsubsection{6502 Example}
+\subsubsection{Generic 6502 Example}
 
 \begin{verbatim}
 suites {
   suite("Standard 6502 Tests") {
-    processor(6502)  // Optional - this is the default
+    system(generic_6502)  ; Optional - this is the default
 
     test("basic-test", "Basic 6502 operation") {
       a = $42
+      $0300 = $60  ; RTS
+      jsr($0300, stop_on_rts = true, fail_on_brk = false)
       assert(a == $42, "Accumulator test")
     }
   }
 }
 \end{verbatim}
 
-\subsubsection{6510 Example}
+\subsubsection{Generic 6510 Example}
 
 \begin{verbatim}
 suites {
-  suite("C64 6510 Tests") {
-    processor(6510)
+  suite("6510 Tests") {
+    system(generic_6510)
 
     test("io-port", "Test 6510 I/O port") {
-      $00 = $2F   // Set DDR
-      $01 = $37   // Set data port (C64 standard)
-      assert($00 == $2F, "DDR configured")
-      assert($01 == $37, "Port configured")
+      $00 = $2F   ; Set DDR
+      $01 = $37   ; Set data port
+      $0300 = $60  ; RTS
+      jsr($0300, stop_on_rts = true, fail_on_brk = false)
+      assert(peekbyte($00) == $2F, "DDR configured")
+      assert(peekbyte($01) == $37, "Port configured")
+    }
+  }
+}
+\end{verbatim}
+
+\subsubsection{C64 Example}
+
+\begin{verbatim}
+suites {
+  suite("C64 Tests") {
+    system(c64)
+
+    test("banking", "Test C64 memory banking") {
+      $A000 = $42    ; Write RAM under BASIC
+      $01 = $35      ; Bank out BASIC
+      $0300 = $60    ; RTS
+      jsr($0300, stop_on_rts = true, fail_on_brk = false)
+      assert(peekbyte($A000) == $42, "RAM visible")
     }
   }
 }
@@ -202,18 +308,14 @@ suites {
 \begin{verbatim}
 suites {
   suite("WDC 65C02 Tests") {
-    processor(65c02)
+    system(generic_65c02)
 
     test("enhanced-ops", "Test 65C02 enhancements") {
       a = $41
-      x = $10
-      y = $20
-
-      // Use 65C02-specific instructions
-      // These would be assembled in your .prg file
-
+      $0310 = $1a  ; INC A
+      $0311 = $60  ; RTS
+      jsr($0310, stop_on_rts = true, fail_on_brk = false)
       assert(a == $42, "INC A worked")
-      assert(x == $11, "PHX/PLX preserved X")
     }
   }
 }
