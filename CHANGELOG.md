@@ -2,6 +2,29 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.9.0 - 2026-01-29
+#### Features
+- (**lsp**) implement DefinitionHandler for go-to-definition - (0b51521) - Barry Walker
+- (**lsp**) implement HoverHandler for keywords and symbols - (d21d7f4) - Barry Walker
+- (**lsp**) implement KickAssembler symbol file parser - (89ea650) - Barry Walker
+- (**lsp**) implement SymbolIndex for tracking symbols - (e1831ff) - Barry Walker
+- (**lsp**) implement code completion for keywords, registers, and functions - (4415885) - Barry Walker
+- (**lsp**) implement TextDocumentHandler with diagnostics publishing - (05e152b) - Barry Walker
+- (**lsp**) implement DiagnosticsProvider using ANTLR parser - (f66390e) - Barry Walker
+- (**lsp**) implement DocumentManager for tracking open files - (64430eb) - Barry Walker
+- (**lsp**) create sim6502-lsp project with OmniSharp dependencies - (17a1235) - Barry Walker
+- (**vscode**) create VS Code extension with syntax highlighting - (555050d) - Barry Walker
+#### Bug Fixes
+- (**lsp**) resolve NLog/DryIoc conflict and add editor docs - (1af1920) - Barry Walker
+#### Documentation
+- add Language Server documentation to README - (21a68f0) - Barry Walker
+- add language server implementation plan - (780c046) - Barry Walker
+- add language server design document - (094e0f4) - Barry Walker
+#### Tests
+- (**lsp**) create sim6502-lsp-tests project and fix NLog config - (5ffd59c) - Barry Walker
+
+- - -
+
 ## v3.8.0 - 2026-01-29
 #### Features
 - (**grammar**) implement system() and rom() handlers in SimBaseListener - (479b82a) - Barry Walker
