@@ -23,6 +23,7 @@ class Program
                 .WithHandler<TextDocumentHandler>()
                 .WithHandler<CompletionHandler>()
                 .WithHandler<HoverHandler>()
+                .WithHandler<DefinitionHandler>()
         );
 
         await server.WaitForExit;
