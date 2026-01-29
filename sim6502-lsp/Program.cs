@@ -22,6 +22,7 @@ class Program
                 .WithServices(ConfigureServices)
                 .WithHandler<TextDocumentHandler>()
                 .WithHandler<CompletionHandler>()
+                .WithHandler<HoverHandler>()
         );
 
         await server.WaitForExit;
@@ -32,5 +33,6 @@ class Program
         services.AddSingleton<DocumentManager>();
         services.AddSingleton<DiagnosticsProvider>();
         services.AddSingleton<CompletionProvider>();
+        services.AddSingleton<SymbolIndex>();
     }
 }
