@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sim6502tests", "sim6502test
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sim6502-lsp", "sim6502-lsp\sim6502-lsp.csproj", "{8BE1D5EF-0B45-4611-8A9A-CC6557E0458F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sim6502-lsp-tests", "sim6502-lsp-tests\sim6502-lsp-tests.csproj", "{53A67A34-E68B-4AAD-9F64-5AA3ED00310A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -52,6 +54,18 @@ Global
 		{8BE1D5EF-0B45-4611-8A9A-CC6557E0458F}.Release|x64.Build.0 = Release|Any CPU
 		{8BE1D5EF-0B45-4611-8A9A-CC6557E0458F}.Release|x86.ActiveCfg = Release|Any CPU
 		{8BE1D5EF-0B45-4611-8A9A-CC6557E0458F}.Release|x86.Build.0 = Release|Any CPU
+		{53A67A34-E68B-4AAD-9F64-5AA3ED00310A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{53A67A34-E68B-4AAD-9F64-5AA3ED00310A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{53A67A34-E68B-4AAD-9F64-5AA3ED00310A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{53A67A34-E68B-4AAD-9F64-5AA3ED00310A}.Debug|x64.Build.0 = Debug|Any CPU
+		{53A67A34-E68B-4AAD-9F64-5AA3ED00310A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{53A67A34-E68B-4AAD-9F64-5AA3ED00310A}.Debug|x86.Build.0 = Debug|Any CPU
+		{53A67A34-E68B-4AAD-9F64-5AA3ED00310A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{53A67A34-E68B-4AAD-9F64-5AA3ED00310A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{53A67A34-E68B-4AAD-9F64-5AA3ED00310A}.Release|x64.ActiveCfg = Release|Any CPU
+		{53A67A34-E68B-4AAD-9F64-5AA3ED00310A}.Release|x64.Build.0 = Release|Any CPU
+		{53A67A34-E68B-4AAD-9F64-5AA3ED00310A}.Release|x86.ActiveCfg = Release|Any CPU
+		{53A67A34-E68B-4AAD-9F64-5AA3ED00310A}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

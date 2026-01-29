@@ -19,4 +19,8 @@
     <ProjectReference Include="../sim6502/sim6502.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="nlog.config" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
