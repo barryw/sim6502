@@ -21,6 +21,7 @@ class Program
                     .SetMinimumLevel(LogLevel.Debug))
                 .WithServices(ConfigureServices)
                 .WithHandler<TextDocumentHandler>()
+                .WithHandler<CompletionHandler>()
         );
 
         await server.WaitForExit;
@@ -30,5 +31,6 @@ class Program
     {
         services.AddSingleton<DocumentManager>();
         services.AddSingleton<DiagnosticsProvider>();
+        services.AddSingleton<CompletionProvider>();
     }
 }
