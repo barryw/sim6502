@@ -1,0 +1,39 @@
+; Test processor() backward compatibility
+suites {
+  suite("Processor Backward Compatibility") {
+    processor(6502)
+
+    test("legacy-6502", "processor(6502) still works") {
+      a = $00
+      $0300 = $a9  ; LDA #
+      $0301 = $42
+      $0302 = $60  ; RTS
+      jsr($0300, stop_on_rts = true, fail_on_brk = false)
+      assert(a == $42, "LDA #$42 works with legacy processor()")
+    }
+  }
+
+  suite("Processor 6510 Backward Compat") {
+    processor(6510)
+
+    test("legacy-6510-io", "processor(6510) has I/O port") {
+      $01 = $37
+      ; Execute minimal routine
+      $0300 = $60  ; RTS
+      jsr($0300, stop_on_rts = true, fail_on_brk = false)
+      assert(peekbyte($01) == $37, "6510 I/O port works with legacy processor()")
+    }
+  }
+
+  suite("Processor 65C02 Backward Compat") {
+    processor(65c02)
+
+    test("legacy-65c02-opcodes", "processor(65c02) has new opcodes") {
+      a = $10
+      $0310 = $1a  ; INC A
+      $0311 = $60  ; RTS
+      jsr($0310, stop_on_rts = true, fail_on_brk = false)
+      assert(a == $11, "INC A works with legacy processor()")
+    }
+  }
+}

@@ -311,7 +311,12 @@ Register
     | RegX
     | RegY
     ;
-         
+
+// Processor type tokens must come BEFORE Int to avoid 6502/6510 being matched as integers
+ProcessorType6502:  '6502';
+ProcessorType6510:  '6510';
+ProcessorType65C02: '65c02' | '65C02';
+
 Int
     : [0-9]+
     ;
@@ -408,9 +413,6 @@ Trace:          'trace';
 Timeout:        'timeout';
 Tags:           'tags';
 Processor:      'processor';
-ProcessorType6502:  '6502';
-ProcessorType6510:  '6510';
-ProcessorType65C02: '65c02' | '65C02';
 System:             'system';
 Rom:                'rom';
 SystemC64:          'c64' | 'C64';
