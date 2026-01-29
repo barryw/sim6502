@@ -8,6 +8,7 @@ using sim6502.Errors;
 using sim6502.Expressions;
 using sim6502.Grammar.Generated;
 using sim6502.Proc;
+using sim6502.Systems;
 using sim6502.Utilities;
 
 namespace sim6502.Grammar
@@ -21,6 +22,10 @@ namespace sim6502.Grammar
 
         // Track the processor type for the current suite
         private ProcessorType _currentProcessorType = ProcessorType.MOS6502;
+
+        // Track system type and memory map for the current suite
+        private SystemType? _currentSystemType;
+        private IMemoryMap? _currentMemoryMap;
 
         /// <summary>
         /// Strip surrounding quotes from a string literal.
@@ -46,6 +51,23 @@ namespace sim6502.Grammar
                 return ProcessorType.WDC65C02;
 
             return ProcessorType.MOS6502; // default
+        }
+
+        /// <summary>
+        /// Get the SystemType from a systemTypeValue context.
+        /// </summary>
+        private SystemType GetSystemType(sim6502Parser.SystemTypeValueContext context)
+        {
+            if (context.SystemC64() != null)
+                return SystemType.C64;
+            if (context.SystemGeneric6502() != null)
+                return SystemType.Generic6502;
+            if (context.SystemGeneric6510() != null)
+                return SystemType.Generic6510;
+            if (context.SystemGeneric65C02() != null)
+                return SystemType.Generic65C02;
+
+            return SystemType.Generic6502; // default
         }
 
         /// <summary>
@@ -310,20 +332,46 @@ namespace sim6502.Grammar
 
         public override void EnterSuite(sim6502Parser.SuiteContext context)
         {
-            // Reset processor type to default at start of each suite
+            // Reset for new suite
+            _currentSystemType = null;
+            _currentMemoryMap = null;
             _currentProcessorType = ProcessorType.MOS6502;
 
-            // Check for processor declaration
-            var procDecl = context.processorDeclaration();
-            if (procDecl != null)
+            // Check for system declaration (takes precedence)
+            var sysDecl = context.systemDeclaration();
+            if (sysDecl != null)
             {
-                _currentProcessorType = GetProcessorType(procDecl.processorTypeValue());
-                Logger.Info($"Processor type set to: {_currentProcessorType}");
+                _currentSystemType = GetSystemType(sysDecl.systemTypeValue());
+                var (memMap, procType) = MemoryMapFactory.CreateForSystem(_currentSystemType.Value);
+                _currentMemoryMap = memMap;
+                _currentProcessorType = procType;
+                Logger.Info($"System type set to: {_currentSystemType} (processor: {_currentProcessorType})");
+            }
+            else
+            {
+                // Check for processor declaration (backward compat with deprecation warning)
+                var procDecl = context.processorDeclaration();
+                if (procDecl != null)
+                {
+                    _currentProcessorType = GetProcessorType(procDecl.processorTypeValue());
+                    var (memMap, _) = MemoryMapFactory.CreateForProcessor(_currentProcessorType);
+                    _currentMemoryMap = memMap;
+                    var systemName = _currentProcessorType.ToString().ToLower().Replace("mos", "").Replace("wdc", "");
+                    Logger.Warn($"processor() is deprecated - use system(generic_{systemName}) instead");
+                    Logger.Info($"Processor type set to: {_currentProcessorType}");
+                }
+                else
+                {
+                    // Default to generic 6502
+                    var (memMap, _) = MemoryMapFactory.CreateForProcessor(ProcessorType.MOS6502);
+                    _currentMemoryMap = memMap;
+                }
             }
 
-            // Create processor with the specified type
-            Proc = new Processor(_currentProcessorType);
+            // Create processor with memory map
+            Proc = new Processor(_currentProcessorType, _currentMemoryMap!);
             Proc.Reset();
+
             CurrentSuite = StripQuotes(context.suiteName().GetText());
             Logger.Info($"Running test suite '{CurrentSuite}'...");
         }
@@ -333,6 +381,54 @@ namespace sim6502.Grammar
             // Clear the setup block context when exiting the suite
             _currentSetupBlock = null;
             ResetSuite();
+        }
+
+        public override void ExitRomDeclaration(sim6502Parser.RomDeclarationContext context)
+        {
+            var romName = StripQuotes(context.romName().StringLiteral().GetText());
+            var romFilename = StripQuotes(context.romFilename().StringLiteral().GetText());
+            var filenameCtx = context.romFilename();
+
+            if (!File.Exists(romFilename))
+            {
+                Errors.AddError(
+                    ErrorPhase.Runtime,
+                    filenameCtx.Start.Line,
+                    filenameCtx.Start.Column,
+                    romFilename.Length + 2,
+                    $"ROM file not found: '{romFilename}'",
+                    null);
+                return;
+            }
+
+            if (_currentMemoryMap == null)
+            {
+                Errors.AddError(
+                    ErrorPhase.Runtime,
+                    context.Start.Line,
+                    context.Start.Column,
+                    10,
+                    "rom() requires a system or processor declaration",
+                    null);
+                return;
+            }
+
+            try
+            {
+                var romData = File.ReadAllBytes(romFilename);
+                _currentMemoryMap.LoadRom(romName, romData);
+                Logger.Info($"Loaded ROM '{romName}' from '{romFilename}' ({romData.Length} bytes)");
+            }
+            catch (Exception ex)
+            {
+                Errors.AddError(
+                    ErrorPhase.Runtime,
+                    filenameCtx.Start.Line,
+                    filenameCtx.Start.Column,
+                    romFilename.Length + 2,
+                    $"Failed to load ROM: {ex.Message}",
+                    null);
+            }
         }
 
         public override void ExitSuites(sim6502Parser.SuitesContext context)

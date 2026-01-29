@@ -70,6 +70,8 @@ namespace sim6502.Proc
         {
             MemoryMap = memoryMap;
             MemoryMap.IncrementCycleCount = IncrementCycleCount;
+            // Synchronize Memory property with the memory map's RAM
+            Memory = MemoryMap.GetRam();
         }
 
         /// <summary>
