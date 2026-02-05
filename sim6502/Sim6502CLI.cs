@@ -30,6 +30,7 @@ using Antlr4.Runtime;
 using Antlr4.Runtime.Tree;
 using CommandLine;
 using NLog;
+using sim6502.Backend;
 using sim6502.Errors;
 using sim6502.Grammar;
 using sim6502.Grammar.Generated;
@@ -79,6 +80,30 @@ namespace sim6502
 
             [Option("list", Required = false, HelpText = "List matching tests without running")]
             public bool ListOnly { get; set; }
+
+            [Option("backend", Required = false, Default = "sim",
+                HelpText = "Execution backend: 'sim' for internal simulator, 'vice' for VICE MCP")]
+            public string Backend { get; set; } = "sim";
+
+            [Option("vice-host", Required = false, Default = "127.0.0.1",
+                HelpText = "VICE MCP server host")]
+            public string ViceHost { get; set; } = "127.0.0.1";
+
+            [Option("vice-port", Required = false, Default = 6510,
+                HelpText = "VICE MCP server port")]
+            public int VicePort { get; set; } = 6510;
+
+            [Option("vice-timeout", Required = false, Default = 5000,
+                HelpText = "Timeout in ms for VICE execution per test")]
+            public int ViceTimeout { get; set; } = 5000;
+
+            [Option("vice-warp", Required = false, Default = true,
+                HelpText = "Enable warp mode in VICE during tests")]
+            public bool ViceWarp { get; set; } = true;
+
+            [Option("launch-vice", Required = false, Default = false,
+                HelpText = "Auto-launch VICE process")]
+            public bool LaunchVice { get; set; }
         }
 
         private static int Main(string[] args)
@@ -151,7 +176,15 @@ namespace sim6502
                 FilterTags = opts.FilterTags,
                 ExcludeTags = opts.ExcludeTags,
                 ListOnly = opts.ListOnly,
-                Errors = collector
+                Errors = collector,
+                BackendType = opts.Backend,
+                ViceConfig = opts.Backend == "vice" ? new ViceBackendConfig
+                {
+                    Host = opts.ViceHost,
+                    Port = opts.VicePort,
+                    TimeoutMs = opts.ViceTimeout,
+                    WarpMode = opts.ViceWarp
+                } : null
             };
 
             walker.Walk(sbl, tree);

@@ -154,6 +154,11 @@ namespace sim6502.Grammar
         // Track whether we're currently walking the setup block definition (not executing it)
         private bool _inSetupBlockDefinition;
 
+        // VICE snapshot support for test isolation
+        private bool _suiteBaselineSaved;
+        private string _suiteSnapshotName = "";
+        private int _suiteIndex;
+
         // Test options
         private bool _currentTestSkipped;
         private bool _currentTestExplicitlySkipped;  // For tests with skip = true
@@ -167,6 +172,10 @@ namespace sim6502.Grammar
         public string? FilterTags { get; set; }
         public string? ExcludeTags { get; set; }
         public bool ListOnly { get; set; }
+
+        // Backend configuration
+        public string BackendType { get; set; } = "sim";
+        public ViceBackendConfig? ViceConfig { get; set; }
 
         // Error collector for semantic errors
         public ErrorCollector Errors { get; set; } = new();
@@ -189,7 +198,10 @@ namespace sim6502.Grammar
             Backend.ResetCycleCount();
             Backend.TraceEnabled = false;
             Backend.ClearTraceBuffer();
-            LoadResources();
+
+            // Only reload resources for simulator backend (VICE uses snapshots)
+            if (BackendType != "vice")
+                LoadResources();
         }
 
         private void FailAssertion(string message)
@@ -374,7 +386,10 @@ namespace sim6502.Grammar
             }
 
             // Create processor with memory map
-            Backend = new SimulatorBackend(_currentProcessorType, _currentMemoryMap!);
+            Backend = BackendFactory.Create(BackendType, _currentProcessorType, _currentMemoryMap!, ViceConfig);
+
+            _suiteBaselineSaved = false;
+            _suiteSnapshotName = $"sim6502_suite_{_suiteIndex++}";
 
             CurrentSuite = StripQuotes(context.suiteName().GetText());
             Logger.Info($"Running test suite '{CurrentSuite}'...");
@@ -384,6 +399,7 @@ namespace sim6502.Grammar
         {
             // Clear the setup block context when exiting the suite
             _currentSetupBlock = null;
+            Backend?.Dispose();
             ResetSuite();
         }
 
@@ -884,6 +900,19 @@ namespace sim6502.Grammar
 
         public override void EnterTestFunction(sim6502Parser.TestFunctionContext context)
         {
+            // Save baseline snapshot on first test of suite (after all load() calls processed)
+            if (!_suiteBaselineSaved && BackendType == "vice")
+            {
+                Backend.SaveSnapshot(_suiteSnapshotName);
+                _suiteBaselineSaved = true;
+            }
+
+            // Restore snapshot before each test for VICE backend
+            if (_suiteBaselineSaved && BackendType == "vice")
+            {
+                Backend.RestoreSnapshot(_suiteSnapshotName);
+            }
+
             ResetTest();
 
             // Parse test options if present
