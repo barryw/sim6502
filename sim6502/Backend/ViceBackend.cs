@@ -316,6 +316,13 @@ public class ViceBackend : IExecutionBackend
     public void LoadSymbols(string path)
     {
         Logger.Info($"Loading symbols into VICE: {path}");
+        var args = new Dictionary<string, object>
+        {
+            { "path", path }
+        };
+        var result = _connection.CallTool("vice.symbols.load", args);
+        if (!result.IsSuccess)
+            Logger.Warn($"Failed to load symbols into VICE: {result.ErrorMessage}");
     }
 
     public void SaveSnapshot(string name)

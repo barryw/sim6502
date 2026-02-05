@@ -840,6 +840,12 @@ namespace sim6502.Grammar
             var symbols = File.ReadAllText(filename);
             Symbols = new SymbolFile(symbols);
             Logger.Trace($"{Symbols.SymbolCount.ToString()} symbols loaded.");
+
+            // Also load symbols into VICE backend for VICE debugging features
+            if (BackendType == "vice")
+            {
+                Backend.LoadSymbols(filename);
+            }
         }
 
         public override void ExitLoadFunction(sim6502Parser.LoadFunctionContext context)
