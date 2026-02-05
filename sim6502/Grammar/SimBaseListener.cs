@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using Antlr4.Runtime.Tree;
 using NLog;
+using sim6502.Backend;
 using sim6502.Errors;
 using sim6502.Expressions;
 using sim6502.Grammar.Generated;
@@ -170,7 +171,8 @@ namespace sim6502.Grammar
         // Error collector for semantic errors
         public ErrorCollector Errors { get; set; } = new();
 
-        public Processor Proc { get; set; }
+        public IExecutionBackend Backend { get; set; }
+        public Processor? Proc => (Backend as SimulatorBackend)?.Processor;
         public SymbolFile Symbols { get; set; }
 
         private string CurrentSuite { get; set; }
@@ -184,9 +186,9 @@ namespace sim6502.Grammar
             _currentTestTraceEnabled = false;
             _currentTestTimeout = 0;
             _currentTestTags = "";
-            Proc.ResetCycleCount();
-            Proc.TraceEnabled = false;
-            Proc.ClearTraceBuffer();
+            Backend.ResetCycleCount();
+            Backend.TraceEnabled = false;
+            Backend.ClearTraceBuffer();
             LoadResources();
         }
 
@@ -264,7 +266,7 @@ namespace sim6502.Grammar
 
         private void OutputTrace()
         {
-            var trace = Proc.GetTraceBuffer();
+            var trace = Backend.GetTraceBuffer();
             if (trace.Count == 0) return;
 
             Logger.Info("");
@@ -304,7 +306,10 @@ namespace sim6502.Grammar
         {
             foreach (var lr in _suiteResources)
             {
-                Utility.LoadFileIntoProcessor(Proc, lr.LoadAddress, lr.Filename, lr.StripHeader);
+                var data = File.ReadAllBytes(lr.Filename);
+                if (lr.StripHeader && data.Length >= 2)
+                    data = data[2..];
+                Backend.LoadBinary(data, lr.LoadAddress);
             }
         }
         
@@ -369,8 +374,7 @@ namespace sim6502.Grammar
             }
 
             // Create processor with memory map
-            Proc = new Processor(_currentProcessorType, _currentMemoryMap!);
-            Proc.Reset();
+            Backend = new SimulatorBackend(_currentProcessorType, _currentMemoryMap!);
 
             CurrentSuite = StripQuotes(context.suiteName().GetText());
             Logger.Info($"Running test suite '{CurrentSuite}'...");
@@ -614,7 +618,7 @@ namespace sim6502.Grammar
 
             if (!_inSetupBlockDefinition && !_currentTestSkipped && addrValid && valValid)
             {
-                Proc.WriteMemoryValue(address, value);
+                Backend.WriteMemoryValue(address, value);
             }
         }
 
@@ -632,7 +636,7 @@ namespace sim6502.Grammar
 
             if (!_inSetupBlockDefinition && !_currentTestSkipped && addrValid && valValid)
             {
-                WriteValueToMemory(address, value);
+                Backend.WriteMemoryValue(address, value);
             }
         }
 
@@ -644,7 +648,7 @@ namespace sim6502.Grammar
 
             if (!_inSetupBlockDefinition && !_currentTestSkipped)
             {
-                WriteValueToMemory(address, value);
+                Backend.WriteMemoryValue(address, value);
             }
         }
 
@@ -656,7 +660,7 @@ namespace sim6502.Grammar
 
             if (!_inSetupBlockDefinition && !_currentTestSkipped)
             {
-                Proc.WriteMemoryValueWithoutIncrement(address, (byte)value);
+                Backend.WriteByte(address, (byte)value);
                 Logger.Trace($"Stored register value ${value:X2} to ${address:X4}");
             }
         }
@@ -674,20 +678,14 @@ namespace sim6502.Grammar
 
             if (!_inSetupBlockDefinition && !_currentTestSkipped)
             {
-                Proc.WriteMemoryValueWithoutIncrement(address, (byte)value);
+                Backend.WriteByte(address, (byte)value);
                 Logger.Trace($"Stored register value ${value:X2} to ${address:X4}");
             }
         }
 
         private int GetRegisterValue(string register)
         {
-            return register.ToLower() switch
-            {
-                "a" => Proc.Accumulator,
-                "x" => Proc.XRegister,
-                "y" => Proc.YRegister,
-                _ => throw new InvalidOperationException($"Unknown register: {register}")
-            };
+            return Backend.GetRegister(register.ToLower());
         }
 
         public override void ExitRegisterAssignment(sim6502Parser.RegisterAssignmentContext context)
@@ -705,21 +703,8 @@ namespace sim6502.Grammar
             }
             else
             {
-                switch (register)
-                {
-                    case "a":
-                        Proc.Accumulator = exp;
-                        Logger.Trace($"Setting accumulator to {exp.ToString()}");
-                        break;
-                    case "x":
-                        Proc.XRegister = exp;
-                        Logger.Trace($"Setting x register to {exp.ToString()}");
-                        break;
-                    case "y":
-                        Proc.YRegister = exp;
-                        Logger.Trace($"Setting y register to {exp.ToString()}");
-                        break;
-                }
+                Backend.SetRegister(register, exp);
+                Logger.Trace($"Setting {register} register to {exp.ToString()}");
             }
         }
         
@@ -738,35 +723,10 @@ namespace sim6502.Grammar
             if (_inSetupBlockDefinition || _currentTestSkipped)
                 return;
 
-            switch (flag)
-            {
-                case "c":
-                    Proc.CarryFlag = val;
-                    break;
-                case "n":
-                    Proc.NegativeFlag = val;
-                    break;
-                case "z":
-                    Proc.ZeroFlag = val;
-                    break;
-                case "v":
-                    Proc.OverflowFlag = val;
-                    break;
-                case "d":
-                    Proc.DecimalFlag = val;
-                    break;
-                default:
-                    FailAssertion($"Invalid flag {flag} attempted to be set to {val.ToString()}.");
-                    break;
-            }
+            Backend.SetFlag(flag, val);
             Logger.Trace($"{flag} is being set to {val.ToString()}");
         }
-        
-        private void WriteValueToMemory(int address, int value)
-        {
-            Proc.WriteMemoryValue(address, value);
-        }
-        
+
         #endregion
         
         #region Compares
@@ -786,12 +746,12 @@ namespace sim6502.Grammar
             else if (bw.GetText().ToLower().Equals(".b"))
             {
                 // .b suffix - read byte from memory at address
-                value = Proc.ReadMemoryValueWithoutCycle(exprValue);
+                value = Backend.ReadByte(exprValue);
             }
             else // .w
             {
                 // .w suffix - read word from memory at address
-                value = Proc.ReadMemoryWordWithoutCycle(exprValue);
+                value = Backend.ReadWord(exprValue);
             }
 
             SetIntValue(context, value);
@@ -800,39 +760,25 @@ namespace sim6502.Grammar
         public override void ExitAddressCompare(sim6502Parser.AddressCompareContext context)
         {
             var address = GetIntValue(context.address());
-            var value = Proc.ReadMemoryValueWithoutCycle(address);
+            var value = Backend.ReadByte(address);
 
-            SetIntValue(context, value);  
+            SetIntValue(context, value);
         } 
 
         public override void ExitRegisterCompare(sim6502Parser.RegisterCompareContext context)
         {
             var register = context.Register().GetText();
-            var value = register switch
-            {
-                "a" => Proc.Accumulator,
-                "x" => Proc.XRegister,
-                "y" => Proc.YRegister,
-                _ => -1
-            };
+            var value = Backend.GetRegister(register);
 
             Logger.Trace($"Register {register} has a value of {value.ToString()}");
             SetIntValue(context, value);
         }
-        
+
         public override void ExitFlagCompare(sim6502Parser.FlagCompareContext context)
         {
             var flag = context.ProcessorFlag().GetText();
-            var value = flag switch
-            {
-                "c" => Proc.CarryFlag ? 1 : 0,
-                "z" => Proc.ZeroFlag ? 1 : 0,
-                "d" => Proc.DecimalFlag ? 1 : 0,
-                "v" => Proc.OverflowFlag ? 1 : 0,
-                "n" => Proc.NegativeFlag ? 1 : 0,
-                _ => 0
-            };
-            
+            var value = Backend.GetFlag(flag) ? 1 : 0;
+
             Logger.Trace($"Flag {flag} has a value of {value.ToString()}");
             SetIntValue(context, value);
         }
@@ -850,8 +796,8 @@ namespace sim6502.Grammar
             SetBoolValue(context, res.ComparisonPassed);
         }
 
-        public override void ExitCyclesCompare(sim6502Parser.CyclesCompareContext context) => SetIntValue(context, 
-            Proc.CycleCount);
+        public override void ExitCyclesCompare(sim6502Parser.CyclesCompareContext context) => SetIntValue(context,
+            Backend.GetCycles());
 
         #endregion
         
@@ -1010,8 +956,8 @@ namespace sim6502.Grammar
             // Enable trace buffering if requested
             if (_currentTestTraceEnabled)
             {
-                Proc.TraceEnabled = true;
-                Proc.ClearTraceBuffer();
+                Backend.TraceEnabled = true;
+                Backend.ClearTraceBuffer();
                 Logger.Trace("Trace buffering enabled for test");
             }
 
@@ -1102,7 +1048,7 @@ namespace sim6502.Grammar
             var size = GetIntValue(context.memorySize());
             var value = GetIntValue(context.memoryValue());
 
-            var mc = new MemoryCompare(Proc);
+            var mc = new MemoryCompare(Backend);
             var chk = mc.MemoryChk(source, size, value);
             if (!chk.ComparisonPassed)
             {
@@ -1121,7 +1067,7 @@ namespace sim6502.Grammar
             var target = GetIntValue(context.targetAddress());
             var size = GetIntValue(context.memorySize());
             
-            var mc = new MemoryCompare(Proc);
+            var mc = new MemoryCompare(Backend);
             var cmp = mc.MemoryCmp(source, target, size);
             if (!cmp.ComparisonPassed)
             {
@@ -1132,10 +1078,10 @@ namespace sim6502.Grammar
         }
         
         public override void ExitPeekByteFunction(sim6502Parser.PeekByteFunctionContext context) => SetIntValue(context,
-            Proc.ReadMemoryValueWithoutCycle(GetIntValue(context.expression())));
+            Backend.ReadByte(GetIntValue(context.expression())));
 
-        public override void ExitPeekWordFunction(sim6502Parser.PeekWordFunctionContext context) => SetIntValue(context, 
-            Proc.ReadMemoryWordWithoutCycle(GetIntValue(context.expression())));
+        public override void ExitPeekWordFunction(sim6502Parser.PeekWordFunctionContext context) => SetIntValue(context,
+            Backend.ReadWord(GetIntValue(context.expression())));
 
         public override void ExitJsrFunction(sim6502Parser.JsrFunctionContext context)
         {
@@ -1161,8 +1107,8 @@ namespace sim6502.Grammar
             Logger.Trace($"JSR address = {address.ToString()}");
             Logger.Trace($"JSR fail_on_brk = {failOnBrk.ToString()}");
 
-            var finishedCleanly = Proc.RunRoutine(address, stopOnAddress, stopOnRts, failOnBrk);
-            if (!finishedCleanly)
+            var result = Backend.ExecuteJsr(address, stopOnAddress, stopOnRts, failOnBrk);
+            if (!result.ExitedCleanly)
             {
                 FailAssertion($"JSR call to {address.ToString()} returned an error.");
             }
@@ -1223,7 +1169,7 @@ namespace sim6502.Grammar
 
             for (var i = 0; i < count; i++)
             {
-                Proc.WriteMemoryValueWithoutIncrement(address + i, (byte)(value & 0xFF));
+                Backend.WriteByte(address + i, (byte)(value & 0xFF));
             }
         }
 
@@ -1275,7 +1221,7 @@ namespace sim6502.Grammar
 
                 for (var i = 0; i < 8 && offset + i < count; i++)
                 {
-                    var b = Proc.ReadMemoryValueWithoutCycle(lineAddr + i);
+                    var b = Backend.ReadByte(lineAddr + i);
                     bytes.Append($"{b:X2} ");
                     // ASCII printable range: 0x20 (space) to 0x7E (tilde), excluding 0x7F (DEL)
                     ascii.Append(b >= 0x20 && b < 0x7F ? (char)b : '.');

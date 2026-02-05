@@ -1,14 +1,14 @@
-using sim6502.Proc;
+using sim6502.Backend;
 
 namespace sim6502.Expressions
 {
     public class BaseCompare
     {
-        protected readonly Processor Proc;
+        protected readonly IExecutionBackend Backend;
 
-        protected BaseCompare(Processor proc)
+        protected BaseCompare(IExecutionBackend backend)
         {
-            Proc = proc;
+            Backend = backend;
         }
         
         public static ComparisonResult CompareValues(int expected, int actual, string op)

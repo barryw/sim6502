@@ -1,21 +1,21 @@
-using sim6502.Proc;
+using sim6502.Backend;
 
 namespace sim6502.Expressions
 {
     public class MemoryCompare : BaseCompare
     {
-        public MemoryCompare(Processor proc) : base(proc)
+        public MemoryCompare(IExecutionBackend backend) : base(backend)
         {
         }
         
         public ComparisonResult MemoryCmp(int source, int target, int count)
         {
             var res = new ComparisonResult();
-            
+
             for (var i = 0; i < count; i++)
             {
-                var sourceValue = Proc.ReadMemoryValueWithoutCycle(source + i);
-                var targetValue = Proc.ReadMemoryValueWithoutCycle(target + i);
+                var sourceValue = Backend.ReadByte(source + i);
+                var targetValue = Backend.ReadByte(target + i);
 
                 if (sourceValue == targetValue) continue;
                 
@@ -32,10 +32,10 @@ namespace sim6502.Expressions
         public ComparisonResult MemoryChk(int source, int count, int value)
         {
             var res = new ComparisonResult();
-            
+
             for (var i = source; i < source + count; i++)
             {
-                var actualValue = Proc.ReadMemoryValueWithoutCycle(i);
+                var actualValue = Backend.ReadByte(i);
                 if (actualValue == value) continue;
                 
                 res.FailureMessage = $"Expected value at memory location {i.ToString()} to be {value.ToString()}, " +
@@ -49,8 +49,8 @@ namespace sim6502.Expressions
 
         public ComparisonResult MemoryVal(int location, int value, string op = "==")
         {
-            var actual = value > 255 ? Proc.ReadMemoryWordWithoutCycle(location) : 
-                Proc.ReadMemoryValueWithoutCycle(location);
+            var actual = value > 255 ? Backend.ReadWord(location) :
+                Backend.ReadByte(location);
 
             var res = CompareValues(value, actual, op);
             
