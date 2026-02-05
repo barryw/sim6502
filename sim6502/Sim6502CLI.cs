@@ -141,68 +141,82 @@ namespace sim6502
 
         private static int RunTests(Options opts)
         {
-            // Create error collector and load source
-            var collector = new ErrorCollector();
-            var source = File.ReadAllText(opts.SuiteFile);
-            collector.SetSource(source, opts.SuiteFile);
-
-            // Setup lexer with error listener
-            var inputStream = new AntlrInputStream(source);
-            var lexer = new sim6502Lexer(inputStream);
-            lexer.RemoveErrorListeners();
-            lexer.AddErrorListener(new SimErrorListener(collector));
-
-            // Setup parser with error listener
-            var tokens = new CommonTokenStream(lexer);
-            var parser = new sim6502Parser(tokens) { BuildParseTree = true };
-            parser.RemoveErrorListeners();
-            parser.AddErrorListener(new SimErrorListener(collector));
-
-            // Parse
-            var tree = parser.suites();
-
-            // Check for parse errors - don't walk a broken tree
-            if (collector.HasErrors)
+            ViceLauncher? viceLauncher = null;
+            try
             {
-                return ReportErrorsAndExit(collector, ExitCode.ParseError);
-            }
-
-            // Walk tree, collecting semantic/runtime errors
-            var walker = new ParseTreeWalker();
-            var sbl = new SimBaseListener
-            {
-                FilterPattern = opts.FilterPattern,
-                SingleTest = opts.SingleTest,
-                FilterTags = opts.FilterTags,
-                ExcludeTags = opts.ExcludeTags,
-                ListOnly = opts.ListOnly,
-                Errors = collector,
-                BackendType = opts.Backend,
-                ViceConfig = opts.Backend == "vice" ? new ViceBackendConfig
+                if (opts.LaunchVice && opts.Backend == "vice")
                 {
-                    Host = opts.ViceHost,
-                    Port = opts.VicePort,
-                    TimeoutMs = opts.ViceTimeout,
-                    WarpMode = opts.ViceWarp
-                } : null
-            };
+                    viceLauncher = new ViceLauncher(opts.VicePort);
+                    viceLauncher.Launch();
+                }
 
-            walker.Walk(sbl, tree);
+                // Create error collector and load source
+                var collector = new ErrorCollector();
+                var source = File.ReadAllText(opts.SuiteFile);
+                collector.SetSource(source, opts.SuiteFile);
 
-            // Check for semantic errors
-            if (collector.HasErrors)
-            {
-                return ReportErrorsAndExit(collector, ExitCode.SemanticError);
+                // Setup lexer with error listener
+                var inputStream = new AntlrInputStream(source);
+                var lexer = new sim6502Lexer(inputStream);
+                lexer.RemoveErrorListeners();
+                lexer.AddErrorListener(new SimErrorListener(collector));
+
+                // Setup parser with error listener
+                var tokens = new CommonTokenStream(lexer);
+                var parser = new sim6502Parser(tokens) { BuildParseTree = true };
+                parser.RemoveErrorListeners();
+                parser.AddErrorListener(new SimErrorListener(collector));
+
+                // Parse
+                var tree = parser.suites();
+
+                // Check for parse errors - don't walk a broken tree
+                if (collector.HasErrors)
+                {
+                    return ReportErrorsAndExit(collector, ExitCode.ParseError);
+                }
+
+                // Walk tree, collecting semantic/runtime errors
+                var walker = new ParseTreeWalker();
+                var sbl = new SimBaseListener
+                {
+                    FilterPattern = opts.FilterPattern,
+                    SingleTest = opts.SingleTest,
+                    FilterTags = opts.FilterTags,
+                    ExcludeTags = opts.ExcludeTags,
+                    ListOnly = opts.ListOnly,
+                    Errors = collector,
+                    BackendType = opts.Backend,
+                    ViceConfig = opts.Backend == "vice" ? new ViceBackendConfig
+                    {
+                        Host = opts.ViceHost,
+                        Port = opts.VicePort,
+                        TimeoutMs = opts.ViceTimeout,
+                        WarpMode = opts.ViceWarp
+                    } : null
+                };
+
+                walker.Walk(sbl, tree);
+
+                // Check for semantic errors
+                if (collector.HasErrors)
+                {
+                    return ReportErrorsAndExit(collector, ExitCode.SemanticError);
+                }
+
+                // Report any warnings (but don't fail)
+                if (collector.HasWarnings)
+                {
+                    var output = ErrorRenderer.Render(collector);
+                    Console.Error.WriteLine(output);
+                }
+
+                return sbl.TotalSuitesFailed == 0 ? ExitCode.Success : ExitCode.TestFailure;
             }
-
-            // Report any warnings (but don't fail)
-            if (collector.HasWarnings)
+            finally
             {
-                var output = ErrorRenderer.Render(collector);
-                Console.Error.WriteLine(output);
+                viceLauncher?.Dispose();
             }
-
-            return sbl.TotalSuitesFailed == 0 ? ExitCode.Success : ExitCode.TestFailure;
         }
 
         private static int ReportErrorsAndExit(ErrorCollector collector, int exitCode)
