@@ -7,13 +7,19 @@ public class ViceBackend : IExecutionBackend
 {
     private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
 
-    private readonly ViceConnection _connection;
+    private readonly IViceConnection _connection;
     private readonly ViceBackendConfig _config;
 
     public ViceBackend(ViceBackendConfig config)
     {
         _config = config;
         _connection = new ViceConnection(config.Host, config.Port);
+    }
+
+    internal ViceBackend(ViceBackendConfig config, IViceConnection connection)
+    {
+        _config = config;
+        _connection = connection;
     }
 
     public void Connect()
@@ -39,11 +45,11 @@ public class ViceBackend : IExecutionBackend
 
     public void LoadBinary(byte[] data, int address)
     {
-        var hexData = Convert.ToHexString(data);
+        var dataArray = data.Select(b => (object)(int)b).ToArray();
         var args = new Dictionary<string, object>
         {
             { "address", address },
-            { "data", hexData }
+            { "data", dataArray }
         };
         var result = _connection.CallTool("vice.memory.write", args);
         if (!result.IsSuccess)
@@ -55,7 +61,7 @@ public class ViceBackend : IExecutionBackend
         var args = new Dictionary<string, object>
         {
             { "address", address },
-            { "data", value.ToString("X2") }
+            { "data", new[] { (int)value } }
         };
         _connection.CallTool("vice.memory.write", args);
     }
@@ -88,8 +94,9 @@ public class ViceBackend : IExecutionBackend
             throw new InvalidOperationException($"Failed to read memory at ${address:X4}: {result.ErrorMessage}");
 
         var content = JsonDocument.Parse(result.Content);
-        var data = content.RootElement.GetProperty("data").GetString() ?? "";
-        return Convert.ToByte(data[..2], 16);
+        var dataArray = content.RootElement.GetProperty("data");
+        var hexByte = dataArray[0].GetString() ?? "00";
+        return Convert.ToByte(hexByte, 16);
     }
 
     public int ReadWord(int address)
@@ -129,46 +136,25 @@ public class ViceBackend : IExecutionBackend
             throw new InvalidOperationException($"Failed to get flags: {result.ErrorMessage}");
 
         var content = JsonDocument.Parse(result.Content);
-        var flags = content.RootElement.GetProperty("P").GetInt32();
+        var flagName = name.ToUpper();
 
-        return name.ToLower() switch
-        {
-            "c" => (flags & 0x01) != 0,
-            "z" => (flags & 0x02) != 0,
-            "d" => (flags & 0x08) != 0,
-            "v" => (flags & 0x40) != 0,
-            "n" => (flags & 0x80) != 0,
-            _ => throw new ArgumentException($"Unknown flag: {name}")
-        };
+        if (!content.RootElement.TryGetProperty(flagName, out var flagElement))
+            throw new ArgumentException($"Unknown flag: {name}");
+
+        return flagElement.GetBoolean();
     }
 
     public void SetFlag(string name, bool value)
     {
-        var result = _connection.CallTool("vice.registers.get");
-        if (!result.IsSuccess)
-            throw new InvalidOperationException($"Failed to get flags: {result.ErrorMessage}");
-
-        var content = JsonDocument.Parse(result.Content);
-        var flags = content.RootElement.GetProperty("P").GetInt32();
-
-        var bit = name.ToLower() switch
-        {
-            "c" => 0x01,
-            "z" => 0x02,
-            "d" => 0x08,
-            "v" => 0x40,
-            "n" => 0x80,
-            _ => throw new ArgumentException($"Unknown flag: {name}")
-        };
-
-        flags = value ? flags | bit : flags & ~bit;
-
+        var flagName = name.ToUpper();
         var args = new Dictionary<string, object>
         {
-            { "register", "P" },
-            { "value", flags }
+            { "register", flagName },
+            { "value", value ? 1 : 0 }
         };
-        _connection.CallTool("vice.registers.set", args);
+        var result = _connection.CallTool("vice.registers.set", args);
+        if (!result.IsSuccess)
+            throw new InvalidOperationException($"Failed to set flag {name}: {result.ErrorMessage}");
     }
 
     public ExecutionResult ExecuteJsr(int address, int stopOnAddress, bool stopOnRts, bool failOnBrk)
@@ -198,28 +184,28 @@ public class ViceBackend : IExecutionBackend
 
         if (stopOnRts)
         {
-            var bpResult = _connection.CallTool("vice.breakpoints.set", new Dictionary<string, object>
+            var bpResult = _connection.CallTool("vice.checkpoint.add", new Dictionary<string, object>
             {
-                { "address", 0x0000 }
+                { "start", 0x0000 }
             });
             if (bpResult.IsSuccess)
             {
                 var bpDoc = JsonDocument.Parse(bpResult.Content);
-                if (bpDoc.RootElement.TryGetProperty("id", out var bpId))
+                if (bpDoc.RootElement.TryGetProperty("checkpoint_num", out var bpId))
                     breakpoints.Add(bpId.GetInt32());
             }
         }
 
         if (stopOnAddress > 0)
         {
-            var bpResult = _connection.CallTool("vice.breakpoints.set", new Dictionary<string, object>
+            var bpResult = _connection.CallTool("vice.checkpoint.add", new Dictionary<string, object>
             {
-                { "address", stopOnAddress }
+                { "start", stopOnAddress }
             });
             if (bpResult.IsSuccess)
             {
                 var bpDoc = JsonDocument.Parse(bpResult.Content);
-                if (bpDoc.RootElement.TryGetProperty("id", out var bpId))
+                if (bpDoc.RootElement.TryGetProperty("checkpoint_num", out var bpId))
                     breakpoints.Add(bpId.GetInt32());
             }
         }
@@ -227,35 +213,21 @@ public class ViceBackend : IExecutionBackend
         // 5. Run execution
         _connection.CallTool("vice.execution.run");
 
-        // 6. Wait for execution to stop (poll)
-        var startTime = DateTime.UtcNow;
-        var stopped = false;
+        // 6. Wait for execution to stop — the next tool call blocks via VICE trap
+        //    until CPU hits breakpoint or times out (5 seconds server-side).
+        //    We read registers which will block until paused.
+        var finalRegs = _connection.CallTool("vice.registers.get");
+        var stopped = finalRegs.IsSuccess;
         var hitBrk = false;
-
-        while (!stopped && (DateTime.UtcNow - startTime).TotalMilliseconds < _config.TimeoutMs)
-        {
-            Thread.Sleep(10);
-
-            var stateResult = _connection.CallTool("vice.execution.get_state");
-            if (!stateResult.IsSuccess) continue;
-
-            var stateDoc = JsonDocument.Parse(stateResult.Content);
-            if (stateDoc.RootElement.TryGetProperty("state", out var stateElem))
-            {
-                var state = stateElem.GetString();
-                if (state == "PAUSED" || state == "BREAKPOINT")
-                    stopped = true;
-            }
-        }
 
         if (!stopped)
         {
+            // Trap timed out or error — force pause
             _connection.CallTool("vice.execution.pause");
-            Logger.Warn($"Execution timed out after {_config.TimeoutMs}ms");
+            Logger.Warn("Execution may have timed out");
         }
 
         // 7. Read final state
-        var finalRegs = _connection.CallTool("vice.registers.get");
         var finalDoc = JsonDocument.Parse(finalRegs.Content);
         var finalPc = finalDoc.RootElement.GetProperty("PC").GetInt32();
 
@@ -267,14 +239,17 @@ public class ViceBackend : IExecutionBackend
         // 8. Clean up breakpoints
         foreach (var bpId in breakpoints)
         {
-            _connection.CallTool("vice.breakpoints.delete", new Dictionary<string, object>
+            _connection.CallTool("vice.checkpoint.delete", new Dictionary<string, object>
             {
-                { "id", bpId }
+                { "checkpoint_num", bpId }
             });
         }
 
         // 9. Get cycles
-        var cycleResult = _connection.CallTool("vice.trace.cycles.get");
+        var cycleResult = _connection.CallTool("vice.cycles.stopwatch", new Dictionary<string, object>
+        {
+            { "action", "read" }
+        });
         long cycles = 0;
         if (cycleResult.IsSuccess)
         {
@@ -299,7 +274,8 @@ public class ViceBackend : IExecutionBackend
 
     public int GetCycles()
     {
-        var result = _connection.CallTool("vice.trace.cycles.get");
+        var args = new Dictionary<string, object> { { "action", "read" } };
+        var result = _connection.CallTool("vice.cycles.stopwatch", args);
         if (!result.IsSuccess) return 0;
 
         var doc = JsonDocument.Parse(result.Content);
@@ -310,7 +286,8 @@ public class ViceBackend : IExecutionBackend
 
     public void ResetCycleCount()
     {
-        _connection.CallTool("vice.trace.cycles.reset");
+        var args = new Dictionary<string, object> { { "action", "reset" } };
+        _connection.CallTool("vice.cycles.stopwatch", args);
     }
 
     public void LoadSymbols(string path)
@@ -345,7 +322,7 @@ public class ViceBackend : IExecutionBackend
 
     public void Reset()
     {
-        _connection.CallTool("vice.execution.reset", new Dictionary<string, object>
+        _connection.CallTool("vice.machine.reset", new Dictionary<string, object>
         {
             { "mode", "soft" }
         });
@@ -353,12 +330,8 @@ public class ViceBackend : IExecutionBackend
 
     public void SetWarpMode(bool enabled)
     {
-        _connection.CallTool("vice.config.set", new Dictionary<string, object>
-        {
-            { "resource", "WarpMode" },
-            { "value", enabled ? 1 : 0 }
-        });
-        Logger.Info($"VICE warp mode: {(enabled ? "enabled" : "disabled")}");
+        // vice.config.set is not yet implemented in VICE MCP server
+        Logger.Warn($"VICE warp mode control not available via MCP (requested: {(enabled ? "enabled" : "disabled")})");
     }
 
     public bool TraceEnabled { get; set; }
@@ -367,10 +340,6 @@ public class ViceBackend : IExecutionBackend
 
     public void Dispose()
     {
-        if (_config.WarpMode)
-        {
-            try { SetWarpMode(false); } catch { /* best effort */ }
-        }
         _connection.Dispose();
     }
 }

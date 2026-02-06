@@ -13,7 +13,7 @@ public class McpResponse
     public JsonElement? RawResult { get; set; }
 }
 
-public class ViceConnection : IDisposable
+public class ViceConnection : IViceConnection
 {
     private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
 
