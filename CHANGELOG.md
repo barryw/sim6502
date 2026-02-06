@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.11.1 - 2026-02-06
+#### Bug Fixes
+- escape shell variables in Woodpecker CI to prevent empty substitution - (31ab955) - Barry Walker
+
+- - -
+
 ## v3.11.0 - 2026-02-06
 #### Features
 - add self-contained single-file binaries with CI release automation - (9ddfb55) - Barry Walker
