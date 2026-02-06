@@ -81,7 +81,7 @@ public class ViceBackend : IExecutionBackend
         var args = new Dictionary<string, object>
         {
             { "address", address },
-            { "length", 1 }
+            { "size", 1 }
         };
         var result = _connection.CallTool("vice.memory.read", args);
         if (!result.IsSuccess)
