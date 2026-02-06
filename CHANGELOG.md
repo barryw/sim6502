@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.11.2 - 2026-02-06
+#### Bug Fixes
+- add Accept header for text/event-stream to VICE MCP client - (9c1cc93) - Barry Walker
+
+- - -
+
 ## v3.11.1 - 2026-02-06
 #### Bug Fixes
 - escape shell variables in Woodpecker CI to prevent empty substitution - (31ab955) - Barry Walker
