@@ -290,7 +290,7 @@ symbolRef
     
 symbol
     : Identifier
-    | Identifier '.' Identifier
+    | QualifiedIdentifier
     ;
      
 Boolean
@@ -425,6 +425,12 @@ HiByte: '.h' | '.H' ;
 
 Byte: '.b' | '.B' ;
 Word: '.w' | '.W' ;
+
+// QualifiedIdentifier matches dotted names like vic.BankMemoryBase
+// Must come before Identifier to ensure longest match
+QualifiedIdentifier
+    : [a-zA-Z_][a-zA-Z0-9_]* '.' [a-zA-Z_][a-zA-Z0-9_]*
+    ;
 
 // Identifier must start with letter or underscore, can contain letters, digits, underscores
 Identifier

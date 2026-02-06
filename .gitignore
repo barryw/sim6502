@@ -1,6 +1,8 @@
 bin/
 obj/
 /packages/
+publish/
+release-assets/
 
 # LaTeX build artifacts
 *.aux

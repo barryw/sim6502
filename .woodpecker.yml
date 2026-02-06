@@ -51,6 +51,59 @@ steps:
         echo "${VERSION#v}" > "$CI_WORKSPACE/VERSION"
     depends_on: [build-and-test]
 
+  - name: build-binaries
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    when:
+      - evaluate: 'CI_COMMIT_MESSAGE not contains "chore(version):"'
+    environment:
+      GITHUB_TOKEN:
+        from_secret: github_token
+    commands:
+      - |
+        # Only run if the release step produced a VERSION file
+        if [ ! -f "$CI_WORKSPACE/VERSION" ]; then
+          echo "No new release — skipping binary build"
+          exit 0
+        fi
+        VERSION="v$(cat "$CI_WORKSPACE/VERSION")"
+        echo "Building binaries for $VERSION"
+      - |
+        # Install gh CLI and zip
+        apt-get update -qq && apt-get install -y -qq gh zip > /dev/null 2>&1
+      - |
+        VERSION="v$(cat "$CI_WORKSPACE/VERSION")"
+        NUMERIC_VERSION=$(cat "$CI_WORKSPACE/VERSION")
+        mkdir -p release-assets
+
+        # Update version in csproj
+        sed -i "s|<Version>.*</Version>|<Version>$NUMERIC_VERSION</Version>|" sim6502/sim6502.csproj
+        sed -i "s|<AssemblyVersion>.*</AssemblyVersion>|<AssemblyVersion>$NUMERIC_VERSION.0</AssemblyVersion>|" sim6502/sim6502.csproj
+        sed -i "s|<FileVersion>.*</FileVersion>|<FileVersion>$NUMERIC_VERSION.0</FileVersion>|" sim6502/sim6502.csproj
+
+        for RID in linux-x64 linux-arm64 osx-x64 osx-arm64 win-x64 win-arm64; do
+          echo "--- Publishing $RID ---"
+          dotnet publish sim6502/sim6502.csproj -c Release -r "$RID" -p:PublishSingleFile=true -o "publish/$RID"
+
+          # Determine binary name
+          case "$RID" in
+            win-*) BINARY="sim6502-${RID}.exe"; SRC="publish/$RID/Sim6502TestRunner.exe" ;;
+            *)     BINARY="sim6502-${RID}";     SRC="publish/$RID/Sim6502TestRunner" ;;
+          esac
+
+          # Stage binary, generate SHA, zip together
+          STAGING="staging/$RID"
+          mkdir -p "$STAGING"
+          cp "$SRC" "$STAGING/$BINARY"
+          cd "$STAGING"
+          sha256sum "$BINARY" > "${BINARY}.sha256"
+          zip "../../release-assets/sim6502-${RID}.zip" "$BINARY" "${BINARY}.sha256"
+          cd ../..
+        done
+
+        # Upload zip files to the GitHub release
+        gh release upload "$VERSION" ./release-assets/*.zip --clobber
+    depends_on: [release]
+
   - name: docker
     image: gcr.io/kaniko-project/executor:debug
     when:

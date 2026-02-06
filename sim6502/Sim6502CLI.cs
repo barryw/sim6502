@@ -23,13 +23,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using Antlr4.Runtime;
 using Antlr4.Runtime.Tree;
 using CommandLine;
 using NLog;
+using NLog.Conditions;
+using NLog.Config;
+using NLog.Targets;
 using sim6502.Backend;
 using sim6502.Errors;
 using sim6502.Grammar;
@@ -50,7 +52,13 @@ namespace sim6502
 
     internal class Sim6502Cli
     {
-        private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
+        private static readonly Lazy<ILogger> LazyLogger = new(() =>
+        {
+            ConfigureNLog();
+            return LogManager.GetCurrentClassLogger();
+        });
+
+        private static ILogger Logger => LazyLogger.Value;
 
         // ReSharper disable once ClassNeverInstantiated.Local
         private class Options
@@ -108,10 +116,15 @@ namespace sim6502
 
         private static int Main(string[] args)
         {
-            var assembly = Assembly.GetEntryAssembly()?.Location;
-            var versionInfo = FileVersionInfo.GetVersionInfo(assembly);
+            var assembly = Assembly.GetEntryAssembly();
+            var version = assembly?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+                ?.InformationalVersion ?? "unknown";
+            var product = assembly?.GetCustomAttribute<AssemblyProductAttribute>()
+                ?.Product ?? "sim6502";
+            var copyright = assembly?.GetCustomAttribute<AssemblyCopyrightAttribute>()
+                ?.Copyright ?? "";
 
-            Logger.Info($"{versionInfo.ProductName} v{versionInfo.ProductVersion} {versionInfo.LegalCopyright}");
+            Logger.Info($"{product} v{version} {copyright}");
             Logger.Info("https://github.com/barryw/sim6502");
 
             return Parser.Default
@@ -228,13 +241,47 @@ namespace sim6502
 
         private static void SetLogLevel(Options opts)
         {
-            LogManager.Configuration.Variables["cliLogLevel"] = LogLevel.Info.Name;
+            var minLevel = LogLevel.Info;
             if (opts.Debug)
-                LogManager.Configuration.Variables["cliLogLevel"] = LogLevel.Debug.Name;
+                minLevel = LogLevel.Debug;
             if (opts.Trace)
-                LogManager.Configuration.Variables["cliLogLevel"] = LogLevel.Trace.Name;
+                minLevel = LogLevel.Trace;
 
+            var rule = LogManager.Configuration.LoggingRules[0];
+            rule.SetLoggingLevels(minLevel, LogLevel.Fatal);
             LogManager.ReconfigExistingLoggers();
+        }
+
+        private static void ConfigureNLog()
+        {
+            var config = new LoggingConfiguration();
+
+            var consoleTarget = new ColoredConsoleTarget("logconsole")
+            {
+                UseDefaultRowHighlightingRules = false,
+                Layout = "${longdate} | ${level:uppercase=true:padding=-5} | ${logger} | ${message}"
+            };
+
+            consoleTarget.WordHighlightingRules.Add(
+                new ConsoleWordHighlightingRule("PASSED", ConsoleOutputColor.Green, ConsoleOutputColor.NoChange));
+            consoleTarget.WordHighlightingRules.Add(
+                new ConsoleWordHighlightingRule("FAILED", ConsoleOutputColor.DarkRed, ConsoleOutputColor.NoChange));
+
+            consoleTarget.RowHighlightingRules.Add(
+                new ConsoleRowHighlightingRule(ConditionParser.ParseExpression("level == LogLevel.Trace"), ConsoleOutputColor.DarkGray, ConsoleOutputColor.NoChange));
+            consoleTarget.RowHighlightingRules.Add(
+                new ConsoleRowHighlightingRule(ConditionParser.ParseExpression("level == LogLevel.Debug"), ConsoleOutputColor.Yellow, ConsoleOutputColor.NoChange));
+            consoleTarget.RowHighlightingRules.Add(
+                new ConsoleRowHighlightingRule(ConditionParser.ParseExpression("level == LogLevel.Info"), ConsoleOutputColor.Blue, ConsoleOutputColor.NoChange));
+            consoleTarget.RowHighlightingRules.Add(
+                new ConsoleRowHighlightingRule(ConditionParser.ParseExpression("level == LogLevel.Warn"), ConsoleOutputColor.Magenta, ConsoleOutputColor.NoChange));
+            consoleTarget.RowHighlightingRules.Add(
+                new ConsoleRowHighlightingRule(ConditionParser.ParseExpression("level == LogLevel.Fatal"), ConsoleOutputColor.Red, ConsoleOutputColor.NoChange));
+
+            config.AddTarget(consoleTarget);
+            config.AddRule(LogLevel.Info, LogLevel.Fatal, consoleTarget, "*");
+
+            LogManager.Configuration = config;
         }
     }
 }
