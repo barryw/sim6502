@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.11.4 - 2026-02-06
+#### Documentation
+- point VICE backend prereqs to vice-mcp fork - (c16d383) - Barry Walker
+
+- - -
+
 ## v3.11.3 - 2026-02-06
 #### Bug Fixes
 - use 'size' parameter for vice.memory.read instead of 'length' - (40029d7) - Barry Walker
