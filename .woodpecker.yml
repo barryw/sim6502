@@ -48,7 +48,7 @@ steps:
           NOTES=$(git log --pretty=format:"- %s" $VERSION^)
         fi
         gh release create "$VERSION" --title "$VERSION" --notes "$NOTES"
-        echo "${VERSION#v}" > "$CI_WORKSPACE/VERSION"
+        echo "$${VERSION#v}" > "$CI_WORKSPACE/VERSION"
     depends_on: [build-and-test]
 
   - name: build-binaries
@@ -86,8 +86,8 @@ steps:
 
           # Determine binary name
           case "$RID" in
-            win-*) BINARY="sim6502-${RID}.exe"; SRC="publish/$RID/Sim6502TestRunner.exe" ;;
-            *)     BINARY="sim6502-${RID}";     SRC="publish/$RID/Sim6502TestRunner" ;;
+            win-*) BINARY="sim6502-$${RID}.exe"; SRC="publish/$RID/Sim6502TestRunner.exe" ;;
+            *)     BINARY="sim6502-$${RID}";     SRC="publish/$RID/Sim6502TestRunner" ;;
           esac
 
           # Stage binary, generate SHA, zip together
@@ -95,8 +95,8 @@ steps:
           mkdir -p "$STAGING"
           cp "$SRC" "$STAGING/$BINARY"
           cd "$STAGING"
-          sha256sum "$BINARY" > "${BINARY}.sha256"
-          zip "../../release-assets/sim6502-${RID}.zip" "$BINARY" "${BINARY}.sha256"
+          sha256sum "$BINARY" > "$${BINARY}.sha256"
+          zip "../../release-assets/sim6502-$${RID}.zip" "$BINARY" "$${BINARY}.sha256"
           cd ../..
         done
 
