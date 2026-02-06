@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.11.5 - 2026-02-06
+#### Bug Fixes
+- align ViceBackend contracts with actual vice-mcp server - (58c0cf7) - Barry Walker
+
+- - -
+
 ## v3.11.4 - 2026-02-06
 #### Documentation
 - point VICE backend prereqs to vice-mcp fork - (c16d383) - Barry Walker
