@@ -225,6 +225,228 @@ That would mount the current directory to a directory in the container called `/
 
 If you'd like to see a larger example of this tool in action, run `make` from the `example` folder. It's the test suite from my c64lib project.
 
+### VICE Backend (Hardware-Accurate Testing)
+
+By default, sim6502 uses its internal CPU simulator. For hardware-accurate testing that includes VIC-II, SID, CIA, and interrupt behavior, you can run tests against the [VICE](https://vice-emu.sourceforge.io/) emulator via its embedded MCP server.
+
+Your existing test files run unmodified — only the execution backend changes.
+
+```bash
+# Run against a VICE instance already running with MCP enabled
+dotnet Sim6502TestRunner.dll -s tests.6502 --backend vice
+
+# Auto-launch VICE and run tests
+dotnet Sim6502TestRunner.dll -s tests.6502 --backend vice --launch-vice
+
+# Connect to VICE on a custom host/port
+dotnet Sim6502TestRunner.dll -s tests.6502 --backend vice --vice-host 192.168.1.100 --vice-port 7000
+
+# Disable warp mode to watch execution in real time
+dotnet Sim6502TestRunner.dll -s tests.6502 --backend vice --vice-warp false
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--backend <type>` | `sim` | `sim` for internal simulator, `vice` for VICE MCP |
+| `--vice-host <host>` | `127.0.0.1` | VICE MCP server host |
+| `--vice-port <port>` | `6510` | VICE MCP server port |
+| `--vice-timeout <ms>` | `5000` | Per-test execution timeout in milliseconds |
+| `--vice-warp <bool>` | `true` | Enable warp mode for faster test execution |
+| `--launch-vice` | `false` | Auto-launch VICE with MCP server enabled |
+
+**Prerequisites:** VICE must be built with MCP server support (`--enable-mcp-server`). Start VICE manually with:
+
+```bash
+x64sc -mcpserver -mcpserverport 6510
+```
+
+**Test isolation:** Each test suite saves a VICE snapshot after loading binaries. Before each test, the snapshot is restored to ensure a clean state. This is faster than a full machine reset.
+
+**When to use VICE vs. the internal simulator:**
+- **Internal simulator (`sim`):** Fast, deterministic, sufficient for pure computational logic
+- **VICE (`vice`):** Hardware-accurate, includes interrupt timing, CIA timers, VIC-II raster effects, memory banking
+
+#### Architecture Overview
+
+sim6502 supports multiple execution backends through the `IExecutionBackend` interface. This allows the same test DSL to execute against different CPU implementations without modification.
+
+**SimulatorBackend**: Wraps the internal 6502/6510/65C02 CPU simulator. This is the default backend, providing fast, deterministic execution for pure computational testing. No hardware peripherals are emulated.
+
+**ViceBackend**: Translates execution commands into JSON-RPC 2.0 calls to VICE's embedded MCP (Model Context Protocol) server over HTTP. This provides cycle-accurate emulation of the complete Commodore hardware including VIC-II graphics chip, SID sound chip, CIA timers, and full interrupt support.
+
+The `SimBaseListener` class (which processes your test DSL) interacts only with the `IExecutionBackend` interface, making it backend-agnostic. Backend selection happens at runtime via the `--backend` CLI flag.
+
+#### Error Handling and Troubleshooting
+
+**Connection Errors**
+
+If VICE is not running or not reachable when tests start, you will see:
+
+```
+Could not connect to VICE MCP server at 127.0.0.1:6510.
+Is VICE running with -mcpserver?
+```
+
+**Resolution:** Start VICE with MCP server enabled before running tests, or use `--launch-vice` to auto-launch VICE.
+
+**Execution Timeouts**
+
+If a test does not complete within the configured timeout (default 5000ms), you will see:
+
+```
+Execution timed out after 5000ms. PC=$C340, A=$00, X=$FF.
+Code may be in an infinite loop.
+```
+
+This typically indicates:
+- An infinite loop in your test code
+- IRQ or NMI handlers taking longer than expected (VICE has these running, sim does not)
+- Code waiting for hardware events that never occur
+
+**Resolution:** Increase timeout with `--vice-timeout 10000` (10 seconds), or review your code for infinite loops. Remember that VICE runs interrupt handlers which the internal simulator does not, so timing will differ.
+
+**Snapshot Failures**
+
+If VICE cannot save a baseline snapshot during suite setup:
+
+```
+Failed to save snapshot 'sim6502_suite_0': [MCP error message]
+```
+
+This will skip the entire suite. Common causes:
+- VICE filesystem permissions issues
+- Snapshot storage full
+- VICE version does not support snapshot MCP tools
+
+**Resolution:** Check VICE logs and filesystem permissions. Ensure VICE has write access to its snapshot directory.
+
+If snapshot restore fails before a test:
+
+```
+Failed to load snapshot 'sim6502_suite_0': [MCP error message]
+```
+
+The test will fail and sim6502 will attempt to re-save the baseline snapshot for subsequent tests.
+
+**Connection Drops During Suite**
+
+If the MCP connection to VICE drops mid-suite (VICE crashed, network issue, etc.):
+
+```
+MCP connection lost: [error details]
+```
+
+The current test will fail. sim6502 will attempt to reconnect before the next suite. If reconnection fails, the test run aborts.
+
+**Resolution:** Check VICE process status. If using `--launch-vice`, VICE may have crashed — check VICE logs. If connecting to remote VICE, verify network stability.
+
+#### Behavioral Differences: sim vs. vice
+
+The internal simulator and VICE emulator exhibit different behaviors due to hardware emulation scope. Tests may pass on one backend and fail on the other. This is expected and reflects real hardware behavior.
+
+**Hardware Subsystems**
+
+| Feature | sim Backend | vice Backend |
+|---------|-------------|--------------|
+| IRQ interrupts | Not emulated | Fully emulated, fires every frame |
+| NMI interrupts | Not emulated | Fully emulated |
+| CIA timers | Not emulated | Fully emulated, running continuously |
+| VIC-II raster timing | Not emulated | Cycle-accurate |
+| Memory banking | Not emulated | Full banking (BASIC, KERNAL, I/O) |
+
+**Example:** If your code sets up a CIA timer interrupt handler, it will never fire on `sim` backend but will fire on `vice` backend at the configured interval.
+
+**Timing Differences**
+
+VICE is cycle-accurate to the real C64 hardware. The internal simulator counts instruction cycles but does not account for:
+- DMA cycles (VIC-II stealing cycles from CPU)
+- Interrupt overhead
+- Memory banking penalties
+
+A test that asserts `cycles < 1000` may pass on `sim` but fail on `vice` if interrupts fire during execution.
+
+**Memory Access Patterns**
+
+On VICE, reading from `$D000-$DFFF` returns VIC-II, SID, or CIA register values (live hardware state). On `sim`, these locations return whatever was last written to them.
+
+**Example:**
+```
+# This may behave differently on vice vs. sim
+assert($D012 == $00, "Raster line is 0")
+```
+
+On `vice`, `$D012` reads the current VIC-II raster line (constantly changing). On `sim`, it returns whatever your code last wrote to `$D012` (likely `$00` if uninitialized).
+
+**When Tests Behave Differently**
+
+If a test passes on `sim` but fails on `vice`:
+- Check for interrupt handlers that may be firing (VICE has IRQs enabled)
+- Check for timing assumptions (VICE is cycle-accurate, sim is approximate)
+- Check for hardware register reads (VICE returns live hardware state)
+
+If a test passes on `vice` but fails on `sim`:
+- Check if test relies on hardware behavior not present in sim
+- Check if test uses memory banking (not supported in sim)
+- Check for uninitialized memory reads (VICE has KERNAL/BASIC ROMs, sim has random data)
+
+#### How It Works Internally
+
+For power users who want to understand the VICE backend implementation:
+
+**JSR Execution via Breakpoints**
+
+The internal simulator tracks JSR call depth natively. VICE does not expose call stack depth via MCP, so the ViceBackend implements `ExecuteJsr` using breakpoints:
+
+1. Read the current stack pointer from VICE
+2. Push a synthetic return address (`$0000`) onto the stack via memory writes
+3. Set the program counter to the target subroutine address
+4. Set a breakpoint at the return address (`$0000`)
+5. If `fail_on_brk` is set, set a second breakpoint at the BRK vector address
+6. Resume VICE execution
+7. Poll VICE execution state until it stops (breakpoint hit or timeout)
+8. Read final registers and cycle count
+9. Clean up breakpoints
+
+This approach allows `stop_on_rts` to work correctly even when the subroutine calls nested subroutines.
+
+**Snapshot-Based Test Isolation**
+
+Each test suite goes through this lifecycle:
+
+1. **Suite setup:** Backend connects to VICE, loads all binaries specified in `load()` directives
+2. **First test:** Before the first test runs, a baseline snapshot is saved with name `sim6502_suite_N`
+3. **Before each test:** The baseline snapshot is restored, ensuring a clean machine state
+4. **After suite:** Snapshot is left in VICE memory (not explicitly cleaned up)
+
+Snapshots are much faster than full machine resets and preserve all loaded binaries and memory state. This means `setup {}` blocks and individual test memory assignments work correctly.
+
+**JSON-RPC 2.0 Communication**
+
+All communication with VICE uses JSON-RPC 2.0 over HTTP. Each operation maps to an MCP tool call:
+
+| Operation | MCP Tool |
+|-----------|----------|
+| Write memory | `vice.memory.write` |
+| Read memory | `vice.memory.read` |
+| Set register | `vice.registers.set` |
+| Get registers | `vice.registers.get` |
+| Set breakpoint | `vice.breakpoints.set` |
+| Delete breakpoint | `vice.breakpoints.delete` |
+| Resume execution | `vice.execution.run` |
+| Pause execution | `vice.execution.pause` |
+| Get execution state | `vice.execution.get_state` |
+| Save snapshot | `vice.snapshot.save` |
+| Restore snapshot | `vice.snapshot.load` |
+| Get cycle count | `vice.trace.cycles.get` |
+
+The `ViceConnection` class handles low-level HTTP transport and JSON serialization. The `ViceBackend` class implements `IExecutionBackend` by translating high-level operations (like `WriteByte`, `ExecuteJsr`) into the appropriate MCP tool calls.
+
+**Warp Mode**
+
+By default, the VICE backend enables warp mode during test execution for speed. Warp mode runs VICE as fast as possible without throttling to real-time speed. This is disabled automatically when tests complete to restore VICE to normal speed.
+
+Use `--vice-warp false` if you want to watch test execution in real-time (useful for debugging visual or timing-related behavior).
+
 
 ---
 
@@ -847,9 +1069,9 @@ You can also perform simple expressions like `[UpdateTimers] + 1` or `peekword([
 
 #### What's missing?
 
-There is absolutely no concept of hardware other than the 6502. There's no VIC, SID, CIA, etc, so testing against programs that use these hardware devices is pretty limited. You CAN, and the `example` test suite shows this, test to make sure sprite registers are set properly since it's just memory.
+The internal simulator (`--backend sim`) is a vanilla 6502/6510/65C02 with no concept of C64-specific hardware. There's no VIC-II, SID, or CIA emulation, so testing against programs that use these hardware devices is limited to verifying that the correct values are written to the correct memory-mapped registers.
 
-This is a vanilla 6502 with no concept of any C64 specific hardware. I would LOVE to have a full c64 simulator, but that's not where we are right now.
+For full hardware-accurate testing, use the VICE backend (`--backend vice`) which provides cycle-accurate emulation of the complete machine including all hardware subsystems. See the [VICE Backend](#vice-backend-hardware-accurate-testing) section for details.
 
 ---
 
