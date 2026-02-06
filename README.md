@@ -254,7 +254,17 @@ dotnet Sim6502TestRunner.dll -s tests.6502 --backend vice --vice-warp false
 | `--vice-warp <bool>` | `true` | Enable warp mode for faster test execution |
 | `--launch-vice` | `false` | Auto-launch VICE with MCP server enabled |
 
-**Prerequisites:** VICE must be built with MCP server support (`--enable-mcp-server`). Start VICE manually with:
+**Prerequisites:** The mainstream VICE source does not include MCP server support. You must build from the [vice-mcp](https://github.com/barryw/vice-mcp) fork, `feature/mcp-server` branch:
+
+```bash
+git clone -b feature/mcp-server https://github.com/barryw/vice-mcp.git
+cd vice-mcp
+./autogen.sh
+./configure --enable-mcp-server
+make -j$(nproc)
+```
+
+Then start VICE with:
 
 ```bash
 x64sc -mcpserver -mcpserverport 6510
