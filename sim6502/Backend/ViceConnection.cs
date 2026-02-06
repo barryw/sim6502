@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Text.Json;
 using NLog;
 
@@ -27,6 +28,10 @@ public class ViceConnection : IDisposable
         {
             Timeout = TimeSpan.FromSeconds(30)
         };
+        _httpClient.DefaultRequestHeaders.Accept.Add(
+            new MediaTypeWithQualityHeaderValue("application/json"));
+        _httpClient.DefaultRequestHeaders.Accept.Add(
+            new MediaTypeWithQualityHeaderValue("text/event-stream"));
     }
 
     public async Task<McpResponse> CallToolAsync(string toolName, Dictionary<string, object>? arguments = null)
