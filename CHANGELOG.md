@@ -2,6 +2,22 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.10.0 - 2026-02-06
+#### Features
+- load symbols into VICE backend alongside local symbol resolution - (e2b1a23) - Barry Walker
+- add ViceLauncher for auto-launching VICE with --launch-vice - (7bcae94) - Barry Walker
+- add CLI flags and BackendFactory for VICE backend selection - (609563e) - Barry Walker
+- add ViceBackend translating IExecutionBackend to MCP calls - (3b30ab4) - Barry Walker
+- add ViceConnection JSON-RPC client for MCP communication - (0136116) - Barry Walker
+- add SimulatorBackend wrapping existing Processor - (61b28a5) - Barry Walker
+- add IExecutionBackend interface and ExecutionResult - (2f3d93a) - Barry Walker
+#### Documentation
+- add VICE backend documentation and design plans - (5f6ed93) - Barry Walker
+#### Refactoring
+- use IExecutionBackend in SimBaseListener and MemoryCompare - (ca3531b) - Barry Walker
+
+- - -
+
 ## v3.9.0 - 2026-01-29
 #### Features
 - (**lsp**) implement DefinitionHandler for go-to-definition - (0b51521) - Barry Walker
