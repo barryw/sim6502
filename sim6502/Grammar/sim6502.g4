@@ -115,6 +115,8 @@ comparison
     : compareLHS CompareOperator expression     # compareExpression
     | memoryChkFunction                         # memoryChk
     | memoryCmpFunction                         # memoryCmp
+    | screenContainsFunction                    # screenContains
+    | screenLineFunction                        # screenLineCheck
     ;
     
 compareLHS
@@ -196,6 +198,14 @@ testContents
     | jsrFunction
     | memFillFunction
     | memDumpFunction
+    | basicFunction
+    | runFunction
+    | waitReadyFunction
+    | waitTextFunction
+    | sendKeyFunction
+    | coldStartFunction
+    | pauseFunction
+    | resumeFunction
     ;
 
 // Setup contents - similar to test contents but without assertions
@@ -204,6 +214,7 @@ setupContents
     | jsrFunction
     | memFillFunction
     | memDumpFunction
+    | coldStartFunction
     ;
 
 peekByteFunction
@@ -228,6 +239,62 @@ memFillFunction
 
 memDumpFunction
     : MemDump LParen expression Comma expression RParen
+    ;
+
+// ── NovaVM high-level commands (require IHighLevelBackend) ──
+
+basicFunction
+    : Basic LParen StringLiteral RParen
+    ;
+
+runFunction
+    : Run LParen (runWait)? RParen
+    ;
+
+runWait
+    : Wait Assign StringLiteral
+    ;
+
+waitReadyFunction
+    : WaitReady LParen (waitTimeout)? RParen
+    ;
+
+waitTextFunction
+    : WaitText LParen StringLiteral (Comma waitTimeout)? RParen
+    ;
+
+waitTimeout
+    : Timeout Assign number
+    ;
+
+sendKeyFunction
+    : SendKey LParen StringLiteral RParen
+    ;
+
+coldStartFunction
+    : ColdStart LParen RParen
+    ;
+
+pauseFunction
+    : PauseCmd LParen (pauseOption)? RParen
+    ;
+
+pauseOption
+    : PauseCycles Assign expression                                         # pauseCycles
+    | PauseScreen Assign StringLiteral                                      # pauseScreen
+    | PauseWatch Assign expression Comma PauseValue Assign expression       # pauseWatch
+    ;
+
+resumeFunction
+    : ResumeCmd LParen RParen
+    ;
+
+screenContainsFunction
+    : ScreenContains LParen StringLiteral RParen
+    ;
+
+screenLineFunction
+    : ScreenLine LParen expression Comma StringLiteral RParen
     ;
 
 sourceAddress
@@ -279,9 +346,11 @@ intFunction
     | peekWordFunction  # peekWordFunctionValue
     ;
    
-boolFunction 
-    : memoryChkFunction # memoryChkFunctionValue
-    | memoryCmpFunction # memoryCmpFunctionValue
+boolFunction
+    : memoryChkFunction      # memoryChkFunctionValue
+    | memoryCmpFunction      # memoryCmpFunctionValue
+    | screenContainsFunction # screenContainsFunctionValue
+    | screenLineFunction     # screenLineFunctionValue
     ;
     
 symbolRef
@@ -419,6 +488,23 @@ SystemC64:          'c64' | 'C64';
 SystemGeneric6502:  'generic_6502';
 SystemGeneric6510:  'generic_6510';
 SystemGeneric65C02: 'generic_65c02' | 'generic_65C02';
+
+// NovaVM high-level command keywords
+Basic:          'basic';
+Run:            'run';
+WaitReady:      'wait_ready';
+WaitText:       'wait_text';
+SendKey:        'send_key';
+ColdStart:      'cold_start';
+PauseCmd:       'pause';
+ResumeCmd:      'resume';
+ScreenContains: 'screen_contains';
+ScreenLine:     'screen_line';
+Wait:           'wait';
+PauseCycles:    'cycles_count';
+PauseScreen:    'screen';
+PauseWatch:     'watch';
+PauseValue:     'value';
 
 LoByte: '.l' | '.L' ;
 HiByte: '.h' | '.H' ;

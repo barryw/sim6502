@@ -1,0 +1,50 @@
+; Test NovaVM high-level command grammar parsing
+suites {
+  suite("NovaVM Grammar") {
+
+    test("basic-and-run", "basic() and run() parse correctly") {
+      basic("10 PRINT \"HELLO\"")
+      basic("20 GOTO 10")
+      run()
+    }
+
+    test("run-with-wait", "run() with wait parameter") {
+      basic("10 PRINT \"DONE\"")
+      run(wait = "DONE")
+    }
+
+    test("wait-functions", "wait_ready and wait_text parse") {
+      wait_ready()
+      wait_ready(timeout = 3000)
+      wait_text("LOADING")
+      wait_text("LOADING", timeout = 5000)
+    }
+
+    test("send-key", "send_key parses") {
+      send_key("ENTER")
+      send_key("CTRL-C")
+    }
+
+    test("cold-start", "cold_start parses") {
+      cold_start()
+    }
+
+    test("pause-resume", "pause and resume parse") {
+      pause()
+      resume()
+    }
+
+    test("pause-options", "pause with options parses") {
+      pause(cycles_count = 50000)
+      pause(screen = "LOADING")
+      pause(watch = $A010, value = $00)
+    }
+
+    test("screen-assertions", "screen_contains and screen_line in assertions") {
+      basic("10 PRINT \"HELLO WORLD\"")
+      run()
+      assert(screen_contains("HELLO"), "text on screen")
+      assert(screen_line(0, "Ready"), "first line check")
+    }
+  }
+}

@@ -90,7 +90,7 @@ namespace sim6502
             public bool ListOnly { get; set; }
 
             [Option("backend", Required = false, Default = "sim",
-                HelpText = "Execution backend: 'sim' for internal simulator, 'vice' for VICE MCP")]
+                HelpText = "Execution backend: 'sim' for internal simulator, 'vice' for VICE MCP, 'novavm' for e6502 emulator, 'verilator' for FPGA simulation")]
             public string Backend { get; set; } = "sim";
 
             [Option("vice-host", Required = false, Default = "127.0.0.1",
@@ -112,6 +112,18 @@ namespace sim6502
             [Option("launch-vice", Required = false, Default = false,
                 HelpText = "Auto-launch VICE process")]
             public bool LaunchVice { get; set; }
+
+            [Option("novavm-host", Required = false, Default = "127.0.0.1",
+                HelpText = "e6502 emulator TCP server host")]
+            public string NovaVmHost { get; set; } = "127.0.0.1";
+
+            [Option("novavm-port", Required = false, Default = 6502,
+                HelpText = "e6502 emulator TCP server port")]
+            public int NovaVmPort { get; set; } = 6502;
+
+            [Option("novavm-timeout", Required = false, Default = 10000,
+                HelpText = "Timeout in ms for NovaVM operations")]
+            public int NovaVmTimeout { get; set; } = 10000;
         }
 
         private static int Main(string[] args)
@@ -206,6 +218,12 @@ namespace sim6502
                         Port = opts.VicePort,
                         TimeoutMs = opts.ViceTimeout,
                         WarpMode = opts.ViceWarp
+                    } : null,
+                    NovaVmConfig = opts.Backend == "novavm" ? new NovaVmBackendConfig
+                    {
+                        Host = opts.NovaVmHost,
+                        Port = opts.NovaVmPort,
+                        TimeoutMs = opts.NovaVmTimeout
                     } : null
                 };
 

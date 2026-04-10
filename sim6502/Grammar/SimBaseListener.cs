@@ -176,6 +176,7 @@ namespace sim6502.Grammar
         // Backend configuration
         public string BackendType { get; set; } = "sim";
         public ViceBackendConfig? ViceConfig { get; set; }
+        public NovaVmBackendConfig? NovaVmConfig { get; set; }
 
         // Error collector for semantic errors
         public ErrorCollector Errors { get; set; } = new();
@@ -385,8 +386,9 @@ namespace sim6502.Grammar
                 }
             }
 
-            // Create processor with memory map
-            Backend = BackendFactory.Create(BackendType, _currentProcessorType, _currentMemoryMap!, ViceConfig);
+            // Create processor with memory map (skip if backend already injected for testing)
+            if (Backend == null)
+                Backend = BackendFactory.Create(BackendType, _currentProcessorType, _currentMemoryMap!, ViceConfig, NovaVmConfig);
 
             _suiteBaselineSaved = false;
             _suiteSnapshotName = $"sim6502_suite_{_suiteIndex++}";
@@ -919,6 +921,12 @@ namespace sim6502.Grammar
                 Backend.RestoreSnapshot(_suiteSnapshotName);
             }
 
+            // Cold start before each test for NovaVM/Verilator backends (test isolation)
+            if ((BackendType == "novavm" || BackendType == "verilator") && Backend is IHighLevelBackend hlb)
+            {
+                hlb.ColdStart();
+            }
+
             ResetTest();
 
             // Parse test options if present
@@ -1264,6 +1272,249 @@ namespace sim6502.Grammar
 
                 Console.WriteLine($"{lineAddr:X4}: {bytes,-24}|  {ascii}|");
             }
+        }
+
+        #endregion
+
+        #region NovaVM High-Level Commands
+
+        private IHighLevelBackend RequireHighLevelBackend(string command)
+        {
+            if (Backend is IHighLevelBackend hlb)
+                return hlb;
+
+            throw new InvalidOperationException(
+                $"'{command}' requires a high-level backend (novavm). Current backend: {BackendType}");
+        }
+
+        public override void ExitBasicFunction(sim6502Parser.BasicFunctionContext context)
+        {
+            if (_inSetupBlockDefinition || _currentTestSkipped)
+                return;
+
+            var hlb = RequireHighLevelBackend("basic()");
+            var line = StripQuotes(context.StringLiteral().GetText());
+
+            hlb.SendText(line);
+            hlb.SendKey("ENTER");
+
+            // Wait for BASIC to echo the line on screen (confirms it was processed).
+            // Extract the line number prefix to wait for — e.g. "10 PRINT X" → wait for "10 ".
+            var spaceIdx = line.IndexOf(' ');
+            if (spaceIdx > 0)
+            {
+                var lineNum = line.Substring(0, spaceIdx + 1);
+                hlb.WaitForText(lineNum, 5000);
+            }
+            else
+            {
+                Thread.Sleep(200);
+            }
+            _didJsr = true;
+        }
+
+        public override void ExitRunFunction(sim6502Parser.RunFunctionContext context)
+        {
+            if (_inSetupBlockDefinition || _currentTestSkipped)
+                return;
+
+            var hlb = RequireHighLevelBackend("run()");
+
+            var waitText = "Ready";
+            if (context.runWait() != null)
+                waitText = StripQuotes(context.runWait().StringLiteral().GetText());
+
+            // Count existing occurrences of the wait text before RUN
+            var screenBefore = hlb.ReadScreen();
+            var countBefore = screenBefore.Count(l =>
+                l.Contains(waitText, StringComparison.OrdinalIgnoreCase));
+
+            hlb.SendText("RUN");
+            hlb.SendKey("ENTER");
+
+            // Poll until a NEW occurrence of the wait text appears
+            string[] lastScreen = null;
+            var deadline = DateTime.UtcNow.AddMilliseconds(10000);
+            while (DateTime.UtcNow < deadline)
+            {
+                Thread.Sleep(100);
+                lastScreen = hlb.ReadScreen();
+                var countAfter = lastScreen.Count(l =>
+                    l.Contains(waitText, StringComparison.OrdinalIgnoreCase));
+                if (countAfter > countBefore)
+                    break;
+            }
+
+            // Check screen for BASIC errors — "Error" with capital E appears in all BASIC error messages
+            if (lastScreen != null)
+            {
+                foreach (var line in lastScreen)
+                {
+                    if (line.Contains("Error in line", StringComparison.Ordinal))
+                    {
+                        FailAssertion($"BASIC error: {line.Trim()}");
+                    }
+                }
+            }
+
+            _didJsr = true;
+        }
+
+        public override void ExitWaitReadyFunction(sim6502Parser.WaitReadyFunctionContext context)
+        {
+            if (_inSetupBlockDefinition || _currentTestSkipped)
+                return;
+
+            var hlb = RequireHighLevelBackend("wait_ready()");
+            var timeout = 5000;
+            if (context.waitTimeout() != null)
+                timeout = GetIntValue(context.waitTimeout().number());
+            hlb.WaitForText("Ready", timeout);
+        }
+
+        public override void ExitWaitTextFunction(sim6502Parser.WaitTextFunctionContext context)
+        {
+            if (_inSetupBlockDefinition || _currentTestSkipped)
+                return;
+
+            var hlb = RequireHighLevelBackend("wait_text()");
+            var text = StripQuotes(context.StringLiteral().GetText());
+            var timeout = 5000;
+            if (context.waitTimeout() != null)
+                timeout = GetIntValue(context.waitTimeout().number());
+            hlb.WaitForText(text, timeout);
+        }
+
+        public override void ExitSendKeyFunction(sim6502Parser.SendKeyFunctionContext context)
+        {
+            if (_inSetupBlockDefinition || _currentTestSkipped)
+                return;
+
+            var hlb = RequireHighLevelBackend("send_key()");
+            var key = StripQuotes(context.StringLiteral().GetText());
+            hlb.SendKey(key);
+        }
+
+        public override void ExitColdStartFunction(sim6502Parser.ColdStartFunctionContext context)
+        {
+            if (_inSetupBlockDefinition || _currentTestSkipped)
+                return;
+
+            var hlb = RequireHighLevelBackend("cold_start()");
+            hlb.ColdStart();
+        }
+
+        public override void ExitPauseCycles(sim6502Parser.PauseCyclesContext context)
+        {
+            if (_inSetupBlockDefinition || _currentTestSkipped)
+                return;
+
+            var hlb = RequireHighLevelBackend("pause()");
+            var cycles = GetIntValue(context.expression());
+            hlb.RunCycles(cycles);
+        }
+
+        public override void ExitPauseScreen(sim6502Parser.PauseScreenContext context)
+        {
+            if (_inSetupBlockDefinition || _currentTestSkipped)
+                return;
+
+            var hlb = RequireHighLevelBackend("pause()");
+            var text = StripQuotes(context.StringLiteral().GetText());
+            hlb.WaitForText(text);
+            hlb.Pause();
+        }
+
+        public override void ExitPauseWatch(sim6502Parser.PauseWatchContext context)
+        {
+            if (_inSetupBlockDefinition || _currentTestSkipped)
+                return;
+
+            var hlb = RequireHighLevelBackend("pause()");
+            var addr = GetIntValue(context.expression(0));
+            var value = (byte)GetIntValue(context.expression(1));
+            hlb.WaitForMemory(addr, value);
+        }
+
+        public override void ExitPauseFunction(sim6502Parser.PauseFunctionContext context)
+        {
+            if (_inSetupBlockDefinition || _currentTestSkipped)
+                return;
+
+            // If no option specified, just pause
+            if (context.pauseOption() == null)
+            {
+                var hlb = RequireHighLevelBackend("pause()");
+                hlb.Pause();
+            }
+            // Options (cycles, screen, watch) are handled by their own Exit methods
+        }
+
+        public override void ExitResumeFunction(sim6502Parser.ResumeFunctionContext context)
+        {
+            if (_inSetupBlockDefinition || _currentTestSkipped)
+                return;
+
+            var hlb = RequireHighLevelBackend("resume()");
+            hlb.Resume();
+        }
+
+        // ── Screen assertion functions ──
+
+        public override void ExitScreenContains(sim6502Parser.ScreenContainsContext context)
+        {
+            if (_currentTestSkipped)
+                return;
+
+            var hlb = RequireHighLevelBackend("screen_contains()");
+            var text = StripQuotes(context.screenContainsFunction().StringLiteral().GetText());
+            var lines = hlb.ReadScreen();
+            var found = lines.Any(line => line.Contains(text, StringComparison.OrdinalIgnoreCase));
+            SetBoolValue(context, found);
+
+            if (!found)
+                FailAssertion($"screen_contains(\"{text}\") failed — text not found on screen");
+        }
+
+        public override void ExitScreenContainsFunctionValue(sim6502Parser.ScreenContainsFunctionValueContext context)
+        {
+            if (_currentTestSkipped)
+                return;
+
+            var hlb = RequireHighLevelBackend("screen_contains()");
+            var text = StripQuotes(context.screenContainsFunction().StringLiteral().GetText());
+            var lines = hlb.ReadScreen();
+            var found = lines.Any(line => line.Contains(text, StringComparison.OrdinalIgnoreCase));
+            SetBoolValue(context, found);
+        }
+
+        public override void ExitScreenLineCheck(sim6502Parser.ScreenLineCheckContext context)
+        {
+            if (_currentTestSkipped)
+                return;
+
+            var hlb = RequireHighLevelBackend("screen_line()");
+            var row = GetIntValue(context.screenLineFunction().expression());
+            var expected = StripQuotes(context.screenLineFunction().StringLiteral().GetText());
+            var actual = hlb.ReadLine(row);
+            var found = actual.Contains(expected, StringComparison.OrdinalIgnoreCase);
+            SetBoolValue(context, found);
+
+            if (!found)
+                FailAssertion($"screen_line({row}, \"{expected}\") failed — line {row} is \"{actual}\"");
+        }
+
+        public override void ExitScreenLineFunctionValue(sim6502Parser.ScreenLineFunctionValueContext context)
+        {
+            if (_currentTestSkipped)
+                return;
+
+            var hlb = RequireHighLevelBackend("screen_line()");
+            var row = GetIntValue(context.screenLineFunction().expression());
+            var expected = StripQuotes(context.screenLineFunction().StringLiteral().GetText());
+            var actual = hlb.ReadLine(row);
+            var found = actual.Contains(expected, StringComparison.OrdinalIgnoreCase);
+            SetBoolValue(context, found);
         }
 
         #endregion

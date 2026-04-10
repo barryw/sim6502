@@ -331,4 +331,13 @@ public class TestSuiteParser
 
         walker.Walk(sbl, tree);
     }
+
+    [Fact]
+    public void TestSuite23_NovaVmGrammarParsesWithoutErrors()
+    {
+        // NovaVM commands require IHighLevelBackend so we only test parsing, not execution
+        var tree = GetContext("GrammarTests/test-23.txt");
+        tree.Should().NotBeNull();
+        tree.suite().Should().NotBeEmpty();
+    }
 }

@@ -344,6 +344,30 @@ public interface Isim6502Listener : IParseTreeListener {
 	/// <param name="context">The parse tree.</param>
 	void ExitMemoryCmp([NotNull] sim6502Parser.MemoryCmpContext context);
 	/// <summary>
+	/// Enter a parse tree produced by the <c>screenContains</c>
+	/// labeled alternative in <see cref="sim6502Parser.comparison"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterScreenContains([NotNull] sim6502Parser.ScreenContainsContext context);
+	/// <summary>
+	/// Exit a parse tree produced by the <c>screenContains</c>
+	/// labeled alternative in <see cref="sim6502Parser.comparison"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitScreenContains([NotNull] sim6502Parser.ScreenContainsContext context);
+	/// <summary>
+	/// Enter a parse tree produced by the <c>screenLineCheck</c>
+	/// labeled alternative in <see cref="sim6502Parser.comparison"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterScreenLineCheck([NotNull] sim6502Parser.ScreenLineCheckContext context);
+	/// <summary>
+	/// Exit a parse tree produced by the <c>screenLineCheck</c>
+	/// labeled alternative in <see cref="sim6502Parser.comparison"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitScreenLineCheck([NotNull] sim6502Parser.ScreenLineCheckContext context);
+	/// <summary>
 	/// Enter a parse tree produced by the <c>registerCompare</c>
 	/// labeled alternative in <see cref="sim6502Parser.compareLHS"/>.
 	/// </summary>
@@ -633,6 +657,162 @@ public interface Isim6502Listener : IParseTreeListener {
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	void ExitMemDumpFunction([NotNull] sim6502Parser.MemDumpFunctionContext context);
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.basicFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterBasicFunction([NotNull] sim6502Parser.BasicFunctionContext context);
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.basicFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitBasicFunction([NotNull] sim6502Parser.BasicFunctionContext context);
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.runFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterRunFunction([NotNull] sim6502Parser.RunFunctionContext context);
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.runFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitRunFunction([NotNull] sim6502Parser.RunFunctionContext context);
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.runWait"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterRunWait([NotNull] sim6502Parser.RunWaitContext context);
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.runWait"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitRunWait([NotNull] sim6502Parser.RunWaitContext context);
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.waitReadyFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterWaitReadyFunction([NotNull] sim6502Parser.WaitReadyFunctionContext context);
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.waitReadyFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitWaitReadyFunction([NotNull] sim6502Parser.WaitReadyFunctionContext context);
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.waitTextFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterWaitTextFunction([NotNull] sim6502Parser.WaitTextFunctionContext context);
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.waitTextFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitWaitTextFunction([NotNull] sim6502Parser.WaitTextFunctionContext context);
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.waitTimeout"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterWaitTimeout([NotNull] sim6502Parser.WaitTimeoutContext context);
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.waitTimeout"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitWaitTimeout([NotNull] sim6502Parser.WaitTimeoutContext context);
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.sendKeyFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterSendKeyFunction([NotNull] sim6502Parser.SendKeyFunctionContext context);
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.sendKeyFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitSendKeyFunction([NotNull] sim6502Parser.SendKeyFunctionContext context);
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.coldStartFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterColdStartFunction([NotNull] sim6502Parser.ColdStartFunctionContext context);
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.coldStartFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitColdStartFunction([NotNull] sim6502Parser.ColdStartFunctionContext context);
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.pauseFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterPauseFunction([NotNull] sim6502Parser.PauseFunctionContext context);
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.pauseFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitPauseFunction([NotNull] sim6502Parser.PauseFunctionContext context);
+	/// <summary>
+	/// Enter a parse tree produced by the <c>pauseCycles</c>
+	/// labeled alternative in <see cref="sim6502Parser.pauseOption"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterPauseCycles([NotNull] sim6502Parser.PauseCyclesContext context);
+	/// <summary>
+	/// Exit a parse tree produced by the <c>pauseCycles</c>
+	/// labeled alternative in <see cref="sim6502Parser.pauseOption"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitPauseCycles([NotNull] sim6502Parser.PauseCyclesContext context);
+	/// <summary>
+	/// Enter a parse tree produced by the <c>pauseScreen</c>
+	/// labeled alternative in <see cref="sim6502Parser.pauseOption"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterPauseScreen([NotNull] sim6502Parser.PauseScreenContext context);
+	/// <summary>
+	/// Exit a parse tree produced by the <c>pauseScreen</c>
+	/// labeled alternative in <see cref="sim6502Parser.pauseOption"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitPauseScreen([NotNull] sim6502Parser.PauseScreenContext context);
+	/// <summary>
+	/// Enter a parse tree produced by the <c>pauseWatch</c>
+	/// labeled alternative in <see cref="sim6502Parser.pauseOption"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterPauseWatch([NotNull] sim6502Parser.PauseWatchContext context);
+	/// <summary>
+	/// Exit a parse tree produced by the <c>pauseWatch</c>
+	/// labeled alternative in <see cref="sim6502Parser.pauseOption"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitPauseWatch([NotNull] sim6502Parser.PauseWatchContext context);
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.resumeFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterResumeFunction([NotNull] sim6502Parser.ResumeFunctionContext context);
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.resumeFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitResumeFunction([NotNull] sim6502Parser.ResumeFunctionContext context);
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.screenContainsFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterScreenContainsFunction([NotNull] sim6502Parser.ScreenContainsFunctionContext context);
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.screenContainsFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitScreenContainsFunction([NotNull] sim6502Parser.ScreenContainsFunctionContext context);
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.screenLineFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterScreenLineFunction([NotNull] sim6502Parser.ScreenLineFunctionContext context);
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.screenLineFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitScreenLineFunction([NotNull] sim6502Parser.ScreenLineFunctionContext context);
 	/// <summary>
 	/// Enter a parse tree produced by <see cref="sim6502Parser.sourceAddress"/>.
 	/// </summary>
@@ -925,6 +1105,30 @@ public interface Isim6502Listener : IParseTreeListener {
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	void ExitMemoryCmpFunctionValue([NotNull] sim6502Parser.MemoryCmpFunctionValueContext context);
+	/// <summary>
+	/// Enter a parse tree produced by the <c>screenContainsFunctionValue</c>
+	/// labeled alternative in <see cref="sim6502Parser.boolFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterScreenContainsFunctionValue([NotNull] sim6502Parser.ScreenContainsFunctionValueContext context);
+	/// <summary>
+	/// Exit a parse tree produced by the <c>screenContainsFunctionValue</c>
+	/// labeled alternative in <see cref="sim6502Parser.boolFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitScreenContainsFunctionValue([NotNull] sim6502Parser.ScreenContainsFunctionValueContext context);
+	/// <summary>
+	/// Enter a parse tree produced by the <c>screenLineFunctionValue</c>
+	/// labeled alternative in <see cref="sim6502Parser.boolFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterScreenLineFunctionValue([NotNull] sim6502Parser.ScreenLineFunctionValueContext context);
+	/// <summary>
+	/// Exit a parse tree produced by the <c>screenLineFunctionValue</c>
+	/// labeled alternative in <see cref="sim6502Parser.boolFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitScreenLineFunctionValue([NotNull] sim6502Parser.ScreenLineFunctionValueContext context);
 	/// <summary>
 	/// Enter a parse tree produced by <see cref="sim6502Parser.symbolRef"/>.
 	/// </summary>

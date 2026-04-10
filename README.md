@@ -247,7 +247,7 @@ dotnet Sim6502TestRunner.dll -s tests.6502 --backend vice --vice-warp false
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--backend <type>` | `sim` | `sim` for internal simulator, `vice` for VICE MCP |
+| `--backend <type>` | `sim` | `sim`, `vice`, `novavm`, or `verilator` |
 | `--vice-host <host>` | `127.0.0.1` | VICE MCP server host |
 | `--vice-port <port>` | `6510` | VICE MCP server port |
 | `--vice-timeout <ms>` | `5000` | Per-test execution timeout in milliseconds |
@@ -272,9 +272,251 @@ x64sc -mcpserver -mcpserverport 6510
 
 **Test isolation:** Each test suite saves a VICE snapshot after loading binaries. Before each test, the snapshot is restored to ensure a clean state. This is faster than a full machine reset.
 
-**When to use VICE vs. the internal simulator:**
+**When to use each backend:**
 - **Internal simulator (`sim`):** Fast, deterministic, sufficient for pure computational logic
-- **VICE (`vice`):** Hardware-accurate, includes interrupt timing, CIA timers, VIC-II raster effects, memory banking
+- **VICE (`vice`):** Hardware-accurate Commodore emulation — interrupt timing, CIA timers, VIC-II raster effects, memory banking
+- **NovaVM (`novavm`):** Full NovaVM emulator — VGC graphics, SID sound, sprites, blitter, tile engine, copper, DMA, expansion memory
+- **Verilator (`verilator`):** FPGA RTL simulation via Verilator — cycle-accurate hardware verification of the NovaVM design
+
+### NovaVM Backend (NovaVM Emulator Integration)
+
+The `novavm` and `verilator` backends connect to a NovaVM-compatible system (the e6502 Avalonia emulator or the FPGA Verilator testbench) via a TCP JSON protocol. These backends provide a high-level DSL for testing BASIC programs against the full hardware stack — graphics, sound, sprites, tile maps, DMA, and expansion memory.
+
+```bash
+# Run against the Avalonia emulator (default port 6502)
+sim6502 -s tests/integration/vgc.6502 --backend novavm
+
+# Run against the FPGA Verilator simulation (default port 6503)
+sim6502 -s tests/integration/vgc.6502 --backend verilator
+
+# Custom host/port
+sim6502 -s tests/integration/vgc.6502 --backend novavm --novavm-port 7000
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--backend novavm` | | Connect to Avalonia emulator on port 6502 |
+| `--backend verilator` | | Connect to Verilator testbench on port 6503 |
+| `--novavm-host <host>` | `127.0.0.1` | NovaVM/Verilator TCP server host |
+| `--novavm-port <port>` | `6502` | TCP server port (auto-overridden to 6503 for verilator backend) |
+| `--novavm-timeout <ms>` | `10000` | Timeout for wait operations |
+
+#### Getting Started
+
+**1. Start the target system.** The emulator or FPGA sim must be running before you launch tests.
+
+For the Avalonia emulator:
+```bash
+dotnet run --project e6502.Avalonia
+```
+
+For the FPGA Verilator simulation:
+```bash
+cd e6502.FPGA && make && ./e6502_sim --port 6503
+```
+
+**2. Write a test file.** NovaVM test files use the same `suites { suite { test { } } }` structure as sim/VICE tests, but with high-level commands for interacting with the BASIC interpreter. Here is a complete, working test file:
+
+```
+; my_tests.6502 — Example NovaVM integration test suite
+; Run: sim6502 -s my_tests.6502 --backend novavm
+
+suites {
+  suite("My First Tests") {
+
+    test("addition", "BASIC addition works") {
+      basic("10 PRINT 2+3")          ; enter a BASIC program line
+      run()                           ; type RUN and wait for "Ready"
+      assert(screen_contains("5"), "result is 5")
+    }
+
+    test("poke-and-peek", "POKE writes to memory") {
+      basic("10 POKE $2000,42")
+      run()
+      assert(peekbyte($2000) == 42, "memory written")
+    }
+
+    test("for-loop", "FOR/NEXT accumulates correctly") {
+      basic("10 S=0")
+      basic("20 FOR I=1 TO 10:S=S+I:NEXT")
+      basic("30 PRINT S")
+      run()
+      assert(screen_contains("55"), "sum 1..10 = 55")
+    }
+  }
+}
+```
+
+**3. Run the tests.**
+
+```bash
+# Against the Avalonia emulator
+sim6502 -s my_tests.6502 --backend novavm
+
+# Against the FPGA simulation
+sim6502 -s my_tests.6502 --backend verilator
+```
+
+#### How It Works
+
+Each test follows a simple cycle: enter BASIC lines, run the program, check results.
+
+**`basic("...")`** sends a line of text to the BASIC interpreter, followed by ENTER. The runner waits for the line to be accepted (cursor returns to idle) before continuing. Each `basic()` call is one BASIC line — include the line number:
+
+```
+basic("10 MODE 3")
+basic("20 GCOLOR 7")
+basic("30 PLOT 100,50")
+```
+
+**`run()`** types `RUN` and waits for the `Ready` prompt, which appears after the program finishes. If your program doesn't return to the `Ready` prompt (e.g., it loops forever), `run()` will time out. You can wait for custom text instead:
+
+```
+run()                     ; wait for "Ready" (default)
+run(wait = "GAME OVER")   ; wait for specific text
+```
+
+**`assert(...)`** checks a condition after the program runs. Two forms:
+
+```
+; Screen text assertions — checks if text appears anywhere on the 80x25 screen
+assert(screen_contains("42"), "found the answer")
+
+; Screen line assertion — checks a specific row (0-24)
+assert(screen_line(0, "HELLO"), "text on first line")
+
+; Memory assertions — reads a byte from the emulator's address space
+assert(peekbyte($A000) == 3, "mode register is 3")
+assert(peekbyte($2000) == $FF, "memory is $FF")
+```
+
+**Test isolation:** The runner performs a `cold_start` before each test, fully resetting the CPU and all hardware (VGC, sprites, blitter, tile engine, copper). Tests cannot leak state into subsequent tests.
+
+#### Multi-Step Tests
+
+A single test can run multiple programs in sequence. Each `basic()` / `run()` cycle is independent — `run()` waits for completion before the next `basic()` starts. Previous program lines are cleared by the `cold_start` between tests, but within a test, new `basic()` lines replace lines with the same number:
+
+```
+test("mode-switching", "Switch between display modes") {
+    basic("10 MODE 3")
+    run()
+    assert(peekbyte($A000) == 3, "graphics mode set")
+
+    ; Enter a new line 10 — replaces the previous one
+    basic("10 MODE 0")
+    run()
+    assert(peekbyte($A000) == 0, "back to text mode")
+}
+```
+
+#### Hardware Testing Example
+
+This example tests the VGC graphics, sprite engine, and memory-mapped registers:
+
+```
+suites {
+  suite("Hardware Smoke Test") {
+
+    test("plot-pixel", "PLOT writes to graphics RAM") {
+      basic("10 MODE 3")
+      basic("20 GCOLOR 7")
+      basic("30 PLOT 0,0")
+      run()
+      assert(screen_contains("Ready"), "plot completed")
+    }
+
+    test("sprite-lifecycle", "Define, enable, position, and disable a sprite") {
+      basic("10 MODE 3")
+      basic("20 SPRITEDATA 0,0,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF")
+      basic("30 SPRITE 0,ON")
+      basic("40 SPRITE 0,100,50")
+      basic("50 SPRITE 0,OFF")
+      run()
+      assert(screen_contains("Ready"), "sprite lifecycle completed")
+    }
+
+    test("copper-raster-effect", "Copper changes background at scanline") {
+      basic("10 COPPER CLEAR")
+      basic("20 COPPER ADD 0,100,BGCOL,3")
+      basic("30 COPPER ON")
+      basic("40 FOR I=1 TO 500:NEXT")
+      basic("50 COPPER OFF")
+      run()
+      assert(screen_contains("Ready"), "copper completed")
+    }
+
+    test("blitter-fill", "BLITFILL writes to CPU RAM") {
+      basic("10 BLITFILL 0,$2000,0,256,1,$AA")
+      run()
+      assert(peekbyte($2000) == $AA, "first byte filled")
+      assert(peekbyte($20FF) == $AA, "last byte filled")
+    }
+
+    test("tile-engine", "Tile map mode with scroll") {
+      basic("10 MODE 4")
+      basic("20 TILESIZE 8")
+      basic("30 TSCROLL 128,64")
+      basic("40 PRINT TSCROLLX")
+      basic("50 PRINT TSCROLLY")
+      run()
+      assert(screen_contains("128"), "scroll X readback")
+      assert(screen_contains("64"), "scroll Y readback")
+    }
+  }
+}
+```
+
+#### Additional Commands
+
+**Waiting for output (beyond `run()`):**
+
+```
+wait_ready()                          ; wait for "Ready" prompt
+wait_ready(timeout = 10000)           ; with custom timeout (ms)
+wait_text("LOADING", timeout = 5000)  ; wait for arbitrary text
+```
+
+**Input and execution control:**
+
+```
+send_key("ENTER")                     ; send a keypress
+cold_start()                          ; manually reset the system
+pause()                               ; halt the CPU
+pause(cycles_count = 50000)           ; run exactly N cycles then halt
+pause(watch = $A010, value = $00)     ; run until memory matches value
+resume()                              ; resume after pause
+```
+
+**Direct memory writes (useful for setting hardware registers):**
+
+```
+poke($A001, 3)                        ; write byte to address
+```
+
+#### Tips
+
+- **String literals in BASIC:** The DSL uses `"` as its own string delimiter, so BASIC strings need escaping. Use `CHR$()` for embedded quotes: `basic("10 PRINT CHR$(72);CHR$(73)")` prints "HI".
+- **Hex values:** Use `$` prefix for hex in both BASIC and assertions: `basic("10 POKE $2000,$FF")`, `assert(peekbyte($2000) == $FF, "ok")`.
+- **Timeouts:** The default timeout for `run()` and `wait_text()` is 10 seconds. Long-running programs may need `wait_text("Done", timeout = 30000)`.
+- **Comments:** Use `;` for comments in test files, just like assembly.
+- **FPGA speed:** The Verilator backend is ~60x slower than the Avalonia emulator. Tests that take 1 second on Avalonia may take a minute on Verilator. Factor this into timeouts.
+
+**NovaVM vs. Verilator:** Both backends use the same TCP protocol and DSL. The difference is what's on the other end:
+
+| Feature | novavm (Avalonia) | verilator (FPGA sim) |
+|---------|-------------------|----------------------|
+| Speed | Fast (~realtime) | Slow (~1/60 realtime) |
+| VGC graphics | Yes | Yes |
+| Sprites | Yes | Yes |
+| Tile engine | Yes | Yes |
+| Blitter | Yes | Yes |
+| Copper | Yes | Yes |
+| Expansion memory (XMC) | Yes | Yes |
+| DMA controller (DMACOPY/DMAFILL) | Yes | No |
+| File I/O | Yes | No |
+| Sound (SID/WTS) | Yes | No |
+| Network (NIC) | Yes | No |
+| Cycle accuracy | Approximate | Exact (RTL) |
 
 #### Architecture Overview
 
@@ -282,9 +524,11 @@ sim6502 supports multiple execution backends through the `IExecutionBackend` int
 
 **SimulatorBackend**: Wraps the internal 6502/6510/65C02 CPU simulator. This is the default backend, providing fast, deterministic execution for pure computational testing. No hardware peripherals are emulated.
 
-**ViceBackend**: Translates execution commands into JSON-RPC 2.0 calls to VICE's embedded MCP (Model Context Protocol) server over HTTP. This provides cycle-accurate emulation of the complete Commodore hardware including VIC-II graphics chip, SID sound chip, CIA timers, and full interrupt support.
+**ViceBackend**: Translates execution commands into JSON-RPC 2.0 calls to VICE's embedded MCP server over HTTP. This provides cycle-accurate emulation of the complete Commodore hardware including VIC-II graphics chip, SID sound chip, CIA timers, and full interrupt support.
 
-The `SimBaseListener` class (which processes your test DSL) interacts only with the `IExecutionBackend` interface, making it backend-agnostic. Backend selection happens at runtime via the `--backend` CLI flag.
+**NovaVmBackend**: Connects to the e6502 Avalonia emulator or FPGA Verilator testbench via a TCP JSON protocol. Implements both `IExecutionBackend` (peek/poke/jsr) and `IHighLevelBackend` (BASIC line entry, screen reading, wait operations). Used for integration testing of the full NovaVM hardware stack.
+
+The `SimBaseListener` class (which processes your test DSL) interacts only with the `IExecutionBackend` and `IHighLevelBackend` interfaces, making it backend-agnostic. Backend selection happens at runtime via the `--backend` CLI flag.
 
 #### Error Handling and Troubleshooting
 

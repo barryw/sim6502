@@ -334,15 +334,32 @@ public class ViceBackendContractTests
     }
 
     [Fact]
-    public void SetWarpMode_DoesNotCallConfigSet()
+    public void SetWarpMode_CallsConfigSetWithCorrectToolName()
     {
         var mock = new MockViceConnection();
         var backend = new ViceBackend(DefaultConfig, mock);
 
         backend.SetWarpMode(true);
+
+        mock.WasToolCalled("vice.machine.config.set").Should().BeTrue();
+        var call = mock.GetCallsForTool("vice.machine.config.set").First();
+        var resources = call.Args!["resources"] as Dictionary<string, object>;
+        resources.Should().NotBeNull();
+        resources!["WarpMode"].Should().Be(1);
+    }
+
+    [Fact]
+    public void SetWarpMode_DisabledSetsWarpModeToZero()
+    {
+        var mock = new MockViceConnection();
+        var backend = new ViceBackend(DefaultConfig, mock);
+
         backend.SetWarpMode(false);
 
-        mock.WasToolCalled("vice.config.set").Should().BeFalse();
-        mock.Calls.Should().BeEmpty("warp mode is a no-op");
+        mock.WasToolCalled("vice.machine.config.set").Should().BeTrue();
+        var call = mock.GetCallsForTool("vice.machine.config.set").First();
+        var resources = call.Args!["resources"] as Dictionary<string, object>;
+        resources.Should().NotBeNull();
+        resources!["WarpMode"].Should().Be(0);
     }
 }

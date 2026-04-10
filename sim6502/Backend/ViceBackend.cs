@@ -330,8 +330,10 @@ public class ViceBackend : IExecutionBackend
 
     public void SetWarpMode(bool enabled)
     {
-        // vice.config.set is not yet implemented in VICE MCP server
-        Logger.Warn($"VICE warp mode control not available via MCP (requested: {(enabled ? "enabled" : "disabled")})");
+        _connection.CallTool("vice.machine.config.set", new Dictionary<string, object>
+        {
+            { "resources", new Dictionary<string, object> { { "WarpMode", enabled ? 1 : 0 } } }
+        });
     }
 
     public bool TraceEnabled { get; set; }

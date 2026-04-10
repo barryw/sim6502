@@ -218,6 +218,20 @@ public interface Isim6502Visitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitMemoryCmp([NotNull] sim6502Parser.MemoryCmpContext context);
 	/// <summary>
+	/// Visit a parse tree produced by the <c>screenContains</c>
+	/// labeled alternative in <see cref="sim6502Parser.comparison"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitScreenContains([NotNull] sim6502Parser.ScreenContainsContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>screenLineCheck</c>
+	/// labeled alternative in <see cref="sim6502Parser.comparison"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitScreenLineCheck([NotNull] sim6502Parser.ScreenLineCheckContext context);
+	/// <summary>
 	/// Visit a parse tree produced by the <c>registerCompare</c>
 	/// labeled alternative in <see cref="sim6502Parser.compareLHS"/>.
 	/// </summary>
@@ -391,6 +405,99 @@ public interface Isim6502Visitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitMemDumpFunction([NotNull] sim6502Parser.MemDumpFunctionContext context);
 	/// <summary>
+	/// Visit a parse tree produced by <see cref="sim6502Parser.basicFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitBasicFunction([NotNull] sim6502Parser.BasicFunctionContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="sim6502Parser.runFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitRunFunction([NotNull] sim6502Parser.RunFunctionContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="sim6502Parser.runWait"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitRunWait([NotNull] sim6502Parser.RunWaitContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="sim6502Parser.waitReadyFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitWaitReadyFunction([NotNull] sim6502Parser.WaitReadyFunctionContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="sim6502Parser.waitTextFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitWaitTextFunction([NotNull] sim6502Parser.WaitTextFunctionContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="sim6502Parser.waitTimeout"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitWaitTimeout([NotNull] sim6502Parser.WaitTimeoutContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="sim6502Parser.sendKeyFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitSendKeyFunction([NotNull] sim6502Parser.SendKeyFunctionContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="sim6502Parser.coldStartFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitColdStartFunction([NotNull] sim6502Parser.ColdStartFunctionContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="sim6502Parser.pauseFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitPauseFunction([NotNull] sim6502Parser.PauseFunctionContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>pauseCycles</c>
+	/// labeled alternative in <see cref="sim6502Parser.pauseOption"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitPauseCycles([NotNull] sim6502Parser.PauseCyclesContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>pauseScreen</c>
+	/// labeled alternative in <see cref="sim6502Parser.pauseOption"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitPauseScreen([NotNull] sim6502Parser.PauseScreenContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>pauseWatch</c>
+	/// labeled alternative in <see cref="sim6502Parser.pauseOption"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitPauseWatch([NotNull] sim6502Parser.PauseWatchContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="sim6502Parser.resumeFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitResumeFunction([NotNull] sim6502Parser.ResumeFunctionContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="sim6502Parser.screenContainsFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitScreenContainsFunction([NotNull] sim6502Parser.ScreenContainsFunctionContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="sim6502Parser.screenLineFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitScreenLineFunction([NotNull] sim6502Parser.ScreenLineFunctionContext context);
+	/// <summary>
 	/// Visit a parse tree produced by <see cref="sim6502Parser.sourceAddress"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
@@ -561,6 +668,20 @@ public interface Isim6502Visitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitMemoryCmpFunctionValue([NotNull] sim6502Parser.MemoryCmpFunctionValueContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>screenContainsFunctionValue</c>
+	/// labeled alternative in <see cref="sim6502Parser.boolFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitScreenContainsFunctionValue([NotNull] sim6502Parser.ScreenContainsFunctionValueContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>screenLineFunctionValue</c>
+	/// labeled alternative in <see cref="sim6502Parser.boolFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitScreenLineFunctionValue([NotNull] sim6502Parser.ScreenLineFunctionValueContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="sim6502Parser.symbolRef"/>.
 	/// </summary>
