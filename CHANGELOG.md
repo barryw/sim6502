@@ -2,6 +2,19 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.12.0 - 2026-04-11
+#### Features
+- add NovaVM and Verilator backends for integration testing - (9da0de2) - Barry Walker, *Claude Opus 4.6 (1M context)*
+#### Bug Fixes
+- escape shell variables with $$ in Woodpecker YAML - (50aa432) - Barry Walker, *Claude Opus 4.6 (1M context)*
+- use GitHub API with jq to resolve cocogitto version - (f5567c2) - Barry Walker, *Claude Opus 4.6 (1M context)*
+- combine cocogitto install into single shell block for variable persistence - (cf0bba9) - Barry Walker, *Claude Opus 4.6 (1M context)*
+- dynamically resolve cocogitto version in CI release step - (f797c47) - Barry Walker, *Claude Opus 4.6 (1M context)*
+- skip integration parse tests when e6502 repo not available in CI - (abd6c7a) - Barry Walker, *Claude Opus 4.6 (1M context)*
+- update minimatch and brace-expansion to resolve CVEs - (6542664) - Barry Walker, *Claude Opus 4.6 (1M context)*
+
+- - -
+
 ## v3.11.5 - 2026-02-06
 #### Bug Fixes
 - align ViceBackend contracts with actual vice-mcp server - (58c0cf7) - Barry Walker
