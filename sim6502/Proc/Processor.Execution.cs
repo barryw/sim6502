@@ -275,7 +275,7 @@ namespace sim6502.Proc
         private byte PeekStack()
         {
             //The stack lives at 0x100-0x1FF, but the value is only a byte so it needs to be translated
-            return Memory[StackPointer + 0x100];
+            return Memory[(_stackPointer & 0xFF) + 0x100];
         }
 
         /// <summary>
@@ -285,7 +285,7 @@ namespace sim6502.Proc
         private void PokeStack(byte value)
         {
             //The stack lives at 0x100-0x1FF, but the value is only a byte so it needs to be translated
-            Memory[StackPointer + 0x100] = value;
+            Memory[(_stackPointer & 0xFF) + 0x100] = value;
         }
 
         #endregion
