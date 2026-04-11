@@ -107,21 +107,37 @@ steps:
         gh release upload "$VERSION" ./release-assets/*.zip --clobber
     depends_on: [release]
 
-  - name: docker
-    image: gcr.io/kaniko-project/executor:debug
+  - name: docker-prep
+    image: alpine
     when:
       - evaluate: 'CI_COMMIT_MESSAGE not contains "chore(version):"'
-    environment:
-      GITHUB_TOKEN:
-        from_secret: github_token
     commands:
-      - VERSION=$(wget -qO- https://api.github.com/repos/barryw/sim6502/releases/latest | sed -n 's/.*"tag_name".*"v\([^"]*\)".*/\1/p')
-      - echo "Building version $VERSION"
-      # Update version in csproj before building (in case post_bump_hook didn't work)
-      - sed -i "s|<Version>.*</Version>|<Version>$VERSION</Version>|" sim6502/sim6502.csproj
-      - sed -i "s|<AssemblyVersion>.*</AssemblyVersion>|<AssemblyVersion>$VERSION.0</AssemblyVersion>|" sim6502/sim6502.csproj
-      - sed -i "s|<FileVersion>.*</FileVersion>|<FileVersion>$VERSION.0</FileVersion>|" sim6502/sim6502.csproj
-      - mkdir -p /kaniko/.docker
-      - echo "{\"auths\":{\"ghcr.io\":{\"username\":\"barryw\",\"password\":\"$GITHUB_TOKEN\"}}}" > /kaniko/.docker/config.json
-      - /kaniko/executor --context="$CI_WORKSPACE" --dockerfile="$CI_WORKSPACE/Dockerfile" --destination="ghcr.io/barryw/sim6502:v$VERSION" --destination="ghcr.io/barryw/sim6502:latest"
+      - apk add --no-cache wget sed
+      - |
+        VERSION=$(wget -qO- https://api.github.com/repos/barryw/sim6502/releases/latest | sed -n 's/.*"tag_name".*"v\([^"]*\)".*/\1/p')
+        if [ -z "$VERSION" ]; then
+          echo "No release found — skipping Docker build"
+          exit 0
+        fi
+        echo "Building Docker image for v$VERSION"
+        sed -i "s|<Version>.*</Version>|<Version>$VERSION</Version>|" sim6502/sim6502.csproj
+        sed -i "s|<AssemblyVersion>.*</AssemblyVersion>|<AssemblyVersion>$VERSION.0</AssemblyVersion>|" sim6502/sim6502.csproj
+        sed -i "s|<FileVersion>.*</FileVersion>|<FileVersion>$VERSION.0</FileVersion>|" sim6502/sim6502.csproj
+        printf "v%s,latest" "$VERSION" > .tags
     depends_on: [release]
+
+  - name: docker
+    image: woodpeckerci/plugin-docker-buildx:5
+    privileged: true
+    when:
+      - evaluate: 'CI_COMMIT_MESSAGE not contains "chore(version):"'
+    settings:
+      repo: ghcr.io/barryw/sim6502
+      registry: ghcr.io
+      username: barryw
+      password:
+        from_secret: github_token
+      platforms: linux/amd64,linux/arm64
+      auto_tag: false
+      tags_file: .tags
+    depends_on: [docker-prep]
