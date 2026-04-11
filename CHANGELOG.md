@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.12.1 - 2026-04-11
+#### Chores
+- (**deps**) bump minimatch from 5.1.6 to 5.1.9 in /sim6502-vscode - (bbf34ca) - dependabot[bot]
+
+- - -
+
 ## v3.12.0 - 2026-04-11
 #### Features
 - add NovaVM and Verilator backends for integration testing - (9da0de2) - Barry Walker, *Claude Opus 4.6 (1M context)*
