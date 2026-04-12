@@ -97,15 +97,7 @@ public partial class Processor
     public int StackPointer
     {
         get => _stackPointer;
-        set
-        {
-            if (value > 0xFF)
-                _stackPointer = value - 0x100;
-            else if (value < 0x00)
-                _stackPointer = value + 0x100;
-            else
-                _stackPointer = value;
-        }
+        set => _stackPointer = value & 0xFF;
     }
 
     /// <summary>
