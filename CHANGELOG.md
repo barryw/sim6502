@@ -2,6 +2,15 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.13.0 - 2026-04-12
+#### Features
+- add linux/arm64 Docker image support via buildx - (3b5e768) - Barry Walker, *Claude Opus 4.6 (1M context)*
+#### Bug Fixes
+- use Kaniko for multi-arch Docker builds without privileged mode - (87689fb) - Barry Walker, *Claude Opus 4.6 (1M context)*
+- use bitwise AND for stack pointer wrapping to prevent memory corruption - (6954473) - Barry Walker, *Claude Opus 4.6 (1M context)*
+
+- - -
+
 ## v3.12.1 - 2026-04-11
 #### Chores
 - (**deps**) bump minimatch from 5.1.6 to 5.1.9 in /sim6502-vscode - (bbf34ca) - dependabot[bot]
