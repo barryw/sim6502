@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.13.1 - 2026-04-12
+#### Bug Fixes
+- use pre-built framework-dependent output for multi-arch Docker - (461bf37) - Barry Walker, *Claude Opus 4.6 (1M context)*
+
+- - -
+
 ## v3.13.0 - 2026-04-12
 #### Features
 - add linux/arm64 Docker image support via buildx - (3b5e768) - Barry Walker, *Claude Opus 4.6 (1M context)*
