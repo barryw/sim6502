@@ -1,0 +1,9 @@
+# Packaging-only Dockerfile for multi-arch builds.
+# Expects pre-built framework-dependent output in docker-publish/.
+# No RUN commands, so Kaniko --customPlatform works on any host.
+FROM mcr.microsoft.com/dotnet/runtime:10.0
+
+WORKDIR /app
+COPY docker-publish/ .
+
+ENTRYPOINT ["dotnet", "Sim6502TestRunner.dll"]
