@@ -107,6 +107,23 @@ steps:
         gh release upload "$VERSION" ./release-assets/*.zip --clobber
     depends_on: [release]
 
+  - name: docker-publish
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    when:
+      - evaluate: 'CI_COMMIT_MESSAGE not contains "chore(version):"'
+    commands:
+      - |
+        VERSION=$(wget -qO- https://api.github.com/repos/barryw/sim6502/releases/latest | sed -n 's/.*"tag_name".*"v\([^"]*\)".*/\1/p')
+        if [ -z "$VERSION" ]; then
+          echo "No release found — skipping Docker publish"
+          exit 0
+        fi
+        sed -i "s|<Version>.*</Version>|<Version>$VERSION</Version>|" sim6502/sim6502.csproj
+        sed -i "s|<AssemblyVersion>.*</AssemblyVersion>|<AssemblyVersion>$VERSION.0</AssemblyVersion>|" sim6502/sim6502.csproj
+        sed -i "s|<FileVersion>.*</FileVersion>|<FileVersion>$VERSION.0</FileVersion>|" sim6502/sim6502.csproj
+        dotnet publish sim6502/sim6502.csproj -c Release -o docker-publish
+    depends_on: [release]
+
   - name: docker-amd64
     image: gcr.io/kaniko-project/executor:debug
     when:
@@ -121,18 +138,14 @@ steps:
           echo "No release found — skipping Docker build"
           exit 0
         fi
-        echo "Building amd64 image for v$VERSION"
-        sed -i "s|<Version>.*</Version>|<Version>$VERSION</Version>|" sim6502/sim6502.csproj
-        sed -i "s|<AssemblyVersion>.*</AssemblyVersion>|<AssemblyVersion>$VERSION.0</AssemblyVersion>|" sim6502/sim6502.csproj
-        sed -i "s|<FileVersion>.*</FileVersion>|<FileVersion>$VERSION.0</FileVersion>|" sim6502/sim6502.csproj
         mkdir -p /kaniko/.docker
         echo "{\"auths\":{\"ghcr.io\":{\"username\":\"barryw\",\"password\":\"$GITHUB_TOKEN\"}}}" > /kaniko/.docker/config.json
         /kaniko/executor \
           --context="$CI_WORKSPACE" \
-          --dockerfile="$CI_WORKSPACE/Dockerfile" \
-          --customPlatform=linux/amd64 \
+          --dockerfile="$CI_WORKSPACE/Dockerfile.runtime" \
+          --custom-platform=linux/amd64 \
           --destination="ghcr.io/barryw/sim6502:v$${VERSION}-amd64"
-    depends_on: [release]
+    depends_on: [docker-publish]
 
   - name: docker-arm64
     image: gcr.io/kaniko-project/executor:debug
@@ -148,18 +161,14 @@ steps:
           echo "No release found — skipping Docker build"
           exit 0
         fi
-        echo "Building arm64 image for v$VERSION"
-        sed -i "s|<Version>.*</Version>|<Version>$VERSION</Version>|" sim6502/sim6502.csproj
-        sed -i "s|<AssemblyVersion>.*</AssemblyVersion>|<AssemblyVersion>$VERSION.0</AssemblyVersion>|" sim6502/sim6502.csproj
-        sed -i "s|<FileVersion>.*</FileVersion>|<FileVersion>$VERSION.0</FileVersion>|" sim6502/sim6502.csproj
         mkdir -p /kaniko/.docker
         echo "{\"auths\":{\"ghcr.io\":{\"username\":\"barryw\",\"password\":\"$GITHUB_TOKEN\"}}}" > /kaniko/.docker/config.json
         /kaniko/executor \
           --context="$CI_WORKSPACE" \
-          --dockerfile="$CI_WORKSPACE/Dockerfile" \
-          --customPlatform=linux/arm64 \
+          --dockerfile="$CI_WORKSPACE/Dockerfile.runtime" \
+          --custom-platform=linux/arm64 \
           --destination="ghcr.io/barryw/sim6502:v$${VERSION}-arm64"
-    depends_on: [release]
+    depends_on: [docker-publish]
 
   - name: docker-manifest
     image: mplatform/manifest-tool:alpine
