@@ -257,6 +257,24 @@ public class NovaVmBackend : IExecutionBackend, IHighLevelBackend
         // Step 3: wait for Ready again — RESET re-runs the banner so
         // "Ready" will re-appear after a full cold-boot cycle.
         WaitForText("Ready", _config.TimeoutMs);
+
+        // Step 4: CLS to wipe stale screen text below the banner.
+        // VCMD_SYSRESET doesn't clear character RAM, so the previous
+        // test's echoed BASIC lines remain on-screen. Without this,
+        // WaitForText("10 ", ...) used by basic() hits the stale echo
+        // of the prior test's line 10 and returns immediately — skipping
+        // the actual wait for BASIC to ingest the new input, which leads
+        // to the next command racing ahead and stalling the line editor.
+        _connection.Send("type_text", new Dictionary<string, object>
+        {
+            { "text", "CLS" },
+            { "delay_ms", 2 }
+        });
+        _connection.Send("send_key", new Dictionary<string, object> { { "key", "ENTER" } });
+
+        // Step 5: wait for Ready again after CLS. The screen is now blank
+        // except for the fresh Ready prompt at or near the top.
+        WaitForText("Ready", _config.TimeoutMs);
     }
 
     public void Pause()
