@@ -237,8 +237,25 @@ public class NovaVmBackend : IExecutionBackend, IHighLevelBackend
 
     public void ColdStart()
     {
+        // Step 1: CTRL-C to break any running program, wait for Ready.
         _connection.Send("cold_start");
-        // Wait for BASIC to boot and show Ready prompt
+        WaitForText("Ready", _config.TimeoutMs);
+
+        // Step 2: type "RESET" to invoke EhBASIC's RESET command
+        // (LAB_RESET in basic.asm: writes VCMD_SYSRESET to VGC then
+        // JMP ($FFFC) — a proper cold reboot that clears BASIC program
+        // memory, variables, VGC state). CTRL-C alone leaves program
+        // lines like "10 PRINT 42" resident between tests; RESET is
+        // what makes per-test isolation real.
+        _connection.Send("type_text", new Dictionary<string, object>
+        {
+            { "text", "RESET" },
+            { "delay_ms", 2 }
+        });
+        _connection.Send("send_key", new Dictionary<string, object> { { "key", "ENTER" } });
+
+        // Step 3: wait for Ready again — RESET re-runs the banner so
+        // "Ready" will re-appear after a full cold-boot cycle.
         WaitForText("Ready", _config.TimeoutMs);
     }
 
