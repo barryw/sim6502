@@ -1287,6 +1287,30 @@ namespace sim6502.Grammar
                 $"'{command}' requires a high-level backend (novavm). Current backend: {BackendType}");
         }
 
+        // Scan recent screen lines for BASIC error messages and fail the
+        // assertion immediately. EhBASIC formats errors as
+        //   "<Type> Error"           (immediate-mode failure)
+        //   "<Type> Error in line N" (program failure)
+        // The space before "Error" filters out incidental occurrences in
+        // PRINT output or test descriptions. Called by basic() and run()
+        // so that any I/O error / Syntax error / Type mismatch / etc.
+        // halts the test at the line that caused it instead of letting
+        // it cascade into a meaningless assertion failure later.
+        private void CheckScreenForBasicErrors(string[] screen, string context)
+        {
+            if (screen == null) return;
+            foreach (var line in screen)
+            {
+                var trimmed = line.TrimEnd();
+                if (trimmed.EndsWith(" Error", StringComparison.Ordinal) ||
+                    trimmed.Contains(" Error in line ", StringComparison.Ordinal))
+                {
+                    FailAssertion($"BASIC error during {context}: {trimmed.Trim()}");
+                    return;
+                }
+            }
+        }
+
         public override void ExitBasicFunction(sim6502Parser.BasicFunctionContext context)
         {
             if (_inSetupBlockDefinition || _currentTestSkipped)
@@ -1310,6 +1334,14 @@ namespace sim6502.Grammar
             {
                 Thread.Sleep(200);
             }
+
+            // (Error-line detection moved to run() only — adding a ReadScreen
+            // here was racing with the FPGA debug-bridge readback path and
+            // intermittently triggering false "Syntax Error" matches that
+            // didn't reflect actual BASIC errors. run() already polls the
+            // screen, so error checking there catches both program failures
+            // and immediate-mode failures by the time RUN completes.)
+
             _didJsr = true;
         }
 
@@ -1345,17 +1377,9 @@ namespace sim6502.Grammar
                     break;
             }
 
-            // Check screen for BASIC errors — "Error" with capital E appears in all BASIC error messages
-            if (lastScreen != null)
-            {
-                foreach (var line in lastScreen)
-                {
-                    if (line.Contains("Error in line", StringComparison.Ordinal))
-                    {
-                        FailAssertion($"BASIC error: {line.Trim()}");
-                    }
-                }
-            }
+            // Check screen for BASIC errors — covers both program failures
+            // ("X Error in line N") and immediate-mode failures ("X Error").
+            CheckScreenForBasicErrors(lastScreen, "run()");
 
             _didJsr = true;
         }
