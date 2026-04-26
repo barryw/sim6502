@@ -1298,15 +1298,10 @@ namespace sim6502.Grammar
         // in test contexts and easier to debug visually.
         private void CheckScreenForBasicErrors(string[] screen, string context)
         {
-            if (screen == null) return;
-            foreach (var line in screen)
+            var found = BasicErrorScanner.FindProgramError(screen);
+            if (found != null)
             {
-                var trimmed = line.TrimEnd();
-                if (trimmed.Contains(" Error in line ", StringComparison.Ordinal))
-                {
-                    FailAssertion($"BASIC error during {context}: {trimmed.Trim()}");
-                    return;
-                }
+                FailAssertion($"BASIC error during {context}: {found}");
             }
         }
 
