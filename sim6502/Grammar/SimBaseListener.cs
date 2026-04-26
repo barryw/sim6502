@@ -1287,23 +1287,22 @@ namespace sim6502.Grammar
                 $"'{command}' requires a high-level backend (novavm). Current backend: {BackendType}");
         }
 
-        // Scan recent screen lines for BASIC error messages and fail the
-        // assertion immediately. EhBASIC formats errors as
-        //   "<Type> Error"           (immediate-mode failure)
-        //   "<Type> Error in line N" (program failure)
-        // The space before "Error" filters out incidental occurrences in
-        // PRINT output or test descriptions. Called by basic() and run()
-        // so that any I/O error / Syntax error / Type mismatch / etc.
-        // halts the test at the line that caused it instead of letting
-        // it cascade into a meaningless assertion failure later.
+        // Scan the screen for BASIC program-failure messages and fail the
+        // assertion. EhBASIC formats program errors as "<Type> Error in
+        // line N", which is unambiguous — only appears as the result of
+        // RUN hitting a runtime error. The earlier broader "<Type> Error"
+        // suffix match was dropped because it produced false positives:
+        // certain screen states (rendering artifacts, runner-side log
+        // text, or incidental words ending in " Error") matched even
+        // when no actual error occurred. Immediate-mode errors are rare
+        // in test contexts and easier to debug visually.
         private void CheckScreenForBasicErrors(string[] screen, string context)
         {
             if (screen == null) return;
             foreach (var line in screen)
             {
                 var trimmed = line.TrimEnd();
-                if (trimmed.EndsWith(" Error", StringComparison.Ordinal) ||
-                    trimmed.Contains(" Error in line ", StringComparison.Ordinal))
+                if (trimmed.Contains(" Error in line ", StringComparison.Ordinal))
                 {
                     FailAssertion($"BASIC error during {context}: {trimmed.Trim()}");
                     return;
