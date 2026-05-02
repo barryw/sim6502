@@ -1,5 +1,9 @@
 # DSL Enhancements for sim6502 Test Framework
 
+> Archived plan: this documents the intended design at the time it was written. It is not current API reference; verify behavior against `README.md` and the code in `sim6502/`.
+>
+> Accuracy note: `default_timeout` appears in this plan but did not ship in the current grammar. Current tests support per-test `timeout = N`.
+
 > **For Claude:** Use superpowers:writing-plans to create implementation tasks from this design.
 
 ## Overview

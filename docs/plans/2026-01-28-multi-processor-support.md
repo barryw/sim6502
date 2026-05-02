@@ -1,5 +1,7 @@
 # Multi-Processor Support Implementation Plan
 
+> Archived plan: this documents the intended implementation flow at the time it was written. It is not current API reference; verify behavior against `README.md` and the code in `sim6502/`.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Add support for 6502, 6510, and 65C02 processor variants with a DSL command to specify processor type per suite.

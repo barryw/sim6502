@@ -1,7 +1,9 @@
 # VICE MCP Backend for sim6502
 
+> Archived plan: this documents the intended design at the time it was written. The VICE backend has since been implemented and some protocol tool names and CLI details changed. Use `README.md` and `sim6502/Backend/ViceBackend.cs` as the current reference.
+
 **Date:** 2026-02-05
-**Status:** Design Phase
+**Status:** Implemented with later changes
 
 ## Summary
 
@@ -57,15 +59,15 @@ public interface IExecutionBackend
 | `SetRegister("A", 0xFF)` | `vice.registers.set` |
 | `GetRegister("A")` | `vice.registers.get` |
 | `WriteByte(addr, val)` | `vice.memory.write` |
-| `ReadByte(addr)` | `vice.memory.read` (length 1) |
-| `ReadWord(addr)` | `vice.memory.read` (length 2) |
-| `ExecuteJsr(addr, opts)` | Push return addr on stack, set PC, set breakpoint, `vice.execution.run`, wait for breakpoint |
-| `GetCycles()` | `vice.trace.cycles.get` |
-| `LoadSymbols(path)` | VICE symbol loading MCP tool |
+| `ReadByte(addr)` | `vice.memory.read` (`size = 1`) |
+| `ReadWord(addr)` | Two `vice.memory.read` byte reads |
+| `ExecuteJsr(addr, opts)` | Push return addr on stack, set PC, set checkpoint, `vice.execution.run`, read registers after stop |
+| `GetCycles()` / `ResetCycleCount()` | `vice.cycles.stopwatch` |
+| `LoadSymbols(path)` | `vice.symbols.load` |
 | `SaveSnapshot(name)` | `vice.snapshot.save` |
 | `RestoreSnapshot(name)` | `vice.snapshot.load` |
-| `Reset()` | `vice.execution.reset` |
-| `SetWarpMode(enabled)` | `vice.config.set` (warp resource) |
+| `Reset()` | `vice.machine.reset` |
+| `SetWarpMode(enabled)` | `vice.machine.config.set` (`WarpMode` resource) |
 
 ### ExecuteJsr Implementation
 
@@ -99,8 +101,8 @@ Separated from `ViceBackend` for independent unit testing.
 1. Connect to VICE (or launch it with `--launch-vice`)
 2. Verify connection with `vice.ping`
 3. Pause execution with `vice.execution.pause`
-4. Enable warp mode (default on; disable with `--no-vice-warp`)
-5. Soft-reset the machine with `vice.execution.reset`
+4. Enable warp mode (default on; disable with `--vice-warp false`)
+5. Soft-reset the machine with `vice.machine.reset`
 6. Load all binaries from `load()` directives via `vice.memory.write`
 7. Load symbol files into both sim6502 (for expression evaluation) and VICE (for VICE debugging features)
 8. Save snapshot: `vice.snapshot.save` with name `suite_{n}_baseline`
@@ -128,7 +130,6 @@ Separated from `ViceBackend` for independent unit testing.
 | `--vice-port` | `6510` | MCP server port |
 | `--launch-vice` | off | Auto-launch VICE process |
 | `--vice-warp` | on | Enable warp mode during tests |
-| `--no-vice-warp` | — | Disable warp mode (watch execution) |
 | `--vice-timeout` | `5000` | Milliseconds before test execution times out |
 
 ## Error Handling

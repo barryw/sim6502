@@ -6,14 +6,20 @@
      | (_) |__) | |_| / /_  | |__| | | | | | |_     | |  __/\__ \ |_  | |____| |____ _| |_
       \___/____/ \___/____|  \____/|_| |_|_|\__|    |_|\___||___/\__|  \_____|______|_____|
 
-
-![.NET Core](https://github.com/barryw/sim6502/workflows/.NET%20Core/badge.svg)
-
 #### Introduction
 
 This is a tool to help you unit test your 6502 assembly language programs. There's no valid reason why your 6502 programs shouldn't receive the same DevOps treatment as the rest of your modern applications.
 
-It works by running your assembled programs with a 6502 simulator and then allowing you to make assertions on memory and CPU state. It's very similar to other unit test tools.
+It works by running your assembled programs through an execution backend and then allowing you to make assertions on memory, CPU state, or emulator-visible output. It's very similar to other unit test tools.
+
+sim6502 now has four execution backends:
+
+| Backend | Use it for |
+|---------|------------|
+| `sim` | Fast internal 6502/6510/65C02 assembly-unit tests |
+| `vice` | Hardware-accurate C64 tests through a VICE MCP server |
+| `novavm` | BASIC-level integration tests against the e6502/NovaVM Avalonia emulator |
+| `verilator` | BASIC-level integration tests against the NovaVM FPGA Verilator simulation |
 
 A minimal test suite looks like this:
 
@@ -215,7 +221,7 @@ dotnet Sim6502TestRunner.dll -s tests.6502 --filter "castle*" --filter-tag "regr
 3. `--filter-tag` further narrows to matching tags
 4. `--exclude-tag` removes from final set
 
-There is also a Docker image if you'd like to not have to mess with installing the .NET Core framework. You can run it like this:
+There is also a Docker image if you'd like to not have to mess with installing the .NET runtime. You can run it like this:
 
 ```bash
 docker run -v ${PWD}:/code -it ghcr.io/barryw/sim6502:latest -s /code/{your test script} -t
@@ -224,6 +230,39 @@ docker run -v ${PWD}:/code -it ghcr.io/barryw/sim6502:latest -s /code/{your test
 That would mount the current directory to a directory in the container called `/code` and would expect to see all of your artifacts there, unless you've given them absolute paths. Just make sure you update your test script to point to the correct location of any roms and programs.
 
 If you'd like to see a larger example of this tool in action, run `make` from the `example` folder. It's the test suite from my c64lib project.
+
+### Backend Selection
+
+The default backend is the internal simulator:
+
+```bash
+dotnet Sim6502TestRunner.dll -s tests.6502 --backend sim
+```
+
+Use `--backend` to choose another target. The suite syntax stays the same, but backend capabilities differ:
+
+| Backend | Target | Supports `jsr()` assembly tests | Supports high-level BASIC/screen commands |
+|---------|--------|----------------------------------|-------------------------------------------|
+| `sim` | Internal CPU simulator | Yes | No |
+| `vice` | VICE MCP server | Yes | No |
+| `novavm` | e6502/NovaVM Avalonia emulator | No | Yes |
+| `verilator` | NovaVM FPGA Verilator testbench | No | Yes |
+
+Backend-specific CLI options:
+
+| Option | Default | Backends | Description |
+|--------|---------|----------|-------------|
+| `--backend <type>` | `sim` | all | `sim`, `vice`, `novavm`, or `verilator` |
+| `--vice-host <host>` | `127.0.0.1` | `vice` | VICE MCP server host |
+| `--vice-port <port>` | `6510` | `vice` | VICE MCP server port |
+| `--vice-timeout <ms>` | `5000` | `vice` | Per-test execution timeout |
+| `--vice-warp <bool>` | `true` | `vice` | Enable VICE warp mode during tests |
+| `--launch-vice` | `false` | `vice` | Start `x64sc`/`x64` with MCP enabled before running tests |
+| `--novavm-host <host>` | `127.0.0.1` | `novavm` | NovaVM-compatible TCP server host |
+| `--novavm-port <port>` | `6502` | `novavm` | NovaVM-compatible TCP server port |
+| `--novavm-timeout <ms>` | `10000` | `novavm` | Timeout for NovaVM wait/control operations |
+
+The `verilator` backend uses the same NovaVM TCP protocol, but the current CLI does not pass the `--novavm-*` options into that backend. It connects to `127.0.0.1:6503` with the default 10000ms timeout.
 
 ### VICE Backend (Hardware-Accurate Testing)
 
@@ -278,9 +317,11 @@ x64sc -mcpserver -mcpserverport 6510
 - **NovaVM (`novavm`):** Full NovaVM emulator — VGC graphics, SID sound, sprites, blitter, tile engine, copper, DMA, expansion memory
 - **Verilator (`verilator`):** FPGA RTL simulation via Verilator — cycle-accurate hardware verification of the NovaVM design
 
-### NovaVM Backend (NovaVM Emulator Integration)
+### NovaVM and Verilator Backends (e6502/NovaVM Integration)
 
 The `novavm` and `verilator` backends connect to a NovaVM-compatible system (the e6502 Avalonia emulator or the FPGA Verilator testbench) via a TCP JSON protocol. These backends provide a high-level DSL for testing BASIC programs against the full hardware stack — graphics, sound, sprites, tile maps, DMA, and expansion memory.
+
+These backends are intended for BASIC/system integration tests. They support memory loads, memory reads/writes, screen assertions, keyboard input, pause/resume, cycle stepping, and memory watches. They do not support `jsr()` subroutine execution, direct register writes, or direct flag writes; use `--backend sim` or `--backend vice` for assembly-level `jsr()` suites.
 
 ```bash
 # Run against the Avalonia emulator (default port 6502)
@@ -297,9 +338,11 @@ sim6502 -s tests/integration/vgc.6502 --backend novavm --novavm-port 7000
 |--------|---------|-------------|
 | `--backend novavm` | | Connect to Avalonia emulator on port 6502 |
 | `--backend verilator` | | Connect to Verilator testbench on port 6503 |
-| `--novavm-host <host>` | `127.0.0.1` | NovaVM/Verilator TCP server host |
-| `--novavm-port <port>` | `6502` | TCP server port (auto-overridden to 6503 for verilator backend) |
-| `--novavm-timeout <ms>` | `10000` | Timeout for wait operations |
+| `--novavm-host <host>` | `127.0.0.1` | NovaVM TCP server host (`novavm` backend only) |
+| `--novavm-port <port>` | `6502` | NovaVM TCP server port (`novavm` backend only) |
+| `--novavm-timeout <ms>` | `10000` | Timeout for NovaVM wait operations (`novavm` backend only) |
+
+The `verilator` backend currently uses `127.0.0.1:6503` and the default 10000ms timeout.
 
 #### Getting Started
 
@@ -390,7 +433,9 @@ assert(peekbyte($A000) == 3, "mode register is 3")
 assert(peekbyte($2000) == $FF, "memory is $FF")
 ```
 
-**Test isolation:** The runner performs a `cold_start` before each test, fully resetting the CPU and all hardware (VGC, sprites, blitter, tile engine, copper). Tests cannot leak state into subsequent tests.
+**Test isolation:** The runner performs a `cold_start` before each executed test, fully resetting the CPU and all hardware (VGC, sprites, blitter, tile engine, copper). Skipped or filtered tests do not trigger a cold start. Tests cannot leak state into subsequent tests.
+
+NovaVM cold start currently performs the emulator `cold_start` command, waits for `Ready`, enters BASIC `RESET`, waits for the fresh `Ready` prompt, then enters `CLS` and waits again. This clears BASIC program state and stale screen echoes before each executed test. After `run()`, sim6502 scans the captured screen for EhBASIC program failures with the unambiguous `Error in line N` form and fails the test immediately when one appears.
 
 #### Multi-Step Tests
 
@@ -483,14 +528,16 @@ send_key("ENTER")                     ; send a keypress
 cold_start()                          ; manually reset the system
 pause()                               ; halt the CPU
 pause(cycles_count = 50000)           ; run exactly N cycles then halt
-pause(watch = $A010, value = $00)     ; run until memory matches value
+pause(screen = "LOADED")              ; wait for screen text then halt
+pause(watch = $A010, value = $00)     ; wait until memory matches value
 resume()                              ; resume after pause
 ```
 
 **Direct memory writes (useful for setting hardware registers):**
 
 ```
-poke($A001, 3)                        ; write byte to address
+$A001 = 3                             ; write byte to address
+$A002 = $1234                         ; write word, little-endian
 ```
 
 #### Tips
@@ -526,7 +573,7 @@ sim6502 supports multiple execution backends through the `IExecutionBackend` int
 
 **ViceBackend**: Translates execution commands into JSON-RPC 2.0 calls to VICE's embedded MCP server over HTTP. This provides cycle-accurate emulation of the complete Commodore hardware including VIC-II graphics chip, SID sound chip, CIA timers, and full interrupt support.
 
-**NovaVmBackend**: Connects to the e6502 Avalonia emulator or FPGA Verilator testbench via a TCP JSON protocol. Implements both `IExecutionBackend` (peek/poke/jsr) and `IHighLevelBackend` (BASIC line entry, screen reading, wait operations). Used for integration testing of the full NovaVM hardware stack.
+**NovaVmBackend**: Connects to the e6502 Avalonia emulator or FPGA Verilator testbench via a TCP JSON protocol. Implements `IExecutionBackend` for memory load/read/write operations and `IHighLevelBackend` for BASIC line entry, keyboard input, screen reading, waits, pause/resume, cycle stepping, and memory watches. `jsr()`, register writes, and flag writes are intentionally unsupported on this backend.
 
 The `SimBaseListener` class (which processes your test DSL) interacts only with the `IExecutionBackend` and `IHighLevelBackend` interfaces, making it backend-agnostic. Backend selection happens at runtime via the `--backend` CLI flag.
 
@@ -561,13 +608,13 @@ This typically indicates:
 
 **Snapshot Failures**
 
-If VICE cannot save a baseline snapshot during suite setup:
+If VICE cannot save a baseline snapshot before the first test in a suite:
 
 ```
 Failed to save snapshot 'sim6502_suite_0': [MCP error message]
 ```
 
-This will skip the entire suite. Common causes:
+The run fails at that point. Common causes:
 - VICE filesystem permissions issues
 - Snapshot storage full
 - VICE version does not support snapshot MCP tools
@@ -580,7 +627,7 @@ If snapshot restore fails before a test:
 Failed to load snapshot 'sim6502_suite_0': [MCP error message]
 ```
 
-The test will fail and sim6502 will attempt to re-save the baseline snapshot for subsequent tests.
+The run fails at that point.
 
 **Connection Drops During Suite**
 
@@ -590,7 +637,7 @@ If the MCP connection to VICE drops mid-suite (VICE crashed, network issue, etc.
 MCP connection lost: [error details]
 ```
 
-The current test will fail. sim6502 will attempt to reconnect before the next suite. If reconnection fails, the test run aborts.
+The current backend operation fails and the test run aborts.
 
 **Resolution:** Check VICE process status. If using `--launch-vice`, VICE may have crashed — check VICE logs. If connecting to remote VICE, verify network stability.
 
@@ -606,7 +653,7 @@ The internal simulator and VICE emulator exhibit different behaviors due to hard
 | NMI interrupts | Not emulated | Fully emulated |
 | CIA timers | Not emulated | Fully emulated, running continuously |
 | VIC-II raster timing | Not emulated | Cycle-accurate |
-| Memory banking | Not emulated | Full banking (BASIC, KERNAL, I/O) |
+| C64 memory banking | Emulated by `system(c64)` memory map | Full machine banking with live hardware |
 
 **Example:** If your code sets up a CIA timer interrupt handler, it will never fire on `sim` backend but will fire on `vice` backend at the configured interval.
 
@@ -625,7 +672,7 @@ On VICE, reading from `$D000-$DFFF` returns VIC-II, SID, or CIA register values 
 
 **Example:**
 ```
-# This may behave differently on vice vs. sim
+; This may behave differently on vice vs. sim
 assert($D012 == $00, "Raster line is 0")
 ```
 
@@ -640,8 +687,8 @@ If a test passes on `sim` but fails on `vice`:
 
 If a test passes on `vice` but fails on `sim`:
 - Check if test relies on hardware behavior not present in sim
-- Check if test uses memory banking (not supported in sim)
-- Check for uninitialized memory reads (VICE has KERNAL/BASIC ROMs, sim has random data)
+- Check if test expects live hardware behavior rather than the internal memory-map model
+- Check for uninitialized memory reads (VICE may expose ROM or hardware state; `sim` starts with zeroed RAM unless you load data)
 
 #### How It Works Internally
 
@@ -654,12 +701,12 @@ The internal simulator tracks JSR call depth natively. VICE does not expose call
 1. Read the current stack pointer from VICE
 2. Push a synthetic return address (`$0000`) onto the stack via memory writes
 3. Set the program counter to the target subroutine address
-4. Set a breakpoint at the return address (`$0000`)
-5. If `fail_on_brk` is set, set a second breakpoint at the BRK vector address
-6. Resume VICE execution
-7. Poll VICE execution state until it stops (breakpoint hit or timeout)
-8. Read final registers and cycle count
-9. Clean up breakpoints
+4. Set a checkpoint at the return address (`$0000`) or requested stop address
+5. Resume VICE execution
+6. Read registers after VICE stops or the MCP call times out
+7. Check the final program counter for `BRK` when `fail_on_brk` is enabled
+8. Read final cycle count
+9. Clean up checkpoints
 
 This approach allows `stop_on_rts` to work correctly even when the subroutine calls nested subroutines.
 
@@ -684,20 +731,21 @@ All communication with VICE uses JSON-RPC 2.0 over HTTP. Each operation maps to 
 | Read memory | `vice.memory.read` |
 | Set register | `vice.registers.set` |
 | Get registers | `vice.registers.get` |
-| Set breakpoint | `vice.breakpoints.set` |
-| Delete breakpoint | `vice.breakpoints.delete` |
+| Set checkpoint | `vice.checkpoint.add` |
+| Delete checkpoint | `vice.checkpoint.delete` |
 | Resume execution | `vice.execution.run` |
 | Pause execution | `vice.execution.pause` |
-| Get execution state | `vice.execution.get_state` |
 | Save snapshot | `vice.snapshot.save` |
 | Restore snapshot | `vice.snapshot.load` |
-| Get cycle count | `vice.trace.cycles.get` |
+| Get/reset cycle count | `vice.cycles.stopwatch` |
+| Soft reset | `vice.machine.reset` |
+| Set warp mode | `vice.machine.config.set` |
 
 The `ViceConnection` class handles low-level HTTP transport and JSON serialization. The `ViceBackend` class implements `IExecutionBackend` by translating high-level operations (like `WriteByte`, `ExecuteJsr`) into the appropriate MCP tool calls.
 
 **Warp Mode**
 
-By default, the VICE backend enables warp mode during test execution for speed. Warp mode runs VICE as fast as possible without throttling to real-time speed. This is disabled automatically when tests complete to restore VICE to normal speed.
+By default, the VICE backend enables warp mode during test execution for speed. Warp mode runs VICE as fast as possible without throttling to real-time speed. If you connect to an already-running VICE instance, sim6502 does not currently restore the previous warp setting at shutdown.
 
 Use `--vice-warp false` if you want to watch test execution in real-time (useful for debugging visual or timing-related behavior).
 
@@ -714,6 +762,7 @@ Test files use a hierarchical structure:
 suites {
   suite("Suite Name") {
     ; Suite-level configuration
+    system(generic_6502)
     symbols("path/to/symbols.sym")
     load("path/to/program.prg", strip_header = true)
 
@@ -743,6 +792,38 @@ Lines starting with `;` are comments and are ignored:
 
 ### Suite-Level Functions
 
+#### system(type)
+Selects the system model and processor for a suite. This is the recommended way to configure CPU type and memory mapping.
+
+| Type | Processor | Memory model |
+|------|-----------|--------------|
+| `generic_6502` | MOS 6502 | Flat 64KB RAM |
+| `generic_6510` | MOS 6510 | Flat 64KB RAM plus `$00`/`$01` 6510 I/O port registers |
+| `generic_65c02` | WDC 65C02 | Flat 64KB RAM with 65C02 opcodes |
+| `c64` | MOS 6510 | C64 memory map with `$01` banking, ROM overlays, and `$D000-$DFFF` I/O register storage |
+
+```
+suite("C64 banking tests") {
+  system(c64)
+  rom("basic", "basic.rom")
+  rom("kernal", "kernal.rom")
+  rom("chargen", "chargen.rom")
+}
+```
+
+If omitted, sim6502 defaults to `system(generic_6502)`.
+
+#### processor(type)
+Legacy processor selection. This is still supported but deprecated in favor of `system()`.
+
+```
+processor(6502)
+processor(6510)
+processor(65c02)
+```
+
+These map to `system(generic_6502)`, `system(generic_6510)`, and `system(generic_65c02)` respectively.
+
 #### symbols(filename)
 Loads a KickAssembler symbol file. Must be called before symbols can be referenced.
 
@@ -766,8 +847,26 @@ load("program.prg", strip_header = true)
 ; Load at specific address
 load("kernal.rom", address = $e000)
 
-; Load with header intact (uses embedded load address)
+; Load at the embedded address without stripping any bytes (rare)
 load("program.prg")
+```
+
+#### rom(name, filename)
+Loads a ROM image into the selected system memory map. This is currently useful for `system(c64)`.
+
+| ROM name | Address range | Size |
+|----------|---------------|------|
+| `basic` | `$A000-$BFFF` | up to 8KB |
+| `kernal` | `$E000-$FFFF` | up to 8KB |
+| `chargen` or `char` | `$D000-$DFFF` when character ROM is banked in | up to 4KB |
+
+```
+suite("C64 with ROMs") {
+  system(c64)
+  rom("basic", "basic.rom")
+  rom("kernal", "kernal.rom")
+  rom("chargen", "chargen.rom")
+}
 ```
 
 ### Number Formats
@@ -808,6 +907,8 @@ $d020                  ; Hexadecimal address
 
 The 6502 registers can be read and written:
 
+Register assignment is supported by the `sim` and `vice` backends. The `novavm` and `verilator` backends expose register reads through the emulator debug state, but do not support direct register writes from DSL tests.
+
 | Register | Syntax |
 |----------|--------|
 | Accumulator | `a` or `A` |
@@ -823,6 +924,8 @@ y = [r0L]   ; Set Y register from symbol value
 ### Processor Flags
 
 The processor status flags can be read and written:
+
+Flag assignment is supported by the `sim` and `vice` backends. The `novavm` and `verilator` backends expose flag reads through the emulator debug state, but do not support direct flag writes from DSL tests.
 
 | Flag | Syntax | Description |
 |------|--------|-------------|
@@ -1014,11 +1117,13 @@ suite("Chess Tests") {
 
 The setup block supports:
 - Memory assignments (`$5000 = $42`, `[symbol] = value`)
-- Symbol assignments
 - `memfill()` calls
+- `memdump()` calls
+- `jsr()` calls
+- `cold_start()` calls on high-level backends
 - Register/flag assignments
 
-Note: Assertions and JSR calls are NOT allowed in setup blocks.
+Note: Assertions are not allowed in setup blocks. NovaVM/Verilator high-level commands such as `basic()`, `run()`, `wait_text()`, `pause()`, and `resume()` are test-body only; `cold_start()` is the only high-level command allowed in setup.
 
 ### Test Options
 
@@ -1088,6 +1193,8 @@ test("castle-kingside", "King castles kingside", tags = "castling,regression") {
 
 The `jsr` function executes code starting at the specified address:
 
+`jsr()` is supported by the `sim` and `vice` backends. It is not supported by `novavm` or `verilator`; use `basic()`/`run()` for those integration backends.
+
 ```
 jsr(address, stop_condition, fail_on_brk = true|false)
 ```
@@ -1126,6 +1233,64 @@ jsr([FillMemory], stop_on_address = [CopyMemory], fail_on_brk = true)
 jsr([FillMemory], stop_on_address = [Keyboard.Return], fail_on_brk = false)
 ```
 
+### High-Level Backend Commands
+
+These commands require a high-level backend: `novavm` or `verilator`.
+
+#### basic(line)
+Types a BASIC program line and presses ENTER. Include the line number.
+
+```
+basic("10 PRINT 42")
+basic("20 POKE $2000,$FF")
+```
+
+#### run([wait = text])
+Types `RUN`, presses ENTER, and waits for a new occurrence of `Ready` by default. With `wait`, it waits for a new occurrence of the supplied text instead.
+
+```
+run()
+run(wait = "DONE")
+```
+
+After `run()`, sim6502 checks the screen for EhBASIC program errors matching `Error in line N` and fails the test if one is found.
+
+#### wait_ready([timeout = ms]) and wait_text(text, [timeout = ms])
+Wait for text to appear on the screen. The default timeout is 5000ms for explicit wait commands.
+
+```
+wait_ready()
+wait_ready(timeout = 10000)
+wait_text("LOADING")
+wait_text("LOADING", timeout = 30000)
+```
+
+#### send_key(key)
+Sends one emulator key name.
+
+```
+send_key("ENTER")
+send_key("CTRL-C")
+```
+
+#### cold_start()
+Resets the target system and waits for BASIC to become ready. NovaVM cold start also enters `RESET` and `CLS` to clear BASIC program state and stale screen text.
+
+```
+cold_start()
+```
+
+#### pause(), resume(), and pause options
+Control emulator execution.
+
+```
+pause()                               ; halt CPU
+resume()                              ; resume CPU
+pause(cycles_count = 50000)           ; run N cycles
+pause(screen = "LOADED")              ; wait for text, then pause
+pause(watch = $A010, value = $00)     ; wait for memory match
+```
+
 ### Assertions
 
 Assertions verify that your code behaved correctly:
@@ -1151,7 +1316,7 @@ assert(comparison, "Description of what's being tested")
 ```
 assert($d020 == $0e, "Border color is light blue")
 assert([vic.SP0X] == $ff, "Sprite 0 X position is 255")
-assert(([MyVector].w) == $1000, "Vector points to $1000")
+assert([MyVector].w == $1000, "Vector points to $1000")
 ```
 
 **Register Assertions:**
@@ -1174,10 +1339,18 @@ assert(cycles < 1000, "Routine completed in under 1000 cycles")
 assert(cycles <= 500, "Routine is fast enough")
 ```
 
+Cycle assertions are meaningful for `sim` and `vice`. The NovaVM-compatible high-level backends currently report `0` for `cycles`.
+
 **Memory Check Assertions:**
 ```
 assert(memchk($1234, $100, $bd), "Memory filled with $bd")
 assert(memcmp($e000, $4000, $2000), "Memory regions match")
+```
+
+**Screen Assertions (`novavm` / `verilator`):**
+```
+assert(screen_contains("READY"), "Ready prompt appeared")
+assert(screen_line(0, "HELLO"), "first screen row contains HELLO")
 ```
 
 **Complex Expression Assertions:**
@@ -1259,6 +1432,8 @@ suites {
 - `memchk(source, size, value)`: Ensure that a block of memory contains `value`
 - `peekbyte(address)`: Return the 8-bit value at `address`
 - `peekword(address)`: Return the 16-bit value at `address` and `address + 1`
+- `screen_contains(text)`: Return true if the high-level backend screen contains text
+- `screen_line(row, text)`: Return true if a specific high-level backend screen row contains text
 
 ---
 
@@ -1321,11 +1496,13 @@ If you wanted to reference the symbol `SP0X` inside of the `vic` namespace, you'
 You can also perform simple expressions like `[UpdateTimers] + 1` or `peekword([r0L])`.
 
 
-#### What's missing?
+#### Backend Limitations
 
-The internal simulator (`--backend sim`) is a vanilla 6502/6510/65C02 with no concept of C64-specific hardware. There's no VIC-II, SID, or CIA emulation, so testing against programs that use these hardware devices is limited to verifying that the correct values are written to the correct memory-mapped registers.
+The internal simulator (`--backend sim`) emulates the CPU, processor variants, and configured memory map. With `system(c64)`, it models C64 banking and ROM overlays, but it does not emulate live VIC-II, SID, CIA, raster timing, or interrupts. Testing hardware-facing code on `sim` is mostly limited to verifying memory and register writes.
 
 For full hardware-accurate testing, use the VICE backend (`--backend vice`) which provides cycle-accurate emulation of the complete machine including all hardware subsystems. See the [VICE Backend](#vice-backend-hardware-accurate-testing) section for details.
+
+For e6502/NovaVM hardware-stack integration tests, use `--backend novavm` or `--backend verilator`. Those backends are BASIC/screen/control oriented and do not support `jsr()` assembly-unit tests.
 
 ---
 
@@ -1337,7 +1514,7 @@ sim6502 includes a Language Server Protocol implementation for IDE integration. 
 
 - **Syntax Highlighting** - TextMate grammar for VS Code and compatible editors
 - **Real-time Diagnostics** - Syntax errors and warnings as you type
-- **Code Completion** - Keywords, registers, flags, system types, and built-in functions
+- **Code Completion** - Keywords, registers, flags, system types, and core built-in functions
 - **Hover Information** - Documentation tooltips for keywords and symbols
 - **Go-to-Definition** - Navigate to symbol definitions (from loaded `.sym` files)
 
@@ -1525,11 +1702,11 @@ Thanks to Terence Parr and Sam Harwell for ANTLR. (https://www.antlr.org/)
 
 #### License
 
-ANTLR 4.8 is Copyright (C) 2012 Terence Parr and Sam Harwell. All Rights Reserved.
+ANTLR 4.13.1 is Copyright (C) 2012 Terence Parr and Sam Harwell. All Rights Reserved.
 
 The 6502 Simulator and associated test suite are Copyright (C) 2013 by Aaron Mell. All Rights Reserved.
 
-The 6502 Unit Test CLI and associated test suite are Copyright (C) 2020 by Barry Walker. All Rights Reserved.
+The 6502 Unit Test CLI and associated test suite are Copyright (C) 2020-2026 by Barry Walker. All Rights Reserved.
 
 
 Redistribution and use in source and binary forms, with or without
@@ -1551,5 +1728,3 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-

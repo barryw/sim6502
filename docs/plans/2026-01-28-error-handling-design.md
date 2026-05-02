@@ -1,5 +1,7 @@
 # Error Handling Design
 
+> Archived plan: this documents the intended design at the time it was written. It is not current API reference; verify behavior against `README.md` and the code in `sim6502/`.
+
 ## Overview
 
 Comprehensive error handling for the sim6502 test DSL parser, providing rich contextual error messages with "Did you mean?" suggestions.

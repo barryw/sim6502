@@ -1,5 +1,7 @@
 # sim6502 Language Server Design
 
+> Archived plan: this documents the intended design at the time it was written. It is not current API reference; verify behavior against `README.md` and the code in `sim6502/`.
+
 > **Status:** Approved design, ready for implementation
 
 ## Overview

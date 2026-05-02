@@ -1,5 +1,7 @@
 # 6502 Processor Refactoring Implementation Plan
 
+> Archived plan: this documents the intended implementation flow at the time it was written. It is not current API reference; verify behavior against `README.md` and the code in `sim6502/`.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Refactor the 3,033-line monolithic `Processor.cs` into well-organized partial classes, then modernize the opcode dispatch from a 460-case switch to a clean handler pattern.

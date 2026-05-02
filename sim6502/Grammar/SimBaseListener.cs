@@ -921,12 +921,6 @@ namespace sim6502.Grammar
                 Backend.RestoreSnapshot(_suiteSnapshotName);
             }
 
-            // Cold start before each test for NovaVM/Verilator backends (test isolation)
-            if ((BackendType == "novavm" || BackendType == "verilator") && Backend is IHighLevelBackend hlb)
-            {
-                hlb.ColdStart();
-            }
-
             ResetTest();
 
             // Parse test options if present
@@ -994,6 +988,15 @@ namespace sim6502.Grammar
             {
                 Logger.Info("Test marked as skipped, will not execute");
                 return;
+            }
+
+            // Cold start only for tests that will actually execute. Keeping
+            // this after filter/tag/skip checks avoids RESET/CLS churn for
+            // skipped tests when running a single high-level NovaVM/Verilator
+            // case out of a larger suite.
+            if ((BackendType == "novavm" || BackendType == "verilator") && Backend is IHighLevelBackend hlb)
+            {
+                hlb.ColdStart();
             }
 
             // Enable trace buffering if requested

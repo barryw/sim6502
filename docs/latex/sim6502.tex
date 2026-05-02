@@ -29,7 +29,20 @@
 
 \section{Introduction}
 
-sim6502 is a tool to help you unit test your 6502 assembly language programs. It works by running your assembled programs with a 6502 simulator and then allowing you to make assertions on memory and CPU state.
+sim6502 is a tool to help you unit test your 6502 assembly language programs. It works by running your assembled programs through an execution backend and then allowing you to make assertions on memory, CPU state, or emulator-visible output.
+
+\section{Execution Backends}
+
+sim6502 supports multiple execution backends:
+
+\begin{itemize}
+    \item \textbf{sim} - Internal 6502/6510/65C02 simulator. This is the default backend and supports assembly-level \texttt{jsr()} tests.
+    \item \textbf{vice} - VICE MCP backend for hardware-accurate C64 testing. Existing assembly-level suites can run with \texttt{--backend vice}.
+    \item \textbf{novavm} - e6502/NovaVM Avalonia emulator backend for BASIC-level integration tests.
+    \item \textbf{verilator} - NovaVM FPGA Verilator simulation backend. It uses the same high-level DSL as \texttt{novavm}, with a default port of 6503.
+\end{itemize}
+
+The high-level NovaVM-compatible backends support \texttt{basic()}, \texttt{run()}, \texttt{wait\_ready()}, \texttt{wait\_text()}, \texttt{send\_key()}, \texttt{cold\_start()}, \texttt{pause()}, \texttt{resume()}, \texttt{screen\_contains()}, and \texttt{screen\_line()}. They are intended for BASIC and full-system integration tests, not direct \texttt{jsr()} subroutine tests.
 
 \section{System Emulation}
 
@@ -54,7 +67,7 @@ suites {
     system(c64)
 
     test("banking-test", "Test C64 memory banking") {
-      // Full C64 memory banking available
+      ; Full C64 memory banking available
     }
   }
 }
@@ -107,7 +120,7 @@ suites {
     rom("kernal", "kernal.rom")
 
     test("with-roms", "Test with loaded ROMs") {
-      // ROMs are now available for banking
+      ; ROMs are now available for banking
     }
   }
 }
@@ -135,7 +148,7 @@ suites {
     processor(65c02)  ; Deprecated - use system(generic_65c02)
 
     test("test-1", "Uses 65C02 opcodes") {
-      // PHX, PLX, STZ, BRA, etc. available
+      ; PHX, PLX, STZ, BRA, etc. available
     }
   }
 }
@@ -327,7 +340,7 @@ For information on the complete DSL syntax, test structure, and other features, 
 
 \section{License}
 
-The 6502 Unit Test CLI and associated test suite are Copyright \copyright\ 2020 by Barry Walker. All Rights Reserved.
+The 6502 Unit Test CLI and associated test suite are Copyright \copyright\ 2020-2026 by Barry Walker. All Rights Reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 

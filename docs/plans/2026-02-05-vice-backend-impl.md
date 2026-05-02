@@ -1,5 +1,7 @@
 # VICE MCP Backend Implementation Plan
 
+> Archived plan: this documents the intended implementation flow at the time it was written. The VICE backend has since been implemented and some protocol tool names and CLI details changed. Use `README.md` and `sim6502/Backend/ViceBackend.cs` as the current reference.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Add VICE as an optional execution backend so existing sim6502 test suites run against a real Commodore emulator via the vice-mcp embedded MCP server.

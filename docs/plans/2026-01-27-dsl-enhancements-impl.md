@@ -1,5 +1,9 @@
 # DSL Enhancements Implementation Plan
 
+> Archived plan: this documents the intended implementation flow at the time it was written. It is not current API reference; verify behavior against `README.md` and the code in `sim6502/`.
+>
+> Accuracy note: `default_timeout` appears in this plan but did not ship in the current grammar. Current tests support per-test `timeout = N`.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Add memfill, memdump, setup blocks, test options, and CLI filtering to the sim6502 test framework.

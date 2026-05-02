@@ -1,3 +1,3 @@
 test:
-	docker pull barrywalker71/sim6502cli:latest
-	docker run -v ${PWD}:/code -it barrywalker71/sim6502cli:latest -s /code/tests.6502
+	docker pull ghcr.io/barryw/sim6502:latest
+	docker run -v ${PWD}:/code -it ghcr.io/barryw/sim6502:latest -s /code/tests.6502

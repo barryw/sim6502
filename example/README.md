@@ -11,6 +11,6 @@
 
 This directory contains a decent sized test suite on my c64lib project (https://github.com/barryw/c64lib). This library is a suite of functions for sprites, timers, memory management, joystick/keyboard reading, etc.
 
-The 6502 Unit Test CLI is run as a Docker container, so you will need to have Docker running.
+The 6502 Unit Test CLI is run as a Docker container, so you will need to have Docker running. The example uses the current GHCR image, `ghcr.io/barryw/sim6502:latest`.
 
 Run the tests by running `make` in this directory. The test definitions are in `tests.6502` and the code under test is `include_me_full.prg`

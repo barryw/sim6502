@@ -1,5 +1,7 @@
 # sim6502 Language Server Implementation Plan
 
+> Archived plan: this documents the intended implementation flow at the time it was written. It is not current API reference; verify behavior against `README.md` and the code in `sim6502/`.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Build an LSP server for the sim6502 testing DSL, providing diagnostics, completion, hover, and go-to-definition in VS Code and other editors.
