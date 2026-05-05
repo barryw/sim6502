@@ -2,6 +2,21 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v3.14.0 - 2026-05-05
+#### Features
+- (**novavm**) fail-fast on BASIC error lines in run() - (9d8772b) - Barry Walker
+#### Bug Fixes
+- (**novavm**) update test expectations for ColdStart RESET+CLS preamble - (5716b6c) - Barry Walker, *Claude Opus 4.6 (1M context)*
+- (**novavm**) narrow fail-fast to "Error in line N" only - (2381d3d) - Barry Walker
+- (**novavm**) ColdStart appends CLS to wipe stale screen text - (6d39cf8) - Barry Walker, *Claude Opus 4.7 (1M context)*
+- (**novavm**) ColdStart issues RESET command for true test isolation - (8502b8c) - Barry Walker, *Claude Opus 4.7 (1M context)*
+#### Documentation
+- refresh backend documentation - (1e416f9) - Barry Walker
+#### Refactoring
+- (**novavm**) extract BasicErrorScanner + pin behavior with unit tests - (94287cd) - Barry Walker
+
+- - -
+
 ## v3.13.1 - 2026-04-12
 #### Bug Fixes
 - use pre-built framework-dependent output for multi-arch Docker - (461bf37) - Barry Walker, *Claude Opus 4.6 (1M context)*
