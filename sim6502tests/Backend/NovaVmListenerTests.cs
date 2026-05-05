@@ -206,9 +206,11 @@ public class NovaVmListenerTests
         var (sbl, mock) = RunWithWaitReady(source);
 
         var typeCalls = mock.GetCallsFor("type_text");
-        typeCalls.Should().HaveCountGreaterThanOrEqualTo(1);
-        // First type_text should be the BASIC line
-        typeCalls[0].Args!["text"].Should().Be("10 PRINT X");
+        typeCalls.Should().HaveCountGreaterThanOrEqualTo(3);
+        // ColdStart sends type_text("RESET") then type_text("CLS"); BASIC line follows
+        typeCalls[0].Args!["text"].Should().Be("RESET");
+        typeCalls[1].Args!["text"].Should().Be("CLS");
+        typeCalls[2].Args!["text"].Should().Be("10 PRINT X");
 
         // Should send ENTER after the BASIC line
         var keyCalls = mock.GetCallsFor("send_key");
@@ -358,8 +360,9 @@ public class NovaVmListenerTests
         var (sbl, mock) = RunWithWaitReady(source, waitReadyCount: 1);
 
         var waitCalls = mock.GetCallsFor("wait_ready");
-        // 2 calls: 1 from auto cold_start + 1 from wait_ready() DSL command
-        waitCalls.Should().HaveCount(2);
+        // 4 calls: 3 from ColdStart (initial Ready + post-RESET Ready + post-CLS Ready)
+        //        + 1 from wait_ready() DSL command
+        waitCalls.Should().HaveCount(4);
     }
 
     [Fact]
