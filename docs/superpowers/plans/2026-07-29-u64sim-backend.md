@@ -4129,20 +4129,875 @@ than looking like typos, and a test pins that."
 
 ---
 
+## Task 10: `ControlTarget`
+
+**Files:**
+- Create: `sim6502/Systems/Ultimate/ControlTarget.cs`
+- Test: `sim6502tests/Systems/Ultimate/ControlTargetTests.cs`
+
+**Interfaces:**
+- Consumes: `ICommandTarget`, `UciReply`, `UciConstants` (Task 3);
+  `UltimateDosTarget.ResetState()` (Task 7).
+- Produces:
+  - `sealed class ControlTarget : ICommandTarget`
+    - `ControlTarget(IEnumerable<UltimateDosTarget> dosTargets, string modelName = "Ultimate 64", string version = "CONTROL TARGET V1.1")`
+    - command constants `CmdIdentify = 0x01`, `CmdFinishCapture = 0x03`,
+      `CmdFreeze = 0x05`, `CmdReboot = 0x06`, `CmdLoadReu = 0x08`,
+      `CmdSaveReu = 0x09`, `CmdSaveMemory = 0x0F`, `CmdGetHwInfo = 0x28`
+    - status constants `StatusReuNotEnabled = "84,REU NOT ENABLED"`,
+      `StatusNotImplemented = "99,FUNCTION NOT IMPLEMENTED"`
+    - `int RebootCount { get; }` so tests and the backend can observe reboots
+
+- [ ] **Step 1: Write the failing test**
+
+Create `sim6502tests/Systems/Ultimate/ControlTargetTests.cs`:
+
+```csharp
+using System.Text;
+using FluentAssertions;
+using sim6502.Systems.Ultimate;
+using Xunit;
+
+namespace sim6502tests.Systems.Ultimate;
+
+public class ControlTargetTests : IDisposable
+{
+    private readonly string _fixture;
+    private readonly UltimateDosTarget _dos;
+    private readonly ControlTarget _control;
+
+    public ControlTargetTests()
+    {
+        _fixture = Path.Combine(Path.GetTempPath(), "u64sim-control-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_fixture);
+        File.WriteAllText(Path.Combine(_fixture, "data.bin"), "payload");
+
+        _dos = new UltimateDosTarget(new UltimateFileSystem(_fixture));
+        _control = new ControlTarget(new[] { _dos });
+    }
+
+    public void Dispose()
+    {
+        _dos.Dispose();
+        if (Directory.Exists(_fixture)) Directory.Delete(_fixture, recursive: true);
+    }
+
+    private static byte[] Cmd(byte code, params byte[] rest)
+    {
+        var bytes = new List<byte> { 0x04, code };
+        bytes.AddRange(rest);
+        return bytes.ToArray();
+    }
+
+    private static string Text(UciReply reply) => Encoding.ASCII.GetString(reply.Data);
+
+    [Fact]
+    public void Identify_ReturnsTheVersionString()
+    {
+        var reply = _control.ParseCommand(Cmd(ControlTarget.CmdIdentify));
+
+        Text(reply).Should().Be("CONTROL TARGET V1.1");
+        reply.Status.Should().Be("00,OK");
+        reply.LastPart.Should().BeTrue();
+    }
+
+    [Fact]
+    public void GetHwInfo_ReturnsTheModelName()
+    {
+        var reply = _control.ParseCommand(Cmd(ControlTarget.CmdGetHwInfo));
+
+        Text(reply).Should().Be("Ultimate 64");
+        reply.Status.Should().Be("00,OK");
+    }
+
+    [Fact]
+    public void GetHwInfo_HonoursAConfiguredModelName()
+    {
+        var control = new ControlTarget(new[] { _dos }, modelName: "Ultimate-II+");
+        Text(control.ParseCommand(Cmd(ControlTarget.CmdGetHwInfo))).Should().Be("Ultimate-II+");
+    }
+
+    [Fact]
+    public void Reboot_ReportsOkAndCountsTheReboot()
+    {
+        var reply = _control.ParseCommand(Cmd(ControlTarget.CmdReboot));
+
+        reply.Status.Should().Be("00,OK");
+        reply.Data.Should().BeEmpty();
+        _control.RebootCount.Should().Be(1);
+    }
+
+    [Fact]
+    public void Reboot_ClearsDosTargetState()
+    {
+        var open = new List<byte> { 0x01, UltimateDosTarget.CmdOpenFile, UltimateDosTarget.FileAttributeRead };
+        open.AddRange(Encoding.ASCII.GetBytes("data.bin"));
+        _dos.ParseCommand(open.ToArray()).Status.Should().Be("00,OK");
+
+        _control.ParseCommand(Cmd(ControlTarget.CmdReboot));
+
+        _dos.ParseCommand(new byte[] { 0x01, UltimateDosTarget.CmdCloseFile })
+            .Status.Should().Be("84,NO FILE TO CLOSE", "reboot must close any open file");
+    }
+
+    [Fact]
+    public void Reboot_ResetsEveryRegisteredDosTarget()
+    {
+        var second = new UltimateDosTarget(new UltimateFileSystem(_fixture));
+        try
+        {
+            var control = new ControlTarget(new[] { _dos, second });
+
+            foreach (var target in new[] { _dos, second })
+            {
+                var open = new List<byte> { 0x01, UltimateDosTarget.CmdOpenFile, UltimateDosTarget.FileAttributeRead };
+                open.AddRange(Encoding.ASCII.GetBytes("data.bin"));
+                target.ParseCommand(open.ToArray()).Status.Should().Be("00,OK");
+            }
+
+            control.ParseCommand(Cmd(ControlTarget.CmdReboot));
+
+            foreach (var target in new[] { _dos, second })
+                target.ParseCommand(new byte[] { 0x01, UltimateDosTarget.CmdCloseFile })
+                      .Status.Should().Be("84,NO FILE TO CLOSE");
+        }
+        finally
+        {
+            second.Dispose();
+        }
+    }
+
+    [Theory]
+    [InlineData(ControlTarget.CmdLoadReu)]
+    [InlineData(ControlTarget.CmdSaveReu)]
+    public void ReuCommands_ReportReuNotEnabled(byte code)
+    {
+        var reply = _control.ParseCommand(Cmd(code));
+
+        reply.Status.Should().Be("84,REU NOT ENABLED",
+            "the REU arrives in a later milestone and must say so plainly");
+        reply.Data.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(ControlTarget.CmdFinishCapture)]
+    [InlineData(ControlTarget.CmdFreeze)]
+    [InlineData(ControlTarget.CmdSaveMemory)]
+    public void DeferredCommands_ReportNotImplemented(byte code)
+    {
+        _control.ParseCommand(Cmd(code)).Status.Should().Be("99,FUNCTION NOT IMPLEMENTED");
+    }
+
+    [Fact]
+    public void UnknownCommand_IsRejected()
+    {
+        var reply = _control.ParseCommand(Cmd(0x7B));
+
+        reply.Status.Should().Be("21,UNKNOWN COMMAND");
+        reply.Data.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ShortCommand_IsRejectedRatherThanThrowing()
+    {
+        _control.ParseCommand(new byte[] { 0x04 }).Status.Should().Be("21,UNKNOWN COMMAND");
+    }
+
+    [Fact]
+    public void GetMoreData_IsAlwaysAFinalEmptyReply()
+    {
+        var reply = _control.GetMoreData();
+
+        reply.Data.Should().BeEmpty();
+        reply.LastPart.Should().BeTrue();
+    }
+}
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `dotnet test --filter "FullyQualifiedName~ControlTargetTests"`
+Expected: FAIL — compile error, `ControlTarget` does not exist.
+
+- [ ] **Step 3: Implement `ControlTarget.cs`**
+
+```csharp
+// Ported from GideonZ/1541ultimate (GPL-3.0): the control target command set
+// documented in GideonZ/1541u-documentation uci/control_target.rst and
+// implemented across software/ (c64.cc, command handlers).
+// Original author: Gideon Zweijtzer. See NOTICE.
+
+using System.Text;
+using NLog;
+
+namespace sim6502.Systems.Ultimate;
+
+/// <summary>
+/// The UCI control target, served at target $04. Only the commands that are
+/// meaningful without an REU or a real machine are implemented; the rest report
+/// their absence explicitly rather than looking like unrecognised requests.
+/// </summary>
+public sealed class ControlTarget : ICommandTarget
+{
+    private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
+
+    public const byte CmdIdentify      = 0x01;
+    public const byte CmdFinishCapture = 0x03;
+    public const byte CmdFreeze        = 0x05;
+    public const byte CmdReboot        = 0x06;
+    public const byte CmdLoadReu       = 0x08;
+    public const byte CmdSaveReu       = 0x09;
+    public const byte CmdSaveMemory    = 0x0F;
+    public const byte CmdGetHwInfo     = 0x28;
+
+    public const string StatusReuNotEnabled = "84,REU NOT ENABLED";
+    public const string StatusNotImplemented = "99,FUNCTION NOT IMPLEMENTED";
+
+    private readonly UltimateDosTarget[] _dosTargets;
+    private readonly string _modelName;
+    private readonly string _version;
+
+    public ControlTarget(
+        IEnumerable<UltimateDosTarget> dosTargets,
+        string modelName = "Ultimate 64",
+        string version = "CONTROL TARGET V1.1")
+    {
+        _dosTargets = (dosTargets ?? throw new ArgumentNullException(nameof(dosTargets))).ToArray();
+        _modelName = modelName;
+        _version = version;
+    }
+
+    /// <summary>How many REBOOT commands have been handled.</summary>
+    public int RebootCount { get; private set; }
+
+    public UciReply ParseCommand(byte[] command)
+    {
+        if (command.Length < 2)
+        {
+            Logger.Warn("Control: command shorter than two bytes");
+            return UciReply.Empty(UciConstants.StatusUnknownCommand);
+        }
+
+        return command[1] switch
+        {
+            CmdIdentify  => UciReply.Ok(Encoding.ASCII.GetBytes(_version)),
+            CmdGetHwInfo => UciReply.Ok(Encoding.ASCII.GetBytes(_modelName)),
+            CmdReboot    => Reboot(),
+
+            // The REU is a later milestone. Answering with the documented
+            // "not enabled" status is what real hardware reports when no REU is
+            // configured, so client code takes the same path it would there.
+            CmdLoadReu or CmdSaveReu => UciReply.Empty(StatusReuNotEnabled),
+
+            CmdFinishCapture or CmdFreeze or CmdSaveMemory
+                => UciReply.Empty(StatusNotImplemented),
+
+            _ => UciReply.Empty(UciConstants.StatusUnknownCommand)
+        };
+    }
+
+    public UciReply GetMoreData() => UciReply.Empty(UciConstants.StatusOk);
+
+    public void Abort(int bytesConsumed) { }
+
+    private UciReply Reboot()
+    {
+        RebootCount++;
+        Logger.Info($"Control: reboot ({RebootCount})");
+
+        foreach (var dos in _dosTargets)
+            dos.ResetState();
+
+        return UciReply.Empty(UciConstants.StatusOk);
+    }
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `dotnet test --filter "FullyQualifiedName~ControlTargetTests"`
+Expected: PASS — 14 passed (the two `[Theory]` cases contribute 5).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add sim6502/Systems/Ultimate/ControlTarget.cs \
+        sim6502tests/Systems/Ultimate/ControlTargetTests.cs
+git commit -m "feat(ultimate): add the UCI control target at \$04
+
+IDENTIFY, GET_HWINFO, and REBOOT (which clears every DOS target's state).
+REU commands answer '84,REU NOT ENABLED' — the same status real hardware gives
+with no REU configured — so client code takes the hardware path until the REU
+milestone lands."
+```
+
+---
+
+## Task 11: `U64SimBackend`, config, factory, CLI
+
+**Files:**
+- Create: `sim6502/Backend/U64SimBackendConfig.cs`
+- Create: `sim6502/Backend/U64SimBackend.cs`
+- Modify: `sim6502/Backend/BackendFactory.cs:11-53`
+- Modify: `sim6502/Sim6502CLI.cs:92-127` and `:214-228`
+- Test: `sim6502tests/Backend/U64SimBackendTests.cs`, and add cases to
+  `sim6502tests/Backend/BackendFactoryTests.cs`
+
+**Interfaces:**
+- Consumes: `UciRegisters`, `UltimateFileSystem`, `UltimateDosTarget`, `ControlTarget`
+  (Tasks 4-10); `SimulatorBackend`, `IExecutionBackend` (existing);
+  `C64MemoryMap.RegisterIoHandler` (Task 2).
+- Produces:
+  - `class U64SimBackendConfig` — `string FsRoot = ""`, `int UciLatencyCycles = 64`,
+    `string DosVersion = "ULTIMATE-II DOS V1.2"`, `string ModelName = "Ultimate 64"`
+  - `class U64SimBackend : IExecutionBackend`
+    - `U64SimBackend(U64SimBackendConfig config, IMemoryMap memoryMap)`
+    - `(string Status, byte[] Data) IssueUciCommand(byte[] command)`
+    - `UciRegisters Uci { get; }` (internal, for tests)
+  - `BackendFactory.Create(..., U64SimBackendConfig? u64SimConfig = null)` handling
+    `"u64sim"`
+
+- [ ] **Step 1: Write the failing test**
+
+Create `sim6502tests/Backend/U64SimBackendTests.cs`:
+
+```csharp
+using System.Text;
+using FluentAssertions;
+using sim6502.Backend;
+using sim6502.Proc;
+using sim6502.Systems;
+using sim6502.Systems.Ultimate;
+using Xunit;
+
+namespace sim6502tests.Backend;
+
+public class U64SimBackendTests : IDisposable
+{
+    private readonly string _fixture;
+
+    public U64SimBackendTests()
+    {
+        _fixture = Path.Combine(Path.GetTempPath(), "u64sim-backend-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(_fixture, "data"));
+        File.WriteAllText(Path.Combine(_fixture, "data", "hi.txt"), "hi");
+    }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_fixture)) Directory.Delete(_fixture, recursive: true);
+    }
+
+    private U64SimBackend NewBackend(int latency = 0)
+    {
+        var config = new U64SimBackendConfig { FsRoot = _fixture, UciLatencyCycles = latency };
+        return new U64SimBackend(config, new C64MemoryMap());
+    }
+
+    [Fact]
+    public void Backend_DelegatesMemoryOperationsToTheSimulator()
+    {
+        using var backend = NewBackend();
+
+        backend.WriteByte(0xC000, 0x42);
+        backend.ReadByte(0xC000).Should().Be(0x42);
+
+        backend.WriteWord(0xC010, 0xBEEF);
+        backend.ReadWord(0xC010).Should().Be(0xBEEF);
+    }
+
+    [Fact]
+    public void Backend_DelegatesRegistersAndFlags()
+    {
+        using var backend = NewBackend();
+
+        backend.SetRegister("a", 0x7F);
+        backend.GetRegister("a").Should().Be(0x7F);
+
+        backend.SetFlag("c", true);
+        backend.GetFlag("c").Should().BeTrue();
+    }
+
+    [Fact]
+    public void UciRegisters_AreVisibleToTheCpuAtDf1d()
+    {
+        using var backend = NewBackend();
+        backend.ReadByte(UciConstants.CommandAddress).Should().Be(0xC9);
+    }
+
+    [Fact]
+    public void IssueUciCommand_Identify_ReachesTheDosTarget()
+    {
+        using var backend = NewBackend();
+
+        var (status, data) = backend.IssueUciCommand(
+            new byte[] { 0x01, UltimateDosTarget.CmdIdentify });
+
+        status.Should().Be("00,OK");
+        Encoding.ASCII.GetString(data).Should().Be("ULTIMATE-II DOS V1.2");
+    }
+
+    [Fact]
+    public void IssueUciCommand_ReachesTheSecondDosTargetIndependently()
+    {
+        using var backend = NewBackend();
+
+        backend.IssueUciCommand(BuildChangeDir(0x01, "data")).Status.Should().Be("00,OK");
+
+        var first  = backend.IssueUciCommand(new byte[] { 0x01, UltimateDosTarget.CmdGetPath });
+        var second = backend.IssueUciCommand(new byte[] { 0x02, UltimateDosTarget.CmdGetPath });
+
+        Encoding.ASCII.GetString(first.Data).Should().Be("/Usb0/data");
+        Encoding.ASCII.GetString(second.Data).Should().Be("/Usb0");
+    }
+
+    [Fact]
+    public void IssueUciCommand_ReachesTheControlTarget()
+    {
+        using var backend = NewBackend();
+
+        var (status, data) = backend.IssueUciCommand(
+            new byte[] { 0x04, ControlTarget.CmdIdentify });
+
+        status.Should().Be("00,OK");
+        Encoding.ASCII.GetString(data).Should().Be("CONTROL TARGET V1.1");
+    }
+
+    [Fact]
+    public void IssueUciCommand_ReadsAFileAcrossContinuationParts()
+    {
+        using var backend = NewBackend();
+
+        backend.IssueUciCommand(BuildChangeDir(0x01, "data")).Status.Should().Be("00,OK");
+
+        var open = new List<byte> { 0x01, UltimateDosTarget.CmdOpenFile, UltimateDosTarget.FileAttributeRead };
+        open.AddRange(Encoding.ASCII.GetBytes("hi.txt"));
+        backend.IssueUciCommand(open.ToArray()).Status.Should().Be("00,OK");
+
+        var read = backend.IssueUciCommand(
+            new byte[] { 0x01, UltimateDosTarget.CmdReadData, 0x02, 0x00 });
+
+        Encoding.ASCII.GetString(read.Data).Should().Be("hi");
+    }
+
+    [Fact]
+    public void Config_OverridesTheDosVersion()
+    {
+        var config = new U64SimBackendConfig
+        {
+            FsRoot = _fixture,
+            UciLatencyCycles = 0,
+            DosVersion = "ULTIMATE-II DOS V1.1"
+        };
+        using var backend = new U64SimBackend(config, new C64MemoryMap());
+
+        var (_, data) = backend.IssueUciCommand(new byte[] { 0x01, UltimateDosTarget.CmdIdentify });
+        Encoding.ASCII.GetString(data).Should().Be("ULTIMATE-II DOS V1.1");
+    }
+
+    [Fact]
+    public void Config_OverridesTheModelName()
+    {
+        var config = new U64SimBackendConfig
+        {
+            FsRoot = _fixture,
+            UciLatencyCycles = 0,
+            ModelName = "Ultimate-II+"
+        };
+        using var backend = new U64SimBackend(config, new C64MemoryMap());
+
+        var (_, data) = backend.IssueUciCommand(new byte[] { 0x04, ControlTarget.CmdGetHwInfo });
+        Encoding.ASCII.GetString(data).Should().Be("Ultimate-II+");
+    }
+
+    [Fact]
+    public void Constructor_MissingFsRoot_Throws()
+    {
+        var config = new U64SimBackendConfig { FsRoot = Path.Combine(_fixture, "gone") };
+        var act = () => new U64SimBackend(config, new C64MemoryMap());
+        act.Should().Throw<DirectoryNotFoundException>();
+    }
+
+    [Fact]
+    public void Constructor_EmptyFsRoot_ThrowsWithAHelpfulMessage()
+    {
+        var act = () => new U64SimBackend(new U64SimBackendConfig(), new C64MemoryMap());
+        act.Should().Throw<ArgumentException>()
+           .WithMessage("*u64sim-fs-root*");
+    }
+
+    [Fact]
+    public void Dispose_IsIdempotent()
+    {
+        var backend = NewBackend();
+        backend.Dispose();
+
+        var act = () => backend.Dispose();
+        act.Should().NotThrow("Dispose runs twice when a suite ends after an error");
+    }
+
+    [Fact]
+    public void Reset_RebootsTheUltimateSoOpenFilesAreClosed()
+    {
+        using var backend = NewBackend();
+
+        var open = new List<byte> { 0x01, UltimateDosTarget.CmdOpenFile, UltimateDosTarget.FileAttributeRead };
+        open.AddRange(Encoding.ASCII.GetBytes("data/hi.txt"));
+        backend.IssueUciCommand(open.ToArray()).Status.Should().Be("00,OK");
+
+        backend.Reset();
+
+        backend.IssueUciCommand(new byte[] { 0x01, UltimateDosTarget.CmdCloseFile })
+               .Status.Should().Be("84,NO FILE TO CLOSE");
+    }
+
+    [Fact]
+    public void DefaultLatency_IsNonZeroSoBusyWaitLoopsAreExercised()
+    {
+        new U64SimBackendConfig().UciLatencyCycles.Should().BeGreaterThan(0,
+            "answering instantly would let a client with no busy-wait loop pass here " +
+            "and fail on hardware");
+    }
+
+    private static byte[] BuildChangeDir(byte target, string path)
+    {
+        var bytes = new List<byte> { target, UltimateDosTarget.CmdChangeDir };
+        bytes.AddRange(Encoding.ASCII.GetBytes(path));
+        return bytes.ToArray();
+    }
+}
+```
+
+Add to `sim6502tests/Backend/BackendFactoryTests.cs`:
+
+```csharp
+    [Fact]
+    public void Create_U64Sim_ReturnsU64SimBackend()
+    {
+        var fixture = Path.Combine(Path.GetTempPath(), "u64sim-factory-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(fixture);
+        try
+        {
+            var (memMap, procType) = MemoryMapFactory.CreateForSystem(SystemType.C64);
+            var config = new U64SimBackendConfig { FsRoot = fixture, UciLatencyCycles = 0 };
+
+            var backend = BackendFactory.Create("u64sim", procType, memMap, u64SimConfig: config);
+
+            backend.Should().BeOfType<U64SimBackend>();
+            backend.Dispose();
+        }
+        finally
+        {
+            Directory.Delete(fixture, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Create_U64Sim_WithoutC64MemoryMap_ThrowsNamingSystemC64()
+    {
+        var (memMap, _) = MemoryMapFactory.CreateForProcessor(ProcessorType.MOS6510);
+
+        var act = () => BackendFactory.Create("u64sim", ProcessorType.MOS6510, memMap);
+
+        act.Should().Throw<ArgumentException>().WithMessage("*system(c64)*");
+    }
+
+    [Fact]
+    public void Create_UnknownBackend_ListsU64SimAsAnOption()
+    {
+        var (memMap, _) = MemoryMapFactory.CreateForProcessor(ProcessorType.MOS6502);
+
+        var act = () => BackendFactory.Create("nonsense", ProcessorType.MOS6502, memMap);
+
+        act.Should().Throw<ArgumentException>().WithMessage("*u64sim*");
+    }
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `dotnet test --filter "FullyQualifiedName~U64SimBackendTests|FullyQualifiedName~BackendFactoryTests"`
+Expected: FAIL — compile error, `U64SimBackend` and `U64SimBackendConfig` do not exist.
+
+- [ ] **Step 3: Create `U64SimBackendConfig.cs`**
+
+```csharp
+namespace sim6502.Backend;
+
+/// <summary>Configuration for the simulated Ultimate 64 backend.</summary>
+public class U64SimBackendConfig
+{
+    /// <summary>
+    /// Host directory exposed to the C64 as the Ultimate's /Usb0 mount. Required.
+    /// The tree is copied to a temporary location, so the fixture is never mutated.
+    /// </summary>
+    public string FsRoot { get; set; } = "";
+
+    /// <summary>
+    /// CPU cycles the UCI holds the Busy state before a response becomes readable.
+    ///
+    /// Deliberately non-zero. The real UCI is asynchronous and a client must poll
+    /// $DF1C while the state is Busy; if the simulator answered instantly, a client
+    /// with a broken or missing busy-wait loop would pass here and fail on
+    /// hardware. Set to 0 only when a test is specifically not about timing.
+    /// </summary>
+    public int UciLatencyCycles { get; set; } = 64;
+
+    /// <summary>String the DOS targets return for IDENTIFY.</summary>
+    public string DosVersion { get; set; } = "ULTIMATE-II DOS V1.2";
+
+    /// <summary>String the control target returns for GET_HWINFO.</summary>
+    public string ModelName { get; set; } = "Ultimate 64";
+}
+```
+
+- [ ] **Step 4: Create `U64SimBackend.cs`**
+
+```csharp
+using NLog;
+using sim6502.Proc;
+using sim6502.Systems;
+using sim6502.Systems.Ultimate;
+
+namespace sim6502.Backend;
+
+/// <summary>
+/// A simulated Ultimate 64: sim6502's own 6510 core with the Ultimate Command
+/// Interface mapped at $DF1B-$DF1F, two Ultimate DOS targets, and a control
+/// target. Every <see cref="IExecutionBackend"/> member delegates to an inner
+/// <see cref="SimulatorBackend"/>; the Ultimate behaviour is additive.
+/// </summary>
+public class U64SimBackend : IExecutionBackend
+{
+    private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
+
+    private readonly SimulatorBackend _sim;
+    private readonly UltimateFileSystem _dosFileSystemOne;
+    private readonly UltimateFileSystem _dosFileSystemTwo;
+    private readonly UltimateDosTarget _dosOne;
+    private readonly UltimateDosTarget _dosTwo;
+    private readonly ControlTarget _control;
+
+    public U64SimBackend(U64SimBackendConfig config, IMemoryMap memoryMap)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        ArgumentNullException.ThrowIfNull(memoryMap);
+
+        if (string.IsNullOrWhiteSpace(config.FsRoot))
+            throw new ArgumentException(
+                "The u64sim backend needs a filesystem root. Set --u64sim-fs-root, " +
+                "or ultimate(fs_root = \"...\") in your suite file.",
+                nameof(config));
+
+        _sim = new SimulatorBackend(ProcessorType.MOS6510, memoryMap);
+
+        // Targets $01 and $02 keep independent state, so each gets its own view.
+        _dosFileSystemOne = new UltimateFileSystem(config.FsRoot);
+        _dosFileSystemTwo = new UltimateFileSystem(config.FsRoot);
+        _dosOne = new UltimateDosTarget(_dosFileSystemOne, config.DosVersion);
+        _dosTwo = new UltimateDosTarget(_dosFileSystemTwo, config.DosVersion);
+        _control = new ControlTarget(new[] { _dosOne, _dosTwo }, config.ModelName);
+
+        Uci = new UciRegisters(config.UciLatencyCycles)
+        {
+            // Busy is held relative to the processor's own cycle count, so a
+            // polling loop in 6502 code really does advance it.
+            CycleCounter = () => _sim.Processor.CycleCount,
+            ServiceEnabled = true
+        };
+
+        Uci.RegisterTarget(1, _dosOne);
+        Uci.RegisterTarget(2, _dosTwo);
+        Uci.RegisterTarget(4, _control);
+
+        memoryMap.RegisterIoHandler(UciConstants.BusIdAddress, UciConstants.StatusAddress, Uci);
+
+        Logger.Info($"u64sim ready: /Usb0 -> '{config.FsRoot}', " +
+                    $"UCI latency {config.UciLatencyCycles} cycles");
+    }
+
+    /// <summary>The UCI register block, exposed for tests and the DSL.</summary>
+    internal UciRegisters Uci { get; }
+
+    /// <summary>
+    /// Run a UCI command from the host rather than from 6502 code, walking every
+    /// continuation part. Backs the DSL's uci() function.
+    /// </summary>
+    public (string Status, byte[] Data) IssueUciCommand(byte[] command)
+        => Uci.IssueHostCommand(command);
+
+    public void LoadBinary(byte[] data, int address) => _sim.LoadBinary(data, address);
+    public void WriteByte(int address, byte value) => _sim.WriteByte(address, value);
+    public void WriteWord(int address, int value) => _sim.WriteWord(address, value);
+    public void WriteMemoryValue(int address, int value) => _sim.WriteMemoryValue(address, value);
+    public byte ReadByte(int address) => _sim.ReadByte(address);
+    public int ReadWord(int address) => _sim.ReadWord(address);
+
+    public int GetRegister(string name) => _sim.GetRegister(name);
+    public void SetRegister(string name, int value) => _sim.SetRegister(name, value);
+    public bool GetFlag(string name) => _sim.GetFlag(name);
+    public void SetFlag(string name, bool value) => _sim.SetFlag(name, value);
+
+    public ExecutionResult ExecuteJsr(int address, int stopOnAddress, bool stopOnRts, bool failOnBrk)
+        => _sim.ExecuteJsr(address, stopOnAddress, stopOnRts, failOnBrk);
+
+    public int GetCycles() => _sim.GetCycles();
+    public void ResetCycleCount() => _sim.ResetCycleCount();
+
+    public void LoadSymbols(string path) => _sim.LoadSymbols(path);
+    public void SaveSnapshot(string name) => _sim.SaveSnapshot(name);
+    public void RestoreSnapshot(string name) => _sim.RestoreSnapshot(name);
+
+    public void Reset()
+    {
+        _sim.Reset();
+        _control.ParseCommand(new byte[] { 0x04, ControlTarget.CmdReboot });
+    }
+
+    public void SetWarpMode(bool enabled) => _sim.SetWarpMode(enabled);
+
+    public bool TraceEnabled
+    {
+        get => _sim.TraceEnabled;
+        set => _sim.TraceEnabled = value;
+    }
+
+    public void ClearTraceBuffer() => _sim.ClearTraceBuffer();
+    public List<string> GetTraceBuffer() => _sim.GetTraceBuffer();
+
+    public void Dispose()
+    {
+        // Each DOS target owns the filesystem it was handed and disposes it.
+        _dosOne.Dispose();
+        _dosTwo.Dispose();
+        _sim.Dispose();
+    }
+}
+```
+
+- [ ] **Step 5: Add the factory case**
+
+In `sim6502/Backend/BackendFactory.cs`, add the parameter and the case. The
+signature becomes:
+
+```csharp
+    public static IExecutionBackend Create(
+        string backendType,
+        ProcessorType processorType,
+        IMemoryMap memoryMap,
+        ViceBackendConfig? viceConfig = null,
+        NovaVmBackendConfig? novaVmConfig = null,
+        U64SimBackendConfig? u64SimConfig = null)
+```
+
+Add before the `default:` label:
+
+```csharp
+            case "u64sim":
+                u64SimConfig ??= new U64SimBackendConfig();
+
+                // The UCI lives in the cartridge I/O range, which only the C64 map
+                // models. Fail with the fix rather than a null-reference later.
+                if (memoryMap is not C64MemoryMap)
+                    throw new ArgumentException(
+                        "The 'u64sim' backend requires a C64 memory map. " +
+                        "Add system(c64) to your suite file.");
+
+                return new U64SimBackend(u64SimConfig, memoryMap);
+```
+
+Update the `default:` message to list the new backend:
+
+```csharp
+            default:
+                throw new ArgumentException(
+                    $"Unknown backend type: {backendType}. " +
+                    "Valid options: sim, vice, novavm, verilator, u64sim");
+```
+
+- [ ] **Step 6: Add the CLI options**
+
+In `sim6502/Sim6502CLI.cs`, change the `--backend` help text at line 92-94:
+
+```csharp
+            [Option("backend", Required = false, Default = "sim",
+                HelpText = "Execution backend: 'sim' for internal simulator, 'vice' for VICE MCP, " +
+                           "'novavm' for e6502 emulator, 'verilator' for FPGA simulation, " +
+                           "'u64sim' for a simulated Ultimate 64")]
+            public string Backend { get; set; } = "sim";
+```
+
+Add after the `NovaVmTimeout` option (line 126):
+
+```csharp
+            [Option("u64sim-fs-root", Required = false,
+                HelpText = "Host directory exposed to the C64 as the Ultimate's /Usb0 mount")]
+            public string? U64SimFsRoot { get; set; }
+
+            [Option("u64sim-uci-latency", Required = false, Default = 64,
+                HelpText = "CPU cycles the UCI holds the Busy state before answering. " +
+                           "Non-zero by default so busy-wait loops are exercised")]
+            public int U64SimUciLatency { get; set; } = 64;
+```
+
+Add to the `SimBaseListener` initialiser after `NovaVmConfig` (line 222-227):
+
+```csharp
+                    U64SimConfig = opts.Backend == "u64sim" ? new U64SimBackendConfig
+                    {
+                        FsRoot = opts.U64SimFsRoot ?? "",
+                        UciLatencyCycles = opts.U64SimUciLatency
+                    } : null
+```
+
+- [ ] **Step 7: Add the listener property**
+
+In `sim6502/Grammar/SimBaseListener.cs`, next to `NovaVmConfig`, add:
+
+```csharp
+        public U64SimBackendConfig? U64SimConfig { get; set; }
+```
+
+and pass it through at line 391:
+
+```csharp
+                Backend = BackendFactory.Create(BackendType, _currentProcessorType,
+                    _currentMemoryMap!, ViceConfig, NovaVmConfig, U64SimConfig);
+```
+
+- [ ] **Step 8: Run test to verify it passes**
+
+Run: `dotnet test --filter "FullyQualifiedName~U64SimBackendTests|FullyQualifiedName~BackendFactoryTests"`
+Expected: PASS — 13 U64SimBackend tests plus the existing and 3 new factory tests.
+
+- [ ] **Step 9: Run the full suite**
+
+Run: `dotnet test`
+Expected: PASS — everything green. The `BackendFactory.Create` signature grew an
+optional parameter, so existing call sites are unaffected, but confirm it.
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add sim6502/Backend/U64SimBackend.cs sim6502/Backend/U64SimBackendConfig.cs \
+        sim6502/Backend/BackendFactory.cs sim6502/Sim6502CLI.cs \
+        sim6502/Grammar/SimBaseListener.cs \
+        sim6502tests/Backend/U64SimBackendTests.cs \
+        sim6502tests/Backend/BackendFactoryTests.cs
+git commit -m "feat(backend): add the u64sim execution backend
+
+Composes SimulatorBackend with the UCI register block, two independent
+Ultimate DOS targets, and the control target, mapping the UCI into the C64 I/O
+range. Busy latency is wired to the processor's own cycle count so 6502
+polling loops really advance it. Requires system(c64), and says so when it is
+missing rather than failing later."
+```
+
+---
+
 ## Remaining tasks
 
-Tasks 10-14 are listed with their file sets, interfaces, and the behaviour each
+Tasks 12-14 are listed with their file sets, interfaces, and the behaviour each
 must pin, pending expansion to full step-by-step form.
-
-### Task 10: `ControlTarget`
-
-**Files:** create `sim6502/Systems/Ultimate/ControlTarget.cs`; test
-`sim6502tests/Systems/Ultimate/ControlTargetTests.cs`.
-
-Target `$04`. `IDENTIFY 0x01` → `"CONTROL TARGET V1.1"`; `REBOOT 0x06` →
-no-reply, resets the DOS targets' state; `GET_HWINFO 0x28` → configurable model
-name, default `"Ultimate 64"`. `LOAD_REU 0x08` and `SAVE_REU 0x09` answer
-`"84,REU NOT ENABLED"` until the REU milestone lands.
 
 ### Task 11: `U64SimBackend`, config, factory, CLI
 
