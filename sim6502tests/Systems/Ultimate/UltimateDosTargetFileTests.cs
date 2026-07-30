@@ -87,6 +87,19 @@ public class UltimateDosTargetFileTests : IDisposable
     }
 
     [Fact]
+    public void OpenFile_InANonExistentSubdirectory_ReportsNoSuchDirectory()
+    {
+        // ResolveToHostPath legally resolves a path under a subdirectory that does
+        // not exist yet (it only rejects paths that escape the mount), so the open
+        // reaches new FileStream and fails there. Confirmed on this platform
+        // (.NET 10 / macOS) that a missing directory component raises
+        // DirectoryNotFoundException rather than FileNotFoundException.
+        var reply = _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "nosuchdir/x.txt"));
+
+        reply.Status.Should().Be("83,NO SUCH DIRECTORY");
+    }
+
+    [Fact]
     public void OpenFile_CreateAlways_TruncatesAnExistingFile()
     {
         _dos.ParseCommand(OpenCmd(
@@ -211,6 +224,27 @@ public class UltimateDosTargetFileTests : IDisposable
         _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "big.bin"));
 
         _dos.ParseCommand(ReadCmd(1300)).Status.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ReadData_SingleChunkThatCompletesImmediately_CarriesEmptyStatus()
+    {
+        _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "short.txt"));
+
+        var reply = _dos.ParseCommand(ReadCmd(5));
+
+        reply.LastPart.Should().BeTrue();
+        reply.Status.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ReadData_FinalChunkOfAMultiChunkRead_CarriesEmptyStatus()
+    {
+        _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "big.bin"));
+
+        var (_, finalStatus) = Drain(_dos.ParseCommand(ReadCmd(1300)));
+
+        finalStatus.Should().BeEmpty();
     }
 
     [Fact]
