@@ -12,7 +12,7 @@ This is a tool to help you unit test your 6502 assembly language programs. There
 
 It works by running your assembled programs through an execution backend and then allowing you to make assertions on memory, CPU state, or emulator-visible output. It's very similar to other unit test tools.
 
-sim6502 now has four execution backends:
+sim6502 now has five execution backends:
 
 | Backend | Use it for |
 |---------|------------|
@@ -20,6 +20,7 @@ sim6502 now has four execution backends:
 | `vice` | Hardware-accurate C64 tests through a VICE MCP server |
 | `novavm` | BASIC-level integration tests against the e6502/NovaVM Avalonia emulator |
 | `verilator` | BASIC-level integration tests against the NovaVM FPGA Verilator simulation |
+| `u64sim` | Ultimate 64 feature tests against a simulated UCI and Ultimate DOS |
 
 A minimal test suite looks like this:
 
@@ -1699,6 +1700,75 @@ Configure your editor's LSP client to launch the server with one of these comman
 Thanks to Aaron Mell for building the 6502 simulator (https://github.com/aaronmell/6502Net). It was a tremendous help in building this tool.
 
 Thanks to Terence Parr and Sam Harwell for ANTLR. (https://www.antlr.org/)
+
+#### Ultimate 64 testing (`u64sim`)
+
+The `u64sim` backend runs your code against a simulated Ultimate 64: the Ultimate
+Command Interface at `$DF1B-$DF1F`, two Ultimate DOS targets at `$01` and `$02`,
+and the control target at `$04`. No hardware needed, so it runs in CI.
+
+It requires `system(c64)` — the UCI lives in the cartridge I/O range, which only
+the C64 memory map models. Leaving it out fails fast with a message naming the
+fix: *"The 'u64sim' backend requires a C64 memory map. Add system(c64) to your
+suite file."*
+
+```
+suites {
+  suite("ultimate dos through the UCI") {
+    system(c64)
+    ultimate(fs_root = "sim6502tests/Fixtures/usb0")   ; exposed to the C64 as /Usb0
+
+    test("dos-identify", "the DOS target reports its version") {
+      uci($01, $01)
+      assert(uci_status("00,OK"), "IDENTIFY succeeded")
+      assert(uci_data(0) == $55, "response starts with 'U'")
+    }
+
+    test("control-identify", "the control target answers on $04") {
+      uci($04, $01)
+      assert(uci_status("00,OK"), "control IDENTIFY succeeded")
+      assert(uci_data(0) == $43, "response starts with 'C'")
+    }
+  }
+}
+```
+
+Excerpted from `example/ultimate.suite`, which is the full working suite. Run it
+with:
+
+```bash
+dotnet run --project sim6502 -- --suitefile example/ultimate.suite --backend u64sim
+```
+
+| DSL | What it does |
+|---|---|
+| `ultimate(fs_root = "...")` | Suite-level. Exposes a host directory as `/Usb0`. The tree is copied to a temp location, so fixtures are never mutated. |
+| `uci(target, command, args...)` | Issues a UCI command from the host. String literals become raw ASCII bytes; numeric expressions become single bytes. |
+| `uci_status("00,OK")` | True when the last `uci()` call's status matches. Failure reports the actual status. |
+| `uci_data(n)` | Byte `n` of the last `uci()` call's response data. |
+
+Your own 6502 code drives `$DF1C-$DF1F` directly and needs no DSL support — the
+backend answers as the Ultimate would, and you assert on memory and registers as
+usual.
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--u64sim-fs-root` | none | Host directory exposed as `/Usb0`. Required unless `ultimate(fs_root = ...)` sets it; the declaration wins when both are present. |
+| `--u64sim-uci-latency` | `64` | CPU cycles the UCI holds the Busy state before answering. |
+
+**Why the latency default is not zero.** The real UCI is asynchronous: a client
+writes `PUSH_CMD` to `$DF1C` then polls until the state leaves Busy. If the
+simulator answered instantly, a client with a broken or missing busy-wait loop
+would pass here and fail on hardware — the simulator would hide the exact class of
+bug it exists to catch. Set it to `0` only when a test is deliberately not about
+timing.
+
+Not yet implemented, and next on the list: the REU (`$DF00-$DF0A`), the UCI network
+target `$03`, drive emulation and disk mounting, and a `u64` backend that drives
+real hardware over the network. Ultimate DOS commands in that group answer
+`99,FUNCTION NOT IMPLEMENTED`, and the control target's REU commands answer
+`84,REU NOT ENABLED` — the same status hardware gives with no REU configured — so
+your code takes the hardware path today.
 
 #### License
 

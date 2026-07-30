@@ -32,4 +32,33 @@ public class LicenseTests
         text.Should().Contain("Aaron Mell");
         text.Should().Contain("1541ultimate");
     }
+
+    [Fact]
+    public void Readme_DocumentsTheU64SimBackend()
+    {
+        var text = File.ReadAllText(Path.Combine(RepoRoot(), "README.md"));
+
+        text.Should().Contain("u64sim");
+        text.Should().Contain("--u64sim-fs-root");
+        text.Should().Contain("--u64sim-uci-latency");
+        text.Should().Contain("uci_status");
+        text.Should().Contain("system(c64)");
+    }
+
+    [Fact]
+    public void Changelog_RecordsTheLicenceChangeAndReservedWord()
+    {
+        var text = File.ReadAllText(Path.Combine(RepoRoot(), "CHANGELOG.md"));
+
+        text.Should().Contain("4.0.0");
+        text.Should().Contain("GPL-3.0");
+        text.Should().Contain("reserved word");
+    }
+
+    [Fact]
+    public void ProjectVersion_IsFourPointZero()
+    {
+        var text = File.ReadAllText(Path.Combine(RepoRoot(), "sim6502", "sim6502.csproj"));
+        text.Should().Contain("<Version>4.0.0</Version>");
+    }
 }

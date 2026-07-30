@@ -2,6 +2,21 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v4.0.0 - 2026-07-30
+#### Breaking Changes
+- (**license**) relicense from BSD-2-Clause to GPL-3.0; Ultimate 64 support ports protocol and DOS behaviour from [GideonZ/1541ultimate](https://github.com/GideonZ/1541ultimate), which is GPL-3.0. Releases before 4.0.0 remain BSD-2-Clause - (97ee9a1) - Barry Walker
+- (**grammar**) `uci` is now a reserved word; suites using it as a symbol name must rename that symbol - (c209ee6) - Barry Walker
+#### Features
+- (**backend**) add the u64sim execution backend: a simulated Ultimate Command Interface at $DF1B-$DF1F, two Ultimate DOS targets, and the control target. Requires system(c64) - (b6a2741) - Barry Walker
+- (**grammar**) add ultimate(fs_root = "..."), uci(target, command, args...), uci_status("..."), uci_data(n) - (c209ee6) - Barry Walker
+- (**systems**) add IMemoryMap.RegisterIoHandler and I/O handler dispatch in C64MemoryMap, so peripherals can claim address ranges within $D000-$DFFF - (ccfb6a9) - Barry Walker
+#### Notes
+- the UCI holds the Busy state for 64 cycles by default rather than answering instantly, so client busy-wait loops are genuinely exercised
+- REU, the UCI network target, drive emulation, and a real-hardware `u64` backend are the next milestone
+#### Documentation
+- document the u64sim backend and release 4.0.0 - Barry Walker
+
+- - -
 ## v3.14.0 - 2026-05-05
 #### Features
 - (**novavm**) fail-fast on BASIC error lines in run() - (9d8772b) - Barry Walker
