@@ -1612,7 +1612,11 @@ namespace sim6502.Grammar
             var matched = CheckUciStatus(expected, out var actual);
             SetBoolValue(context, matched);
 
-            if (!matched)
+            // Only report a mismatch when there was a status to mismatch against.
+            // CheckUciStatus has already failed the assertion with a more accurate
+            // message when uci() was never called, and adding "actual status was
+            // """ on top of that just muddies the log.
+            if (!matched && _uciCalled)
                 FailAssertion($"uci_status(\"{expected}\") failed — actual status was \"{actual}\"");
         }
 
