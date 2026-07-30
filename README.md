@@ -1702,29 +1702,21 @@ Thanks to Terence Parr and Sam Harwell for ANTLR. (https://www.antlr.org/)
 
 #### License
 
-ANTLR 4.13.1 is Copyright (C) 2012 Terence Parr and Sam Harwell. All Rights Reserved.
+sim6502 is licensed under the **GNU General Public License v3.0**. See `LICENSE`
+for the full text and `NOTICE` for third-party attributions.
 
-The 6502 Simulator and associated test suite are Copyright (C) 2013 by Aaron Mell. All Rights Reserved.
+Versions prior to 4.0.0 were BSD 2-Clause. Those releases remain available under
+that licence; 4.0.0 and later are GPL-3.0. The change was made to allow the
+Ultimate 64 backends to port protocol and DOS behaviour from
+[GideonZ/1541ultimate](https://github.com/GideonZ/1541ultimate), which is GPL-3.0.
 
-The 6502 Unit Test CLI and associated test suite are Copyright (C) 2020-2026 by Barry Walker. All Rights Reserved.
+If you embed sim6502 in a distributed product, GPL-3.0 requires you to make the
+corresponding source available. Pin to a 3.x release if that does not suit you.
 
+Thanks to Gideon Zweijtzer for the Ultimate hardware, its firmware, and the
+documentation that made these backends possible.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ANTLR 4.13.1 is Copyright (C) 2012 Terence Parr and Sam Harwell.
+The 6502 simulator core is Copyright (C) 2013 Aaron Mell, BSD 2-Clause (retained
+in `NOTICE`).
+sim6502 is Copyright (C) 2020-2026 Barry Walker.

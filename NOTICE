@@ -1,0 +1,59 @@
+sim6502 — 6502 Assembly Testing Framework
+Copyright (C) 2020-2026 Barry Walker
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. See LICENSE for the full text.
+
+Prior to version 4.0.0, sim6502 was distributed under the BSD 2-Clause licence.
+Releases made under that licence remain available under it. Version 4.0.0 and
+later are GPL-3.0.
+
+--------------------------------------------------------------------------------
+Third-party components
+--------------------------------------------------------------------------------
+
+6502 simulator core
+  Copyright (C) 2013 Aaron Mell. All Rights Reserved.
+  Originally licensed under the BSD 2-Clause licence, reproduced below. BSD
+  2-Clause is compatible with the GPL; this notice is retained as that licence
+  requires.
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions are met:
+
+  1. Redistributions of source code must retain the above copyright notice,
+     this list of conditions and the following disclaimer.
+  2. Redistributions in binary form must reproduce the above copyright notice,
+     this list of conditions and the following disclaimer in the documentation
+     and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+  POSSIBILITY OF SUCH DAMAGE.
+
+Ultimate Command Interface and Ultimate DOS behaviour
+  Copyright (C) Gideon Zweijtzer.
+  Ported from https://github.com/GideonZ/1541ultimate (GPL-3.0). The port is a
+  reimplementation in C# of the behaviour of these upstream files:
+    fpga/io/command_interface/vhdl_source/command_protocol.vhd
+    fpga/io/command_interface/vhdl_source/command_if_pkg.vhd
+    software/io/command_interface/command_intf.cc
+    software/io/command_interface/command_intf.h
+    software/filemanager/dos.cc
+    software/filemanager/dos.h
+  Individual ported files carry a header naming their upstream origin. The
+  presence of this GPL-3.0 code is the reason sim6502 is GPL-3.0.
+
+ANTLR 4.13.1
+  Copyright (C) 2012 Terence Parr and Sam Harwell. All Rights Reserved.
+  Used under the BSD 3-Clause licence.
