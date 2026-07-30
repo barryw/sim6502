@@ -4994,65 +4994,467 @@ missing rather than failing later."
 
 ---
 
+## Task 12: Grammar and listener — `ultimate()`, `uci()`, `uci_status()`, `uci_data()`
+
+**Files:**
+- Modify: `sim6502/Grammar/sim6502.g4`
+- Modify: `sim6502/Grammar/SimBaseListener.cs`
+- Regenerate and commit: `sim6502/Grammar/Generated/*`
+- Test: `sim6502tests/GrammarTests/UltimateGrammarTests.cs`
+
+**Interfaces:**
+- Consumes: `U64SimBackend.IssueUciCommand` and `SimBaseListener.U64SimConfig` (Task 11).
+- Produces: four DSL constructs — `ultimate(fs_root = "...")`,
+  `uci(target, command, args...)`, `uci_status("...")`, `uci_data(n)`.
+
+`uci` becomes a reserved word. Any existing suite using it as a symbol name needs
+renaming; say so in the commit message.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `sim6502tests/GrammarTests/UltimateGrammarTests.cs`:
+
+```csharp
+using Antlr4.Runtime;
+using FluentAssertions;
+using sim6502.Errors;
+using sim6502.Grammar;
+using sim6502.Grammar.Generated;
+using Xunit;
+
+namespace sim6502tests.GrammarTests;
+
+public class UltimateGrammarTests
+{
+    private static ErrorCollector Parse(string source)
+    {
+        var collector = new ErrorCollector();
+        collector.SetSource(source, "test.6502");
+
+        var lexer = new sim6502Lexer(new AntlrInputStream(source));
+        lexer.RemoveErrorListeners();
+        lexer.AddErrorListener(new SimErrorListener(collector));
+
+        var parser = new sim6502Parser(new CommonTokenStream(lexer)) { BuildParseTree = true };
+        parser.RemoveErrorListeners();
+        parser.AddErrorListener(new SimErrorListener(collector));
+
+        parser.suites();
+        return collector;
+    }
+
+    private static string Wrap(string body) => $@"
+suites {{
+  suite(""ultimate"") {{
+    system(c64)
+    ultimate(fs_root = ""fixtures/usb0"")
+    test(""t"", ""d"") {{
+{body}
+    }}
+  }}
+}}";
+
+    [Fact]
+    public void UltimateDeclaration_Parses()
+    {
+        Parse(Wrap("      a = $01")).HasErrors.Should().BeFalse();
+    }
+
+    [Fact]
+    public void UciCall_WithNoArguments_Parses()
+    {
+        Parse(Wrap("      uci($01, $01)")).HasErrors.Should().BeFalse();
+    }
+
+    [Fact]
+    public void UciCall_WithAStringArgument_Parses()
+    {
+        Parse(Wrap(@"      uci($01, $11, ""/Usb0/data"")")).HasErrors.Should().BeFalse();
+    }
+
+    [Fact]
+    public void UciCall_WithMixedArguments_Parses()
+    {
+        Parse(Wrap(@"      uci($01, $02, $01, ""game.prg"")")).HasErrors.Should().BeFalse();
+    }
+
+    [Fact]
+    public void UciStatus_ParsesInsideAssert()
+    {
+        Parse(Wrap(@"      assert(uci_status(""00,OK""), ""ok"")")).HasErrors.Should().BeFalse();
+    }
+
+    [Fact]
+    public void UciData_ParsesInsideAComparison()
+    {
+        Parse(Wrap(@"      assert(uci_data(0) == $55, ""first byte"")"))
+            .HasErrors.Should().BeFalse();
+    }
+
+    [Fact]
+    public void UciData_ParsesInsideAnExpression()
+    {
+        Parse(Wrap(@"      assert(uci_data(0) + uci_data(1) == $10, ""sum"")"))
+            .HasErrors.Should().BeFalse();
+    }
+
+    [Fact]
+    public void UciCall_ParsesInsideASetupBlock()
+    {
+        var source = @"
+suites {
+  suite(""ultimate"") {
+    system(c64)
+    ultimate(fs_root = ""fixtures/usb0"")
+    setup {
+      uci($01, $11, ""/Usb0/data"")
+    }
+    test(""t"", ""d"") {
+      a = $01
+    }
+  }
+}";
+        Parse(source).HasErrors.Should().BeFalse();
+    }
+
+    [Fact]
+    public void UltimateDeclaration_WithoutFsRoot_IsASyntaxError()
+    {
+        var source = @"
+suites {
+  suite(""ultimate"") {
+    system(c64)
+    ultimate()
+    test(""t"", ""d"") {
+      a = $01
+    }
+  }
+}";
+        Parse(source).HasErrors.Should().BeTrue();
+    }
+
+    [Fact]
+    public void UciCall_WithOnlyOneArgument_IsASyntaxError()
+    {
+        Parse(Wrap("      uci($01)")).HasErrors.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ExistingSuitesWithoutUltimate_StillParse()
+    {
+        var source = @"
+suites {
+  suite(""plain"") {
+    system(c64)
+    test(""t"", ""d"") {
+      a = $01
+      assert(a == $01, ""a"")
+    }
+  }
+}";
+        Parse(source).HasErrors.Should().BeFalse();
+    }
+}
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `dotnet test --filter "FullyQualifiedName~UltimateGrammarTests"`
+Expected: FAIL — every test touching `ultimate(...)`, `uci(...)`,
+`uci_status(...)` or `uci_data(...)` reports syntax errors. Only
+`ExistingSuitesWithoutUltimate_StillParse` and
+`UltimateDeclaration_WithoutFsRoot_IsASyntaxError` pass, the latter for the wrong
+reason.
+
+- [ ] **Step 3: Add the grammar rules**
+
+In `sim6502/Grammar/sim6502.g4`, change the `suite` rule (line 35):
+
+```antlr
+suite
+    : Suite LParen suiteName RParen LBrace
+        (systemDeclaration | processorDeclaration)?
+        ultimateDeclaration?
+        (testFunction | symbolsFunction | loadFunction | romDeclaration | setupBlock)+
+      RBrace
+    ;
+```
+
+Add the new rules after `romFilename` (after line 78):
+
+```antlr
+// ── Ultimate 64 (u64sim backend) ──
+
+ultimateDeclaration
+    : Ultimate LParen FsRoot Assign StringLiteral RParen
+    ;
+
+uciFunction
+    : Uci LParen expression Comma expression (Comma uciArg)* RParen
+    ;
+
+uciArg
+    : expression
+    | StringLiteral
+    ;
+
+uciStatusFunction
+    : UciStatus LParen StringLiteral RParen
+    ;
+
+uciDataFunction
+    : UciData LParen expression RParen
+    ;
+```
+
+Add an alternative to `comparison` (line 114):
+
+```antlr
+comparison
+    : compareLHS CompareOperator expression     # compareExpression
+    | memoryChkFunction                         # memoryChk
+    | memoryCmpFunction                         # memoryCmp
+    | screenContainsFunction                    # screenContains
+    | screenLineFunction                        # screenLineCheck
+    | uciStatusFunction                         # uciStatusCheck
+    ;
+```
+
+Add `| uciFunction` as the last alternative of both `testContents` (line 195) and
+`setupContents` (line 212).
+
+Add alternatives to `intFunction` (line 344) and `boolFunction` (line 349):
+
+```antlr
+intFunction
+    : peekByteFunction  # peekByteFunctionValue
+    | peekWordFunction  # peekWordFunctionValue
+    | uciDataFunction   # uciDataFunctionValue
+    ;
+
+boolFunction
+    : memoryChkFunction      # memoryChkFunctionValue
+    | memoryCmpFunction      # memoryCmpFunctionValue
+    | screenContainsFunction # screenContainsFunctionValue
+    | screenLineFunction     # screenLineFunctionValue
+    | uciStatusFunction      # uciStatusFunctionValue
+    ;
+```
+
+Add the tokens after the NovaVM keyword block (after line 507). `UciStatus` and
+`UciData` are listed before `Uci` for readability — ANTLR's longest-match rule makes
+the order immaterial, but a reader should not have to know that:
+
+```antlr
+// Ultimate 64 keywords
+Ultimate:       'ultimate';
+FsRoot:         'fs_root';
+UciStatus:      'uci_status';
+UciData:        'uci_data';
+Uci:            'uci';
+```
+
+- [ ] **Step 4: Regenerate the parser**
+
+Run: `make grammar`
+Expected: no output on success. Confirm the new rules landed:
+
+```bash
+grep -c "UciFunctionContext" sim6502/Grammar/Generated/sim6502Parser.cs
+```
+Expected: a non-zero count.
+
+- [ ] **Step 5: Add the listener state and the suite declaration**
+
+In `sim6502/Grammar/SimBaseListener.cs`, add near the other private fields:
+
+```csharp
+        // Result of the most recent uci() call, read by uci_status() and uci_data().
+        private string _lastUciStatus = "";
+        private byte[] _lastUciData = Array.Empty<byte>();
+        private bool _uciCalled;
+```
+
+In `EnterSuite`, insert **before** the `BackendFactory.Create` call at line 390, so
+the config is complete when the backend is constructed:
+
+```csharp
+            // A suite-level ultimate() declaration overrides --u64sim-fs-root.
+            var ultimateDecl = context.ultimateDeclaration();
+            if (ultimateDecl != null)
+            {
+                var fsRoot = StripQuotes(ultimateDecl.StringLiteral().GetText());
+                U64SimConfig ??= new U64SimBackendConfig();
+                U64SimConfig.FsRoot = fsRoot;
+                Logger.Info($"Ultimate filesystem root set to: {fsRoot}");
+            }
+```
+
+In `EnterTestFunction` (line 909), clear the stored result so one test cannot read
+another's response:
+
+```csharp
+            _lastUciStatus = "";
+            _lastUciData = Array.Empty<byte>();
+            _uciCalled = false;
+```
+
+- [ ] **Step 6: Add the command handlers**
+
+Add a new region beside the NovaVM one:
+
+```csharp
+        #region Ultimate 64 commands
+
+        private U64SimBackend RequireU64SimBackend(string command)
+        {
+            if (Backend is U64SimBackend u64)
+                return u64;
+
+            throw new InvalidOperationException(
+                $"'{command}' requires the u64sim backend. Current backend: {BackendType}");
+        }
+
+        public override void ExitUciFunction(sim6502Parser.UciFunctionContext context)
+        {
+            if (_inSetupBlockDefinition || _currentTestSkipped)
+                return;
+
+            var backend = RequireU64SimBackend("uci()");
+
+            var bytes = new List<byte>
+            {
+                (byte)(GetIntValue(context.expression(0)) & 0xFF),   // target
+                (byte)(GetIntValue(context.expression(1)) & 0xFF)    // command
+            };
+
+            foreach (var arg in context.uciArg())
+            {
+                var literal = arg.StringLiteral();
+                if (literal != null)
+                    bytes.AddRange(System.Text.Encoding.ASCII.GetBytes(StripQuotes(literal.GetText())));
+                else
+                    bytes.Add((byte)(GetIntValue(arg.expression()) & 0xFF));
+            }
+
+            var command = bytes.ToArray();
+            Logger.Debug($"uci(${command[0]:X2}, ${command[1]:X2}) — {command.Length} bytes");
+
+            var (status, data) = backend.IssueUciCommand(command);
+            _lastUciStatus = status;
+            _lastUciData = data;
+            _uciCalled = true;
+        }
+
+        public override void ExitUciStatusCheck(sim6502Parser.UciStatusCheckContext context)
+        {
+            if (_currentTestSkipped)
+                return;
+
+            var expected = StripQuotes(context.uciStatusFunction().StringLiteral().GetText());
+            var matched = CheckUciStatus(expected, out var actual);
+            SetBoolValue(context, matched);
+
+            if (!matched)
+                FailAssertion($"uci_status(\"{expected}\") failed — actual status was \"{actual}\"");
+        }
+
+        public override void ExitUciStatusFunctionValue(
+            sim6502Parser.UciStatusFunctionValueContext context)
+        {
+            if (_currentTestSkipped)
+                return;
+
+            var expected = StripQuotes(context.uciStatusFunction().StringLiteral().GetText());
+            SetBoolValue(context, CheckUciStatus(expected, out _));
+        }
+
+        private bool CheckUciStatus(string expected, out string actual)
+        {
+            actual = _lastUciStatus;
+
+            if (!_uciCalled)
+            {
+                FailAssertion("uci_status() called before any uci() command in this test");
+                return false;
+            }
+
+            return string.Equals(actual, expected, StringComparison.Ordinal);
+        }
+
+        public override void ExitUciDataFunction(sim6502Parser.UciDataFunctionContext context)
+        {
+            SetIntValue(context, ReadUciData(context));
+        }
+
+        public override void ExitUciDataFunctionValue(
+            sim6502Parser.UciDataFunctionValueContext context)
+        {
+            SetIntValue(context, GetIntValue(context.uciDataFunction()));
+        }
+
+        private int ReadUciData(sim6502Parser.UciDataFunctionContext context)
+        {
+            if (_currentTestSkipped)
+                return 0;
+
+            if (!_uciCalled)
+            {
+                FailAssertion("uci_data() called before any uci() command in this test");
+                return 0;
+            }
+
+            var index = GetIntValue(context.expression());
+
+            if (index < 0 || index >= _lastUciData.Length)
+            {
+                FailAssertion(
+                    $"uci_data({index}) is out of range — the last response was " +
+                    $"{_lastUciData.Length} bytes");
+                return 0;
+            }
+
+            return _lastUciData[index];
+        }
+
+        #endregion
+```
+
+- [ ] **Step 7: Run test to verify it passes**
+
+Run: `dotnet test --filter "FullyQualifiedName~UltimateGrammarTests"`
+Expected: PASS — 11 passed.
+
+- [ ] **Step 8: Run the full suite**
+
+Run: `dotnet test`
+Expected: PASS. The grammar changed, so every parse test and example suite is at
+risk. If a pre-existing suite used `uci` as a symbol name it now fails to parse —
+rename the symbol rather than removing the keyword.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add sim6502/Grammar/sim6502.g4 sim6502/Grammar/Generated/ \
+        sim6502/Grammar/SimBaseListener.cs \
+        sim6502tests/GrammarTests/UltimateGrammarTests.cs
+git commit -m "feat(grammar): add ultimate(), uci(), uci_status(), uci_data()
+
+uci() issues a command from the host and stores the response. uci_status() is a
+predicate rather than a string accessor so it reuses the existing boolFunction
+path, and reports the actual status on failure. Stored results are cleared per
+test so one test cannot read another's response.
+
+BREAKING CHANGE: 'uci' is now a reserved word. Suites using it as a symbol name
+must rename that symbol."
+```
+
+---
+
 ## Remaining tasks
 
-Tasks 12-14 are listed with their file sets, interfaces, and the behaviour each
-must pin, pending expansion to full step-by-step form.
-
-### Task 11: `U64SimBackend`, config, factory, CLI
-
-**Files:** create `sim6502/Backend/U64SimBackendConfig.cs` and
-`sim6502/Backend/U64SimBackend.cs`; modify `sim6502/Backend/BackendFactory.cs:18`
-and `sim6502/Sim6502CLI.cs:92`; test
-`sim6502tests/Backend/U64SimBackendTests.cs` and add cases to
-`sim6502tests/Backend/BackendFactoryTests.cs`.
-
-`U64SimBackendConfig`: `string FsRoot`, `int UciLatencyCycles = 64`,
-`string DosVersion = "ULTIMATE-II DOS V1.2"`, `string ModelName = "Ultimate 64"`.
-
-`U64SimBackend : IExecutionBackend` delegates every member to an inner
-`SimulatorBackend`, and additionally exposes
-`(string Status, byte[] Data) IssueUciCommand(byte[] command)`. Construction wires
-`UciRegisters.CycleCounter` to the processor's cycle count, sets
-`ServiceEnabled = true`, registers targets 1, 2, and 4, and calls
-`memoryMap.RegisterIoHandler(0xDF1B, 0xDF1F, uci)`.
-
-`BackendFactory` gains a `u64sim` case with a `U64SimBackendConfig?` parameter and
-must reject a non-`C64MemoryMap` map with a message naming `system(c64)`.
-
-CLI: add `u64sim` to the `--backend` help text and add `--u64sim-fs-root` and
-`--u64sim-uci-latency` (default 64).
-
-### Task 12: Grammar and listener — `ultimate()`, `uci()`, `uci_status()`, `uci_data()`
-
-**Files:** modify `sim6502/Grammar/sim6502.g4` and
-`sim6502/Grammar/SimBaseListener.cs`; regenerate with `make grammar` and commit
-`sim6502/Grammar/Generated/`; test
-`sim6502tests/GrammarTests/UltimateGrammarTests.cs` and
-`sim6502tests/Backend/U64SimListenerTests.cs`.
-
-Grammar: `ultimateDeclaration : Ultimate LParen FsRoot Assign StringLiteral RParen`
-added to `suite` after the system/processor declaration;
-`uciFunction : Uci LParen expression Comma expression (Comma uciArg)* RParen` with
-`uciArg : expression | StringLiteral`, added to both `testContents` and
-`setupContents`; `uciDataFunction : UciData LParen expression RParen` added to
-`intFunction`; `uciStatusFunction : UciStatus LParen StringLiteral RParen` added to
-`boolFunction` and to `comparison` as `# uciStatusCheck`. New tokens `Ultimate`,
-`FsRoot`, `Uci`, `UciStatus`, `UciData` placed with the other keywords, before
-`Identifier`, with `UciStatus` and `UciData` ahead of `Uci` for readability.
-
-Listener: `EnterSuite` reads `ultimateDeclaration` and overrides
-`U64SimConfig.FsRoot` **before** `BackendFactory.Create` on line 391;
-`RequireU64SimBackend(string command)` mirrors `RequireHighLevelBackend`;
-`ExitUciFunction` assembles the command bytes (target, command, then each arg —
-string literals as ASCII bytes, expressions as single bytes) and stores the result;
-`ExitUciStatusCheck` and `ExitUciStatusFunctionValue` compare against the stored
-status and report the actual string on failure; `ExitUciDataFunction` returns the
-indexed response byte, and out-of-range indices fail the assertion rather than
-throwing.
-
-Note in the commit message that `uci` becomes a reserved word, so any existing
-suite using it as a symbol name needs renaming.
+Tasks 13-14 are listed with their file sets and the behaviour each must pin,
+pending expansion to full step-by-step form.
 
 ### Task 13: Functional test — 6502 UCI client through the whole stack
 
