@@ -1,6 +1,8 @@
-// Ported from GideonZ/1541ultimate (GPL-3.0): the control target command set
-// documented in GideonZ/1541u-documentation uci/control_target.rst and
-// implemented across software/ (c64.cc, command handlers).
+// Ported from GideonZ/1541ultimate (GPL-3.0):
+//   software/io/command_interface/control_target.h   (command codes)
+//   software/io/command_interface/control_target.cc  (identification and status strings)
+//   software/system/product.cc                       (the model name)
+// Also documented in GideonZ/1541u-documentation uci/control_target.rst.
 // Original author: Gideon Zweijtzer. See NOTICE.
 
 using System.Text;
