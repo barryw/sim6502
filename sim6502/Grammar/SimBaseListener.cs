@@ -177,6 +177,7 @@ namespace sim6502.Grammar
         public string BackendType { get; set; } = "sim";
         public ViceBackendConfig? ViceConfig { get; set; }
         public NovaVmBackendConfig? NovaVmConfig { get; set; }
+        public U64SimBackendConfig? U64SimConfig { get; set; }
 
         // Error collector for semantic errors
         public ErrorCollector Errors { get; set; } = new();
@@ -388,7 +389,8 @@ namespace sim6502.Grammar
 
             // Create processor with memory map (skip if backend already injected for testing)
             if (Backend == null)
-                Backend = BackendFactory.Create(BackendType, _currentProcessorType, _currentMemoryMap!, ViceConfig, NovaVmConfig);
+                Backend = BackendFactory.Create(BackendType, _currentProcessorType,
+                    _currentMemoryMap!, ViceConfig, NovaVmConfig, U64SimConfig);
 
             _suiteBaselineSaved = false;
             _suiteSnapshotName = $"sim6502_suite_{_suiteIndex++}";

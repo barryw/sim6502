@@ -13,7 +13,8 @@ public static class BackendFactory
         ProcessorType processorType,
         IMemoryMap memoryMap,
         ViceBackendConfig? viceConfig = null,
-        NovaVmBackendConfig? novaVmConfig = null)
+        NovaVmBackendConfig? novaVmConfig = null,
+        U64SimBackendConfig? u64SimConfig = null)
     {
         switch (backendType.ToLower())
         {
@@ -47,8 +48,22 @@ public static class BackendFactory
                 verilatorBackend.Connect();
                 return verilatorBackend;
 
+            case "u64sim":
+                u64SimConfig ??= new U64SimBackendConfig();
+
+                // The UCI lives in the cartridge I/O range, which only the C64 map
+                // models. Fail with the fix rather than a null-reference later.
+                if (memoryMap is not C64MemoryMap)
+                    throw new ArgumentException(
+                        "The 'u64sim' backend requires a C64 memory map. " +
+                        "Add system(c64) to your suite file.");
+
+                return new U64SimBackend(u64SimConfig, memoryMap);
+
             default:
-                throw new ArgumentException($"Unknown backend type: {backendType}. Valid options: sim, vice, novavm, verilator");
+                throw new ArgumentException(
+                    $"Unknown backend type: {backendType}. " +
+                    "Valid options: sim, vice, novavm, verilator, u64sim");
         }
     }
 }

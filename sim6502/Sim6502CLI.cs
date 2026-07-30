@@ -90,7 +90,9 @@ namespace sim6502
             public bool ListOnly { get; set; }
 
             [Option("backend", Required = false, Default = "sim",
-                HelpText = "Execution backend: 'sim' for internal simulator, 'vice' for VICE MCP, 'novavm' for e6502 emulator, 'verilator' for FPGA simulation")]
+                HelpText = "Execution backend: 'sim' for internal simulator, 'vice' for VICE MCP, " +
+                           "'novavm' for e6502 emulator, 'verilator' for FPGA simulation, " +
+                           "'u64sim' for a simulated Ultimate 64")]
             public string Backend { get; set; } = "sim";
 
             [Option("vice-host", Required = false, Default = "127.0.0.1",
@@ -124,6 +126,15 @@ namespace sim6502
             [Option("novavm-timeout", Required = false, Default = 10000,
                 HelpText = "Timeout in ms for NovaVM operations")]
             public int NovaVmTimeout { get; set; } = 10000;
+
+            [Option("u64sim-fs-root", Required = false,
+                HelpText = "Host directory exposed to the C64 as the Ultimate's /Usb0 mount")]
+            public string? U64SimFsRoot { get; set; }
+
+            [Option("u64sim-uci-latency", Required = false, Default = 64,
+                HelpText = "CPU cycles the UCI holds the Busy state before answering. " +
+                           "Non-zero by default so busy-wait loops are exercised")]
+            public int U64SimUciLatency { get; set; } = 64;
         }
 
         private static int Main(string[] args)
@@ -224,6 +235,11 @@ namespace sim6502
                         Host = opts.NovaVmHost,
                         Port = opts.NovaVmPort,
                         TimeoutMs = opts.NovaVmTimeout
+                    } : null,
+                    U64SimConfig = opts.Backend == "u64sim" ? new U64SimBackendConfig
+                    {
+                        FsRoot = opts.U64SimFsRoot ?? "",
+                        UciLatencyCycles = opts.U64SimUciLatency
                     } : null
                 };
 

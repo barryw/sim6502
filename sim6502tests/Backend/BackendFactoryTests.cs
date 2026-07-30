@@ -57,4 +57,45 @@ public class BackendFactoryTests
         var act = () => BackendFactory.Create("vice", ProcessorType.MOS6502, memMap, viceConfig: config);
         act.Should().Throw<Exception>();
     }
+
+    [Fact]
+    public void Create_U64Sim_ReturnsU64SimBackend()
+    {
+        var fixture = Path.Combine(Path.GetTempPath(), "u64sim-factory-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(fixture);
+        try
+        {
+            var (memMap, procType) = MemoryMapFactory.CreateForSystem(SystemType.C64);
+            var config = new U64SimBackendConfig { FsRoot = fixture, UciLatencyCycles = 0 };
+
+            var backend = BackendFactory.Create("u64sim", procType, memMap, u64SimConfig: config);
+
+            backend.Should().BeOfType<U64SimBackend>();
+            backend.Dispose();
+        }
+        finally
+        {
+            Directory.Delete(fixture, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Create_U64Sim_WithoutC64MemoryMap_ThrowsNamingSystemC64()
+    {
+        var (memMap, _) = MemoryMapFactory.CreateForProcessor(ProcessorType.MOS6510);
+
+        var act = () => BackendFactory.Create("u64sim", ProcessorType.MOS6510, memMap);
+
+        act.Should().Throw<ArgumentException>().WithMessage("*system(c64)*");
+    }
+
+    [Fact]
+    public void Create_UnknownBackend_ListsU64SimAsAnOption()
+    {
+        var (memMap, _) = MemoryMapFactory.CreateForProcessor(ProcessorType.MOS6502);
+
+        var act = () => BackendFactory.Create("nonsense", ProcessorType.MOS6502, memMap);
+
+        act.Should().Throw<ArgumentException>().WithMessage("*u64sim*");
+    }
 }
