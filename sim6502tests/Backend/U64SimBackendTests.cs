@@ -216,4 +216,41 @@ public class U64SimBackendTests : IDisposable
         bytes.AddRange(Encoding.ASCII.GetBytes(path));
         return bytes.ToArray();
     }
+
+    [Fact]
+    public void MountName_IsConfigurable_SoOneSuiteRunsAgainstBothBackends()
+    {
+        // The real stick mounts as /USB1; u64sim defaults to /Usb0. Without this
+        // the same suite file cannot address both backends.
+        var config = new U64SimBackendConfig { FsRoot = _fixture, MountName = "USB1" };
+        using var backend = new U64SimBackend(config, new C64MemoryMap());
+
+        // CHANGE_DIR ($11) on DOS target $01. The leading command bytes matter:
+        // passing the bare path would make byte 0 ('/' = $2F) the target
+        // selector, which resolves to unregistered target $0F and answers
+        // "NO TARGET"/"00,OK" -- a test that would pass for the wrong reason.
+        var (status, _) = backend.IssueUciCommand(Chdir("/USB1"));
+
+        status.Should().Be("00,OK");
+    }
+
+    [Fact]
+    public void MountName_DefaultRemainsUsb0()
+    {
+        // Negative control. With the default mount, /USB1 must NOT resolve --
+        // otherwise the test above would still pass if MountName were ignored.
+        var config = new U64SimBackendConfig { FsRoot = _fixture };
+        using var backend = new U64SimBackend(config, new C64MemoryMap());
+
+        var (status, _) = backend.IssueUciCommand(Chdir("/USB1"));
+
+        status.Should().Be("83,NO SUCH DIRECTORY");
+    }
+
+    private static byte[] Chdir(string path)
+    {
+        var bytes = new List<byte> { 0x01, 0x11 };   // DOS target, CHANGE_DIR
+        bytes.AddRange(Encoding.ASCII.GetBytes(path));
+        return bytes.ToArray();
+    }
 }

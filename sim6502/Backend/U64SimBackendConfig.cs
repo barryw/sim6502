@@ -29,4 +29,12 @@ public class U64SimBackendConfig
     /// SoftIEC bus ID reported at $DF1B. Real hardware reports 11 by default.
     /// </summary>
     public byte BusId { get; set; } = 11;
+
+    /// <summary>
+    /// Ultimate-side mount name for <see cref="FsRoot"/>, without the leading
+    /// slash. Defaults to the historical "Usb0". Real hardware enumerates its
+    /// stick as "USB1", so a suite meant to run against both backends should set
+    /// this to match the machine.
+    /// </summary>
+    public string MountName { get; set; } = "Usb0";
 }

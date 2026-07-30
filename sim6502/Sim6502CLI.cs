@@ -139,6 +139,11 @@ namespace sim6502
                 HelpText = "CPU cycles the UCI holds the Busy state before answering. " +
                            "Non-zero by default so busy-wait loops are exercised")]
             public int U64SimUciLatency { get; set; } = 64;
+
+            [Option("u64sim-mount", Required = false, Default = "Usb0",
+                HelpText = "Ultimate-side mount name for the u64sim filesystem root. " +
+                           "Real hardware usually enumerates its stick as USB1")]
+            public string U64SimMount { get; set; } = "Usb0";
         }
 
         private static int Main(string[] args)
@@ -291,7 +296,8 @@ namespace sim6502
                 opts.Backend == "u64sim" ? new U64SimBackendConfig
                 {
                     FsRoot = opts.U64SimFsRoot ?? "",
-                    UciLatencyCycles = opts.U64SimUciLatency
+                    UciLatencyCycles = opts.U64SimUciLatency,
+                    MountName = opts.U64SimMount
                 } : null
             );
         }

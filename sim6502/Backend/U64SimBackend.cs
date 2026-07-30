@@ -36,8 +36,8 @@ public class U64SimBackend : IExecutionBackend
         // Targets $01 and $02 keep independent state, so each gets its own view.
         // The DOS target owns the filesystem it's handed (and disposes it), so
         // there's no need to hold a field here beyond construction.
-        var dosFileSystemOne = new UltimateFileSystem(config.FsRoot);
-        var dosFileSystemTwo = new UltimateFileSystem(config.FsRoot);
+        var dosFileSystemOne = new UltimateFileSystem(config.FsRoot, config.MountName);
+        var dosFileSystemTwo = new UltimateFileSystem(config.FsRoot, config.MountName);
         _dosOne = new UltimateDosTarget(dosFileSystemOne, config.DosVersion);
         _dosTwo = new UltimateDosTarget(dosFileSystemTwo, config.DosVersion);
         _control = new ControlTarget(new[] { _dosOne, _dosTwo }, config.ModelName);
@@ -57,7 +57,7 @@ public class U64SimBackend : IExecutionBackend
 
         memoryMap.RegisterIoHandler(UciConstants.BusIdAddress, UciConstants.StatusAddress, Uci);
 
-        Logger.Info($"u64sim ready: /Usb0 -> '{config.FsRoot}', " +
+        Logger.Info($"u64sim ready: /{config.MountName} -> '{config.FsRoot}', " +
                     $"UCI latency {config.UciLatencyCycles} cycles");
     }
 
