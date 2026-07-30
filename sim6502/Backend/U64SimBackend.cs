@@ -11,7 +11,7 @@ namespace sim6502.Backend;
 /// target. Every <see cref="IExecutionBackend"/> member delegates to an inner
 /// <see cref="SimulatorBackend"/>; the Ultimate behaviour is additive.
 /// </summary>
-public class U64SimBackend : IExecutionBackend
+public class U64SimBackend : IExecutionBackend, IUltimateBackend
 {
     private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
 

@@ -1612,13 +1612,14 @@ namespace sim6502.Grammar
 
         #region Ultimate 64 commands
 
-        private U64SimBackend RequireU64SimBackend(string command)
+        private IUltimateBackend RequireUltimateBackend(string command)
         {
-            if (Backend is U64SimBackend u64)
-                return u64;
+            if (Backend is IUltimateBackend ultimate)
+                return ultimate;
 
             throw new InvalidOperationException(
-                $"'{command}' requires the u64sim backend. Current backend: {BackendType}");
+                $"'{command}' requires an Ultimate-capable backend " +
+                $"(u64sim or u64). Current backend: {BackendType}");
         }
 
         public override void ExitUciFunction(sim6502Parser.UciFunctionContext context)
@@ -1626,7 +1627,7 @@ namespace sim6502.Grammar
             if (_inSetupBlockDefinition || _currentTestSkipped)
                 return;
 
-            var backend = RequireU64SimBackend("uci()");
+            var backend = RequireUltimateBackend("uci()");
 
             var bytes = new List<byte>
             {

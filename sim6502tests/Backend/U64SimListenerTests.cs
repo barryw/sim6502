@@ -1,9 +1,11 @@
 using Antlr4.Runtime;
 using Antlr4.Runtime.Tree;
 using FluentAssertions;
+using sim6502.Backend;
 using sim6502.Errors;
 using sim6502.Grammar;
 using sim6502.Grammar.Generated;
+using sim6502.Systems;
 using Xunit;
 
 namespace sim6502tests.Backend;
@@ -96,5 +98,19 @@ public class U64SimListenerTests : IDisposable
 
         sbl.TotalSuitesPassed.Should().Be(2, "both suites should get a working backend");
         sbl.TotalSuitesFailed.Should().Be(0);
+    }
+
+    [Fact]
+    public void U64SimBackend_SatisfiesTheUltimateSeam()
+    {
+        // uci() must work against any Ultimate-capable backend, not just u64sim.
+        var config = new U64SimBackendConfig { FsRoot = _fixture };
+        using var backend = new U64SimBackend(config, new C64MemoryMap());
+
+        IUltimateBackend seam = backend;
+        var (status, data) = seam.IssueUciCommand(new byte[] { 0x01, 0x01 });
+
+        status.Should().Be("00,OK");
+        data.Should().StartWith(new byte[] { 0x55, 0x4c });  // "UL"
     }
 }
