@@ -219,8 +219,10 @@ Grammar work: keywords `ultimate`, `fs_root`, `uci`, `uci_status`, `uci_data`; a
   `83,NO SUCH DIRECTORY`. The real path is never opened. This is enforced in
   `UltimateFileSystem` by resolving to a canonical absolute path and confirming it
   is under the canonical root, not by string inspection of the input.
-- Writes land in a temp overlay directory, so fixtures stay pristine and reruns are
-  repeatable.
+- The fixture tree is copied to a temporary directory at construction and the copy
+  is deleted on dispose, so fixtures stay pristine and reruns are repeatable. A
+  straight copy rather than a copy-on-write overlay: fixture trees are small, and
+  the overlay would be more machinery for the same guarantee.
 
 ## Testing
 

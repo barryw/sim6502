@@ -131,7 +131,7 @@ if (handshakeIn[0]) {                       // new command
 
 ---
 
-## Task 1: Relicence to GPL-3.0
+## Task 1: Relicense to GPL-3.0
 
 Done first so every ported file gets its origin header from the start.
 
@@ -1765,6 +1765,7 @@ that the Busy state is held for the configured cycle latency."
   - `sealed class UltimateFileSystem : IDisposable`
     - `UltimateFileSystem(string hostRoot, string mountName = "Usb0")`
     - `const byte AttributeDirectory = 0x10`, `const byte AttributeArchive = 0x20`
+    - `string WorkingRoot { get; }` — canonical host path of the throwaway copy
     - `string MountRoot { get; }` — `"/Usb0"`
     - `string CurrentPath { get; }` — starts at `MountRoot`
     - `bool ChangeDirectory(string path)`
@@ -5451,84 +5452,626 @@ must rename that symbol."
 
 ---
 
-## Remaining tasks
 
-Tasks 13-14 are listed with their file sets and the behaviour each must pin,
-pending expansion to full step-by-step form.
+## Task 13: Functional test — a 6502 UCI client through the whole stack
 
-### Task 13: Functional test — 6502 UCI client through the whole stack
+**Files:**
+- Create: `sim6502tests/Systems/Ultimate/UciClientProgramTests.cs`
+- Create: `sim6502tests/Fixtures/usb0/readme.txt` (content `readme`)
+- Create: `sim6502tests/Fixtures/usb0/data/hello.txt` (content `HELLO FROM USB0`)
+- Create: `example/ultimate.suite`
+- Modify: `sim6502tests/sim6502tests.csproj` (copy the fixture tree to output)
+- Modify: `sim6502tests/Backend/IntegrationSuiteParseTests.cs`
 
-**Files:** create `sim6502tests/Systems/Ultimate/UciClientProgramTests.cs`,
-`example/ultimate.suite`, and the fixture tree under
-`sim6502tests/Fixtures/usb0/`.
+**Interfaces:**
+- Consumes: `U64SimBackend`, `U64SimBackendConfig` (Task 11); the DSL from Task 12.
+- Produces: nothing new. This is the end-to-end proof.
 
-The 6502 client is a documented byte array in the test, not an assembled file —
-there is no assembler in CI. The program, assembled by hand at `$C200`, performs
-IDENTIFY against DOS target `$01`, copies the response to `$C000`, and stores the
-length at `$C0FF`:
+The client is a hand-assembled byte array, not an assembled file — there is no
+assembler in CI and adding one is not worth it for 61 bytes.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `sim6502tests/Systems/Ultimate/UciClientProgramTests.cs`:
+
+```csharp
+using System.Text;
+using FluentAssertions;
+using sim6502.Backend;
+using sim6502.Systems;
+using Xunit;
+
+namespace sim6502tests.Systems.Ultimate;
+
+/// <summary>
+/// Drives the whole stack the way a real program does: 6502 code executing on the
+/// simulated 6510, touching $DF1C-$DF1F through the C64 memory map, reaching the
+/// UCI register block and the Ultimate DOS target.
+/// </summary>
+public class UciClientProgramTests : IDisposable
+{
+    private const int ProgramAddress = 0xC200;
+    private const int ResultBuffer = 0xC000;
+    private const int LengthByte = 0xC0FF;
+
+    /// <summary>Offset and length of the busy-wait loop within the program.</summary>
+    private const int WaitLoopOffset = 20;
+    private const int WaitLoopLength = 9;
+
+    /// <summary>
+    /// IDENTIFY against DOS target $01. Copies the response to $C000 and stores the
+    /// byte count at $C0FF. Hand-assembled at $C200:
+    ///
+    ///   C200  A9 08        lda #$08         ; CMD_ERROR - clear any stale error
+    ///   C202  8D 1C DF     sta $DF1C
+    ///   C205  A9 01        lda #$01         ; target $01 = Ultimate DOS
+    ///   C207  8D 1D DF     sta $DF1D
+    ///   C20A  A9 01        lda #$01         ; DOS_CMD_IDENTIFY
+    ///   C20C  8D 1D DF     sta $DF1D
+    ///   C20F  A9 01        lda #$01         ; CMD_PUSH_CMD
+    ///   C211  8D 1C DF     sta $DF1C
+    ///   C214  AD 1C DF     lda $DF1C        ; wait: poll while state == Busy
+    ///   C217  29 30        and #$30
+    ///   C219  C9 10        cmp #$10
+    ///   C21B  F0 F7        beq $C214
+    ///   C21D  A2 00        ldx #$00
+    ///   C21F  AD 1C DF     lda $DF1C        ; rdloop: bit 7 = response available
+    ///   C222  10 09        bpl $C22D
+    ///   C224  AD 1E DF     lda $DF1E
+    ///   C227  9D 00 C0     sta $C000,x
+    ///   C22A  E8           inx
+    ///   C22B  D0 F2        bne $C21F
+    ///   C22D  8E FF C0     stx $C0FF        ; done
+    ///   C230  A9 02        lda #$02         ; CMD_NEXT_DATA
+    ///   C232  8D 1C DF     sta $DF1C
+    ///   C235  AD 1C DF     lda $DF1C        ; ack: wait for bit 1 to clear
+    ///   C238  29 02        and #$02
+    ///   C23A  D0 F9        bne $C235
+    ///   C23C  60           rts
+    /// </summary>
+    private static readonly byte[] CorrectClient =
+    {
+        0xA9, 0x08, 0x8D, 0x1C, 0xDF,
+        0xA9, 0x01, 0x8D, 0x1D, 0xDF,
+        0xA9, 0x01, 0x8D, 0x1D, 0xDF,
+        0xA9, 0x01, 0x8D, 0x1C, 0xDF,
+        0xAD, 0x1C, 0xDF, 0x29, 0x30, 0xC9, 0x10, 0xF0, 0xF7,
+        0xA2, 0x00,
+        0xAD, 0x1C, 0xDF, 0x10, 0x09,
+        0xAD, 0x1E, 0xDF, 0x9D, 0x00, 0xC0, 0xE8, 0xD0, 0xF2,
+        0x8E, 0xFF, 0xC0,
+        0xA9, 0x02, 0x8D, 0x1C, 0xDF,
+        0xAD, 0x1C, 0xDF, 0x29, 0x02, 0xD0, 0xF9,
+        0x60
+    };
+
+    private readonly string _fixture;
+
+    public UciClientProgramTests()
+    {
+        _fixture = Path.Combine(Path.GetTempPath(), "u64sim-client-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_fixture);
+        File.WriteAllText(Path.Combine(_fixture, "readme.txt"), "readme");
+    }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_fixture)) Directory.Delete(_fixture, recursive: true);
+    }
+
+    private U64SimBackend NewBackend(int latency)
+    {
+        var config = new U64SimBackendConfig { FsRoot = _fixture, UciLatencyCycles = latency };
+        return new U64SimBackend(config, new C64MemoryMap());
+    }
+
+    private static string ReadResult(U64SimBackend backend, int length)
+    {
+        var bytes = new byte[length];
+        for (var i = 0; i < length; i++)
+            bytes[i] = backend.ReadByte(ResultBuffer + i);
+        return Encoding.ASCII.GetString(bytes);
+    }
+
+    /// <summary>The same program with its busy-wait loop replaced by NOPs.</summary>
+    private static byte[] BrokenClient()
+    {
+        var broken = (byte[])CorrectClient.Clone();
+        for (var i = WaitLoopOffset; i < WaitLoopOffset + WaitLoopLength; i++)
+            broken[i] = 0xEA;   // NOP
+        return broken;
+    }
+
+    [Fact]
+    public void ProgramIsExactlyTheDocumentedLength()
+    {
+        CorrectClient.Should().HaveCount(61, "the hand-assembled listing is 61 bytes");
+    }
+
+    [Fact]
+    public void WaitLoopOffsetPointsAtTheDocumentedInstructions()
+    {
+        // C214: AD 1C DF  lda $DF1C
+        CorrectClient.Skip(WaitLoopOffset).Take(3).Should().Equal(0xAD, 0x1C, 0xDF);
+        // C21B: F0 F7  beq $C214 -- the last two bytes of the loop
+        CorrectClient.Skip(WaitLoopOffset + WaitLoopLength - 2).Take(2).Should().Equal(0xF0, 0xF7);
+    }
+
+    [Fact]
+    public void CorrectClient_ReadsTheIdentifyResponse()
+    {
+        using var backend = NewBackend(latency: 64);
+        backend.LoadBinary(CorrectClient, ProgramAddress);
+
+        var result = backend.ExecuteJsr(ProgramAddress, 0, stopOnRts: true, failOnBrk: true);
+
+        result.ExitedCleanly.Should().BeTrue();
+        backend.ReadByte(LengthByte).Should().Be(20, "\"ULTIMATE-II DOS V1.2\" is 20 bytes");
+        ReadResult(backend, 20).Should().Be("ULTIMATE-II DOS V1.2");
+    }
+
+    [Fact]
+    public void CorrectClient_WorksWithZeroLatencyToo()
+    {
+        using var backend = NewBackend(latency: 0);
+        backend.LoadBinary(CorrectClient, ProgramAddress);
+
+        backend.ExecuteJsr(ProgramAddress, 0, stopOnRts: true, failOnBrk: true)
+               .ExitedCleanly.Should().BeTrue();
+        ReadResult(backend, 20).Should().Be("ULTIMATE-II DOS V1.2");
+    }
+
+    [Fact]
+    public void CorrectClient_LeavesTheUciReadyForAnotherCommand()
+    {
+        using var backend = NewBackend(latency: 64);
+        backend.LoadBinary(CorrectClient, ProgramAddress);
+        backend.ExecuteJsr(ProgramAddress, 0, stopOnRts: true, failOnBrk: true);
+
+        // Rerunning must work. If the acknowledge sequence were wrong the UCI would
+        // be stuck out of the idle state and the second run would read nothing.
+        for (var i = 0; i < 20; i++) backend.WriteByte(ResultBuffer + i, 0x00);
+        backend.WriteByte(LengthByte, 0x00);
+
+        backend.ExecuteJsr(ProgramAddress, 0, stopOnRts: true, failOnBrk: true);
+
+        backend.ReadByte(LengthByte).Should().Be(20);
+        ReadResult(backend, 20).Should().Be("ULTIMATE-II DOS V1.2");
+    }
+
+    [Fact]
+    public void BrokenClient_WithNoBusyWait_ReadsNothingAtTheDefaultLatency()
+    {
+        using var backend = NewBackend(latency: 64);
+        backend.LoadBinary(BrokenClient(), ProgramAddress);
+
+        backend.ExecuteJsr(ProgramAddress, 0, stopOnRts: true, failOnBrk: true);
+
+        backend.ReadByte(LengthByte).Should().Be(0,
+            "without a busy-wait the response is not ready yet -- exactly the bug a " +
+            "zero-latency simulator would hide");
+    }
+
+    [Fact]
+    public void BrokenClient_PassesAtZeroLatency_WhichIsWhyTheDefaultIsNonZero()
+    {
+        using var backend = NewBackend(latency: 0);
+        backend.LoadBinary(BrokenClient(), ProgramAddress);
+
+        backend.ExecuteJsr(ProgramAddress, 0, stopOnRts: true, failOnBrk: true);
+
+        backend.ReadByte(LengthByte).Should().Be(20,
+            "a zero-latency UCI answers instantly and the missing busy-wait goes " +
+            "unnoticed -- documented here so the non-zero default is not simplified away");
+    }
+
+    [Fact]
+    public void HostAndCpuPathsAgree()
+    {
+        using var backend = NewBackend(latency: 64);
+
+        var (status, data) = backend.IssueUciCommand(new byte[] { 0x01, 0x01 });
+        status.Should().Be("00,OK");
+
+        backend.LoadBinary(CorrectClient, ProgramAddress);
+        backend.ExecuteJsr(ProgramAddress, 0, stopOnRts: true, failOnBrk: true);
+
+        ReadResult(backend, data.Length).Should().Be(Encoding.ASCII.GetString(data),
+            "the host-side and register-level paths must return the same bytes");
+    }
+}
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `dotnet test --filter "FullyQualifiedName~UciClientProgramTests"`
+Expected: FAIL if anything in the stack is wrong. If Tasks 2-11 are correct these
+pass immediately. A failure here is a genuine integration defect, most likely one
+of two things: the UCI is not reachable through the memory map (check the
+`RegisterIoHandler` call in `U64SimBackend`), or the C64 banking has I/O switched
+out (`$01` should default to `$37`, giving LORAM, HIRAM and CHAREN all set).
+
+- [ ] **Step 3: Create the fixture tree**
+
+```bash
+mkdir -p sim6502tests/Fixtures/usb0/data
+printf 'HELLO FROM USB0' > sim6502tests/Fixtures/usb0/data/hello.txt
+printf 'readme' > sim6502tests/Fixtures/usb0/readme.txt
+```
+
+Add to `sim6502tests/sim6502tests.csproj` so the fixtures reach the output
+directory:
+
+```xml
+    <ItemGroup>
+      <None Include="Fixtures\**\*" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+```
+
+- [ ] **Step 4: Create `example/ultimate.suite`**
 
 ```
-        CONTROL = $DF1C   COMMAND = $DF1D   RESULT = $DF1E
+; Ultimate 64 feature tests against the simulated UCI and Ultimate DOS.
+;
+; Run with:
+;   dotnet run --project sim6502 -- --suitefile example/ultimate.suite \
+;     --backend u64sim --u64sim-fs-root sim6502tests/Fixtures/usb0
+;
+; Every uci() call here runs host-side, so no assembled program is needed.
 
-C200  A9 08        lda #$08          ; clear any error
-C202  8D 1C DF     sta CONTROL
-C205  A9 01        lda #$01          ; target 1 = Ultimate DOS
-C207  8D 1D DF     sta COMMAND
-C20A  A9 01        lda #$01          ; DOS_CMD_IDENTIFY
-C20C  8D 1D DF     sta COMMAND
-C20F  A9 01        lda #$01          ; CMD_PUSH_CMD
-C211  8D 1C DF     sta CONTROL
-C214  AD 1C DF     lda CONTROL       ; wait: poll while state == Busy
-C217  29 30        and #$30
-C219  C9 10        cmp #$10
-C21B  F0 F7        beq $C214
-C21D  A2 00        ldx #$00
-C21F  AD 1C DF     lda CONTROL       ; rdloop: bit 7 = response available
-C222  10 09        bpl $C22D
-C224  AD 1E DF     lda RESULT
-C227  9D 00 C0     sta $C000,x
-C22A  E8           inx
-C22B  D0 F2        bne $C21F
-C22D  8E FF C0     stx $C0FF         ; done
-C230  A9 02        lda #$02          ; CMD_NEXT_DATA
-C232  8D 1C DF     sta CONTROL
-C235  AD 1C DF     lda CONTROL       ; ack: wait for the Ultimate to clear bit 1
-C238  29 02        and #$02
-C23A  D0 F9        bne $C235
-C23C  60           rts
+suites {
+  suite("ultimate dos through the UCI") {
+    system(c64)
+    ultimate(fs_root = "sim6502tests/Fixtures/usb0")
+
+    test("dos-identify", "the DOS target reports its version") {
+      uci($01, $01)
+      assert(uci_status("00,OK"), "IDENTIFY succeeded")
+      assert(uci_data(0) == $55, "response starts with 'U'")
+      assert(uci_data(1) == $4c, "second byte is 'L'")
+    }
+
+    test("dos-change-directory", "changing into an existing directory succeeds") {
+      uci($01, $11, "/Usb0/data")
+      assert(uci_status("00,OK"), "chdir to /Usb0/data succeeded")
+
+      uci($01, $12)
+      assert(uci_status("00,OK"), "GET_PATH succeeded")
+      assert(uci_data(0) == $2f, "path starts with '/'")
+    }
+
+    test("dos-change-directory-missing", "a missing directory is reported, not ignored") {
+      uci($01, $11, "/Usb0/nowhere")
+      assert(uci_status("83,NO SUCH DIRECTORY"), "chdir to a missing directory failed")
+    }
+
+    test("dos-open-and-read", "a file opens and its first bytes read back") {
+      uci($01, $11, "/Usb0/data")
+      assert(uci_status("00,OK"), "chdir succeeded")
+
+      uci($01, $02, $01, "hello.txt")
+      assert(uci_status("00,OK"), "OPEN_FILE succeeded")
+
+      uci($01, $04, $0f, $00)
+      assert(uci_data(0) == $48, "first byte is 'H'")
+      assert(uci_data(1) == $45, "second byte is 'E'")
+
+      uci($01, $03)
+      assert(uci_status("00,OK"), "CLOSE_FILE succeeded")
+    }
+
+    test("dos-open-missing", "opening a missing file is reported") {
+      uci($01, $02, $01, "no-such-file.prg")
+      assert(uci_status("82,FILE NOT FOUND"), "OPEN_FILE on a missing file failed")
+    }
+
+    test("dos-echo", "ECHO returns the command it was given") {
+      uci($01, $f0, $de, $ad)
+      assert(uci_status("00,OK"), "ECHO succeeded")
+      assert(uci_data(0) == $01, "echo includes the target byte")
+      assert(uci_data(1) == $f0, "echo includes the command byte")
+      assert(uci_data(2) == $de, "echo includes the payload")
+    }
+
+    test("control-identify", "the control target answers on $04") {
+      uci($04, $01)
+      assert(uci_status("00,OK"), "control IDENTIFY succeeded")
+      assert(uci_data(0) == $43, "response starts with 'C'")
+    }
+
+    test("control-reu-absent", "REU commands report the REU is not enabled") {
+      uci($04, $08, "image.reu")
+      assert(uci_status("84,REU NOT ENABLED"), "LOAD_REU reports no REU")
+    }
+
+    test("unknown-target", "an unpopulated target identifies as NO TARGET") {
+      uci($07, $01)
+      assert(uci_status("00,OK"), "IDENTIFY on an empty target still answers")
+      assert(uci_data(0) == $4e, "response starts with 'N' for NO TARGET")
+    }
+
+    test("unknown-command", "a nonsense command is rejected") {
+      uci($01, $7e)
+      assert(uci_status("21,UNKNOWN COMMAND"), "unknown DOS command rejected")
+    }
+  }
+}
 ```
 
-61 bytes:
-`A9 08 8D 1C DF A9 01 8D 1D DF A9 01 8D 1D DF A9 01 8D 1C DF AD 1C DF 29 30 C9 10 F0 F7 A2 00 AD 1C DF 10 09 AD 1E DF 9D 00 C0 E8 D0 F2 8E FF C0 A9 02 8D 1C DF AD 1C DF 29 02 D0 F9 60`
+- [ ] **Step 5: Add the suite to the parse check**
 
-The test loads it at `$C200`, runs `ExecuteJsr(0xC200, 0, stopOnRts: true,
-failOnBrk: true)`, and asserts `$C0FF == 20` and `$C000..$C013 ==
-"ULTIMATE-II DOS V1.2"`. Because the CPU really executes the polling loop, this is
-also the end-to-end proof that the Busy latency is survivable by a correct client
-— run it with the default latency of 64, not 0.
+Add to `sim6502tests/Backend/IntegrationSuiteParseTests.cs`:
 
-A second test in the same file runs the identical program with a deliberately
-broken client (the `wait` loop replaced by two `nop`s) and asserts it reads
-nothing, proving the latency actually catches the missing busy-wait.
+```csharp
+    [Fact]
+    public void UltimateSuite_Parses()
+    {
+        var path = Path.Combine("../../../../example", "ultimate.suite");
+        File.Exists(path).Should().BeTrue($"expected the example suite at '{path}'");
 
-`example/ultimate.suite` exercises the DSL host-side path with no assembly:
-`ultimate(fs_root = ...)`, a `uci($01, $01)` IDENTIFY with
-`assert(uci_status("00,OK"), ...)` and `assert(uci_data(0) == $55, ...)`, and a
-`uci($01, $11, "/Usb0/data")` CHANGE_DIR. Add it to
-`sim6502tests/Backend/IntegrationSuiteParseTests.cs` so it is at minimum
-parse-checked in CI.
+        var collector = new ErrorCollector();
+        var source = File.ReadAllText(path);
+        collector.SetSource(source, path);
 
-### Task 14: Documentation
+        var lexer = new sim6502Lexer(new AntlrInputStream(source));
+        lexer.RemoveErrorListeners();
+        lexer.AddErrorListener(new SimErrorListener(collector));
 
-**Files:** modify `README.md` (backend table near line 20, plus a new Ultimate 64
-section), `CHANGELOG.md`, `sim6502/sim6502.csproj` (version to `4.0.0`).
+        var parser = new sim6502Parser(new CommonTokenStream(lexer)) { BuildParseTree = true };
+        parser.RemoveErrorListeners();
+        parser.AddErrorListener(new SimErrorListener(collector));
+        parser.suites();
 
-The backend table gains `u64sim` — "Ultimate 64 feature tests against a simulated
-UCI and Ultimate DOS". Document the DSL additions, the `--u64sim-*` flags, the
-`system(c64)` requirement, the UCI latency knob and why it defaults non-zero, and
-that REU, the network target, drive mounting, and the real-hardware `u64` backend
-are the next milestone. Version bumps to `4.0.0` because the licence change is
-breaking.
+        collector.HasErrors.Should().BeFalse();
+    }
+```
+
+- [ ] **Step 6: Run the tests**
+
+Run: `dotnet test --filter "FullyQualifiedName~UciClientProgramTests|FullyQualifiedName~IntegrationSuiteParseTests"`
+Expected: PASS — 8 client tests plus the existing and new parse tests.
+
+- [ ] **Step 7: Run the example suite end to end**
+
+```bash
+dotnet run --project sim6502 -- --suitefile example/ultimate.suite \
+  --backend u64sim --u64sim-fs-root sim6502tests/Fixtures/usb0
+echo "exit: $?"
+```
+Expected: `1 of 1 suites passed.` and `exit: 0`.
+
+Note the suite hard-codes `fs_root`, so the `--u64sim-fs-root` flag is redundant
+here — the declaration wins. Run it once with the flag and once without to confirm
+both paths work.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add sim6502tests/Systems/Ultimate/UciClientProgramTests.cs \
+        sim6502tests/Fixtures/ sim6502tests/sim6502tests.csproj \
+        example/ultimate.suite \
+        sim6502tests/Backend/IntegrationSuiteParseTests.cs
+git commit -m "test(ultimate): drive the u64sim stack from 6502 code and from the DSL
+
+A hand-assembled 61-byte UCI client executes on the simulated 6510, reaches
+\$DF1C-\$DF1F through the C64 memory map, and reads the DOS IDENTIFY response.
+A variant with its busy-wait loop replaced by NOPs reads nothing at the default
+latency and succeeds at zero latency; that pair is the standing argument for why
+the latency default is not zero.
+
+example/ultimate.suite covers the same ground through the DSL with no assembly."
+```
+
+---
+
+## Task 14: Documentation and version
+
+**Files:**
+- Modify: `README.md` (backend table near line 20; new Ultimate 64 section)
+- Modify: `CHANGELOG.md`
+- Modify: `sim6502/sim6502.csproj` (`Version`, `AssemblyVersion`, `FileVersion`)
+- Test: extend `sim6502tests/LicenseTests.cs`
+
+**Interfaces:**
+- Consumes: everything. Nothing consumes this.
+
+- [ ] **Step 1: Write the failing test**
+
+Add to `sim6502tests/LicenseTests.cs`:
+
+```csharp
+    [Fact]
+    public void Readme_DocumentsTheU64SimBackend()
+    {
+        var text = File.ReadAllText(Path.Combine(RepoRoot(), "README.md"));
+
+        text.Should().Contain("u64sim");
+        text.Should().Contain("--u64sim-fs-root");
+        text.Should().Contain("--u64sim-uci-latency");
+        text.Should().Contain("uci_status");
+        text.Should().Contain("system(c64)");
+    }
+
+    [Fact]
+    public void Changelog_RecordsTheLicenceChangeAndReservedWord()
+    {
+        var text = File.ReadAllText(Path.Combine(RepoRoot(), "CHANGELOG.md"));
+
+        text.Should().Contain("4.0.0");
+        text.Should().Contain("GPL-3.0");
+        text.Should().Contain("reserved word");
+    }
+
+    [Fact]
+    public void ProjectVersion_IsFourPointZero()
+    {
+        var text = File.ReadAllText(Path.Combine(RepoRoot(), "sim6502", "sim6502.csproj"));
+        text.Should().Contain("<Version>4.0.0</Version>");
+    }
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `dotnet test --filter "FullyQualifiedName~LicenseTests"`
+Expected: FAIL — the three new tests fail; the two from Task 1 still pass.
+
+- [ ] **Step 3: Update the README backend table**
+
+Replace the four-row table near line 20:
+
+```markdown
+sim6502 now has five execution backends:
+
+| Backend | Use it for |
+|---------|------------|
+| `sim` | Fast internal 6502/6510/65C02 assembly-unit tests |
+| `vice` | Hardware-accurate C64 tests through a VICE MCP server |
+| `novavm` | BASIC-level integration tests against the e6502/NovaVM Avalonia emulator |
+| `verilator` | BASIC-level integration tests against the NovaVM FPGA Verilator simulation |
+| `u64sim` | Ultimate 64 feature tests against a simulated UCI and Ultimate DOS |
+```
+
+- [ ] **Step 4: Add the Ultimate 64 README section**
+
+Insert before the `#### License` section:
+
+````markdown
+#### Ultimate 64 testing (`u64sim`)
+
+The `u64sim` backend runs your code against a simulated Ultimate 64: the Ultimate
+Command Interface at `$DF1B-$DF1F`, two Ultimate DOS targets at `$01` and `$02`,
+and the control target at `$04`. No hardware needed, so it runs in CI.
+
+It requires `system(c64)` — the UCI lives in the cartridge I/O range, which only
+the C64 memory map models.
+
+```
+suites {
+  suite("ultimate dos") {
+    system(c64)
+    ultimate(fs_root = "tests/fixtures/usb0")   ; exposed to the C64 as /Usb0
+
+    test("dos-identify", "the DOS target reports its version") {
+      uci($01, $01)
+      assert(uci_status("00,OK"), "IDENTIFY succeeded")
+      assert(uci_data(0) == $55, "response starts with 'U'")
+    }
+
+    test("client-code", "our own UCI client works") {
+      jsr([load_via_uci], stop_on_rts = true, fail_on_brk = true)
+      assert(peekbyte($c000) == $42, "first byte arrived")
+    }
+  }
+}
+```
+
+| DSL | What it does |
+|---|---|
+| `ultimate(fs_root = "...")` | Suite-level. Exposes a host directory as `/Usb0`. The tree is copied to a temp location, so fixtures are never mutated. |
+| `uci(target, command, args...)` | Issues a UCI command from the host. String literals become raw ASCII bytes; numeric expressions become single bytes. |
+| `uci_status("00,OK")` | True when the last `uci()` call's status matches. Failure reports the actual status. |
+| `uci_data(n)` | Byte `n` of the last `uci()` call's response data. |
+
+Your own 6502 code drives `$DF1C-$DF1F` directly and needs no DSL support — the
+backend answers as the Ultimate would, and you assert on memory and registers as
+usual.
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--u64sim-fs-root` | none | Host directory exposed as `/Usb0`. Required unless `ultimate(fs_root = ...)` sets it; the declaration wins when both are present. |
+| `--u64sim-uci-latency` | `64` | CPU cycles the UCI holds the Busy state before answering. |
+
+**Why the latency default is not zero.** The real UCI is asynchronous: a client
+writes `PUSH_CMD` to `$DF1C` then polls until the state leaves Busy. If the
+simulator answered instantly, a client with a broken or missing busy-wait loop
+would pass here and fail on hardware — the simulator would hide the exact class of
+bug it exists to catch. Set it to `0` only when a test is deliberately not about
+timing.
+
+Not yet implemented, and next on the list: the REU (`$DF00-$DF0A`), the UCI network
+target `$03`, drive emulation and disk mounting, and a `u64` backend that drives
+real hardware over the network. Ultimate DOS commands in that group answer
+`99,FUNCTION NOT IMPLEMENTED`, and the control target's REU commands answer
+`84,REU NOT ENABLED` — the same status hardware gives with no REU configured — so
+your code takes the hardware path today.
+````
+
+- [ ] **Step 5: Add the changelog entry**
+
+Prepend to `CHANGELOG.md`, matching the existing format:
+
+```markdown
+## 4.0.0
+
+### Breaking
+
+- **Licence changed from BSD-2-Clause to GPL-3.0.** Ultimate 64 support ports
+  protocol and DOS behaviour from
+  [GideonZ/1541ultimate](https://github.com/GideonZ/1541ultimate), which is
+  GPL-3.0. Releases before 4.0.0 remain BSD-2-Clause. If you embed sim6502 in a
+  distributed closed-source product, pin to 3.x.
+- **`uci` is now a reserved word.** Suites using it as a symbol name must rename
+  that symbol.
+
+### Added
+
+- `u64sim` execution backend: a simulated Ultimate 64 with the Ultimate Command
+  Interface at `$DF1B-$DF1F`, two Ultimate DOS targets, and the control target.
+  Requires `system(c64)`.
+- DSL: `ultimate(fs_root = "...")`, `uci(target, command, args...)`,
+  `uci_status("...")`, `uci_data(n)`.
+- CLI: `--backend u64sim`, `--u64sim-fs-root`, `--u64sim-uci-latency`.
+- `IMemoryMap.RegisterIoHandler` and I/O handler dispatch in `C64MemoryMap`, so
+  peripherals can claim address ranges within `$D000-$DFFF`. `IIOHandler` had
+  existed since the systems refactor but was never wired up.
+
+### Notes
+
+- The UCI holds the Busy state for 64 cycles by default rather than answering
+  instantly, so client busy-wait loops are genuinely exercised. A test pins this by
+  running a deliberately broken client that passes at zero latency and fails at the
+  default.
+- REU, the UCI network target, drive emulation, and a real-hardware `u64` backend
+  are the next milestone.
+```
+
+- [ ] **Step 6: Bump the version**
+
+In `sim6502/sim6502.csproj`:
+
+```xml
+        <Version>4.0.0</Version>
+        <AssemblyVersion>4.0.0.0</AssemblyVersion>
+        <FileVersion>4.0.0.0</FileVersion>
+```
+
+- [ ] **Step 7: Run test to verify it passes**
+
+Run: `dotnet test --filter "FullyQualifiedName~LicenseTests"`
+Expected: PASS — 5 passed.
+
+- [ ] **Step 8: Full verification**
+
+```bash
+make grammar
+dotnet build -c Release
+dotnet test -c Release
+dotnet run --project sim6502 -- --suitefile example/ultimate.suite --backend u64sim
+echo "exit: $?"
+```
+Expected: build clean, every test green, `1 of 1 suites passed.`, `exit: 0`.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add README.md CHANGELOG.md sim6502/sim6502.csproj sim6502tests/LicenseTests.cs
+git commit -m "docs: document the u64sim backend and release 4.0.0
+
+Backend table, the Ultimate 64 section covering the DSL and CLI flags, and the
+reasoning behind the non-zero UCI latency default. Version bumps to 4.0.0
+because the GPL-3.0 relicense and the new 'uci' reserved word are both
+breaking."
+```
 
 ---
 
@@ -5542,11 +6085,70 @@ dotnet build -c Release
 dotnet test -c Release
 dotnet run --project sim6502 -- --suitefile example/ultimate.suite \
   --backend u64sim --u64sim-fs-root sim6502tests/Fixtures/usb0
+echo "exit: $?"
 ```
 
-All four must succeed. The existing `sim`, `vice`, `novavm`, and `verilator`
-suites must stay green throughout — Task 2 touches the C64 read and write paths
-that every C64 test uses, so a regression there would surface immediately.
+All four must succeed. The existing `sim`, `vice`, `novavm`, and `verilator` suites
+must stay green throughout — Task 2 touches the C64 read and write paths that every
+C64 test uses, and Task 12 changes the grammar, so regressions in either would
+surface across the whole suite rather than locally.
 
-Milestone 2 adds the differential check: the same suite run with `--backend u64`
-against physical hardware must produce identical results.
+Expected new test counts by file:
+
+| File | Tests |
+|---|---|
+| `LicenseTests` | 5 |
+| `C64MemoryMapIoHandlerTests` | 6 |
+| `UciConstantsTests` | 5 |
+| `UciRegistersDecodeTests` | 12 |
+| `UciRegistersDispatchTests` | 16 |
+| `UltimateFileSystemTests` | 20 |
+| `UltimateDosTargetNavigationTests` | 18 |
+| `UltimateDosTargetFileTests` | 27 |
+| `UltimateDosTargetInfoTests` | 37 |
+| `ControlTargetTests` | 14 |
+| `U64SimBackendTests` | 13 |
+| `UltimateGrammarTests` | 11 |
+| `UciClientProgramTests` | 8 |
+| `BackendFactoryTests` (added) | 3 |
+
+Roughly 195 new tests. Treat the counts as a guide, not a contract — a `[Theory]`
+gaining a case changes them legitimately.
+
+The load-bearing checks, the ones worth re-reading if anything downstream looks
+wrong:
+
+- `C64MemoryMapIoHandlerTests.RegisterIoHandler_WriteInRange_GoesToHandlerAndAlsoToRam`
+  — writes under I/O must still reach RAM. Losing this silently breaks existing C64
+  tests that rely on RAM under `$D000-$DFFF`.
+- `UciRegistersDispatchTests.BusyState_IsHeldForTheConfiguredLatency` and
+  `UciRegistersDispatchTests.MultiPartReply_StateIsDataMoreUntilFinalPart` — the two
+  places the ported state machine is easiest to get subtly wrong.
+- `UltimateFileSystemTests.ResolveToHostPath_TraversalAttempts_StayInsideTheRoot` —
+  the trust boundary.
+- `UciClientProgramTests.BrokenClient_WithNoBusyWait_ReadsNothingAtTheDefaultLatency`
+  paired with `BrokenClient_PassesAtZeroLatency_WhichIsWhyTheDefaultIsNonZero` — the
+  standing argument for the non-zero latency default. If someone later "simplifies"
+  the latency away, these are what should stop them.
+
+## Milestone 2 preview
+
+Not in this plan. Recorded so the interfaces built here are not accidentally
+narrowed:
+
+- **REU** — `$DF00-$DF0A`, 16 MB, DMA engine, ported from
+  `fpga/cart_slot/vhdl_source/reu.vhd` (483 lines). Registers via the same
+  `IIOHandler` path Task 2 adds. `ControlTarget`'s `LOAD_REU`/`SAVE_REU` and
+  `UltimateDosTarget`'s `$21`/`$22` stop returning their placeholder statuses.
+- **Network target `$03`** — a new `ICommandTarget`, no protocol changes needed.
+- **Drive emulation and mounting** — `MOUNT_DISK`/`UMOUNT_DISK`/`SWAP_DISK`.
+- **`u64` hardware backend** — REST API (`machine:readmem/writemem/reset/pause/
+  resume`, `runners:run_prg`, `drives/<n>:mount`) plus socket port 64 (`0xFF01` DMA,
+  `0xFF02` DMARUN, `0xFF03` KEYB, `0xFF04` RESET, `0xFF06` DMAWRITE, `0xFF07`
+  REU_WRITE, `0xFF09` DMAJUMP), and a resident 6502 stub for register readback and
+  CIA-bracketed cycle counts. `python/sock.py` in the reference clone is the model
+  for the socket half.
+- **The differential check** — `example/ultimate.suite` run with `--backend u64`
+  against physical hardware must produce identical results to `--backend u64sim`.
+  Any divergence is a bug in `u64sim`, and that is the whole reason the simulator
+  was built first.
