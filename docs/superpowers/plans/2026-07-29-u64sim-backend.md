@@ -3432,36 +3432,707 @@ onto the documented DOS statuses."
 
 ---
 
+## Task 9: `UltimateDosTarget` — info, stat, delete, rename, copy, directory listing
+
+**Files:**
+- Modify: `sim6502/Systems/Ultimate/UltimateDosTarget.cs`
+- Test: `sim6502tests/Systems/Ultimate/UltimateDosTargetInfoTests.cs`
+
+**Interfaces:**
+- Consumes: everything from Tasks 7 and 8.
+- Produces: `GetMoreData` gains its `InDirectory` branch. Two internal statics
+  become available for reuse and direct testing:
+  - `static ushort FatDate(DateTime when)`
+  - `static ushort FatTime(DateTime when)`
+
+`FILE_INFO` and `FILE_STAT` reply with the `t_dos_info` struct as upstream
+`memcpy`s it (`dos.h` lines 46-53), little-endian, `12 + name.Length` bytes with no
+terminator:
+
+| Offset | Size | Field |
+|---|---|---|
+| 0 | 4 | size, `uint32` LE |
+| 4 | 2 | FAT date, `uint16` LE |
+| 6 | 2 | FAT time, `uint16` LE |
+| 8 | 3 | extension, space padded, not terminated |
+| 11 | 1 | FAT attribute |
+| 12 | n | filename, not terminated |
+
+- [ ] **Step 1: Write the failing test**
+
+Create `sim6502tests/Systems/Ultimate/UltimateDosTargetInfoTests.cs`:
+
+```csharp
+using System.Text;
+using FluentAssertions;
+using sim6502.Systems.Ultimate;
+using Xunit;
+
+namespace sim6502tests.Systems.Ultimate;
+
+public class UltimateDosTargetInfoTests : IDisposable
+{
+    private readonly string _fixture;
+    private readonly UltimateFileSystem _fs;
+    private readonly UltimateDosTarget _dos;
+
+    private static readonly DateTime KnownStamp = new(2024, 3, 17, 14, 25, 36, DateTimeKind.Local);
+
+    public UltimateDosTargetInfoTests()
+    {
+        _fixture = Path.Combine(Path.GetTempPath(), "u64sim-dosinfo-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(_fixture, "sub"));
+        File.WriteAllBytes(Path.Combine(_fixture, "game.prg"), new byte[321]);
+        File.WriteAllText(Path.Combine(_fixture, "notes.txt"), "notes");
+        File.WriteAllText(Path.Combine(_fixture, "noext"), "x");
+        File.SetLastWriteTime(Path.Combine(_fixture, "game.prg"), KnownStamp);
+
+        _fs = new UltimateFileSystem(_fixture);
+        _dos = new UltimateDosTarget(_fs);
+    }
+
+    public void Dispose()
+    {
+        _dos.Dispose();
+        if (Directory.Exists(_fixture)) Directory.Delete(_fixture, recursive: true);
+    }
+
+    private static byte[] Cmd(byte code, params byte[] rest)
+    {
+        var bytes = new List<byte> { 0x01, code };
+        bytes.AddRange(rest);
+        return bytes.ToArray();
+    }
+
+    private static byte[] Cmd(byte code, string argument)
+    {
+        var bytes = new List<byte> { 0x01, code };
+        bytes.AddRange(Encoding.ASCII.GetBytes(argument));
+        return bytes.ToArray();
+    }
+
+    /// <summary>Two NUL-separated names, as RENAME_FILE and COPY_FILE expect.</summary>
+    private static byte[] CmdPair(byte code, string first, string second)
+    {
+        var bytes = new List<byte> { 0x01, code };
+        bytes.AddRange(Encoding.ASCII.GetBytes(first));
+        bytes.Add(0x00);
+        bytes.AddRange(Encoding.ASCII.GetBytes(second));
+        return bytes.ToArray();
+    }
+
+    private static byte[] OpenCmd(byte attributes, string name)
+    {
+        var bytes = new List<byte> { 0x01, UltimateDosTarget.CmdOpenFile, attributes };
+        bytes.AddRange(Encoding.ASCII.GetBytes(name));
+        return bytes.ToArray();
+    }
+
+    // ── FILE_STAT ──
+
+    [Fact]
+    public void FileStat_ReportsSizeDateTimeExtensionAttributeAndName()
+    {
+        var reply = _dos.ParseCommand(Cmd(UltimateDosTarget.CmdFileStat, "game.prg"));
+
+        reply.Status.Should().Be("00,OK");
+        reply.LastPart.Should().BeTrue();
+        reply.Data.Should().HaveCount(12 + "game.prg".Length);
+
+        BitConverter.ToUInt32(reply.Data, 0).Should().Be(321);
+        BitConverter.ToUInt16(reply.Data, 4).Should().Be(UltimateDosTarget.FatDate(KnownStamp));
+        BitConverter.ToUInt16(reply.Data, 6).Should().Be(UltimateDosTarget.FatTime(KnownStamp));
+        Encoding.ASCII.GetString(reply.Data, 8, 3).Should().Be("PRG");
+        reply.Data[11].Should().Be(UltimateFileSystem.AttributeArchive);
+        Encoding.ASCII.GetString(reply.Data, 12, reply.Data.Length - 12).Should().Be("game.prg");
+    }
+
+    [Fact]
+    public void FileStat_ShortExtension_IsSpacePadded()
+    {
+        var reply = _dos.ParseCommand(Cmd(UltimateDosTarget.CmdFileStat, "notes.txt"));
+        Encoding.ASCII.GetString(reply.Data, 8, 3).Should().Be("TXT");
+    }
+
+    [Fact]
+    public void FileStat_NoExtension_IsAllSpaces()
+    {
+        var reply = _dos.ParseCommand(Cmd(UltimateDosTarget.CmdFileStat, "noext"));
+        Encoding.ASCII.GetString(reply.Data, 8, 3).Should().Be("   ");
+    }
+
+    [Fact]
+    public void FileStat_Directory_ReportsTheDirectoryAttribute()
+    {
+        var reply = _dos.ParseCommand(Cmd(UltimateDosTarget.CmdFileStat, "sub"));
+
+        reply.Status.Should().Be("00,OK");
+        reply.Data[11].Should().Be(UltimateFileSystem.AttributeDirectory);
+        BitConverter.ToUInt32(reply.Data, 0).Should().Be(0);
+    }
+
+    [Fact]
+    public void FileStat_Missing_ReportsFileNotFound()
+    {
+        var reply = _dos.ParseCommand(Cmd(UltimateDosTarget.CmdFileStat, "nope.txt"));
+
+        reply.Status.Should().Be("82,FILE NOT FOUND");
+        reply.Data.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void FileStat_OutsideTheMount_ReportsFileNotFound()
+    {
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdFileStat, "/SdCard/x"))
+            .Status.Should().Be("82,FILE NOT FOUND");
+    }
+
+    // ── FILE_INFO ──
+
+    [Fact]
+    public void FileInfo_DescribesTheOpenFile()
+    {
+        _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "game.prg"));
+
+        var reply = _dos.ParseCommand(Cmd(UltimateDosTarget.CmdFileInfo));
+
+        reply.Status.Should().Be("00,OK");
+        BitConverter.ToUInt32(reply.Data, 0).Should().Be(321);
+        Encoding.ASCII.GetString(reply.Data, 12, reply.Data.Length - 12).Should().Be("game.prg");
+    }
+
+    [Fact]
+    public void FileInfo_WithNoOpenFile_ReportsNoFileOpen()
+    {
+        var reply = _dos.ParseCommand(Cmd(UltimateDosTarget.CmdFileInfo));
+
+        reply.Status.Should().Be("85,NO FILE OPEN");
+        reply.Data.Should().BeEmpty();
+    }
+
+    // ── FAT date and time encoding ──
+
+    [Fact]
+    public void FatDate_PacksYearMonthDay()
+    {
+        var expected = (ushort)(((2024 - 1980) << 9) | (3 << 5) | 17);
+        UltimateDosTarget.FatDate(KnownStamp).Should().Be(expected);
+    }
+
+    [Fact]
+    public void FatTime_PacksHourMinuteAndTwoSecondUnits()
+    {
+        var expected = (ushort)((14 << 11) | (25 << 5) | (36 / 2));
+        UltimateDosTarget.FatTime(KnownStamp).Should().Be(expected);
+    }
+
+    [Fact]
+    public void FatDate_BeforeTheFatEpoch_ClampsToZero()
+    {
+        UltimateDosTarget.FatDate(new DateTime(1970, 1, 1)).Should().Be(0);
+    }
+
+    // ── DELETE_FILE ──
+
+    [Fact]
+    public void DeleteFile_RemovesIt()
+    {
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdDeleteFile, "notes.txt"))
+            .Status.Should().Be("00,OK");
+
+        File.Exists(_fs.ResolveToHostPath("notes.txt")!).Should().BeFalse();
+    }
+
+    [Fact]
+    public void DeleteFile_Missing_ReportsFileNotFound()
+    {
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdDeleteFile, "nope.txt"))
+            .Status.Should().Be("82,FILE NOT FOUND");
+    }
+
+    [Fact]
+    public void DeleteFile_EmptyDirectory_Succeeds()
+    {
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdDeleteFile, "sub"))
+            .Status.Should().Be("00,OK");
+        Directory.Exists(_fs.ResolveToHostPath("sub")!).Should().BeFalse();
+    }
+
+    [Fact]
+    public void DeleteFile_OutsideTheMount_IsRejectedAndTouchesNothing()
+    {
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdDeleteFile, "/SdCard/x"))
+            .Status.Should().Be("82,FILE NOT FOUND");
+        File.Exists(Path.Combine(_fixture, "notes.txt")).Should().BeTrue();
+    }
+
+    // ── RENAME_FILE ──
+
+    [Fact]
+    public void RenameFile_MovesTheName()
+    {
+        _dos.ParseCommand(CmdPair(UltimateDosTarget.CmdRenameFile, "notes.txt", "memo.txt"))
+            .Status.Should().Be("00,OK");
+
+        File.Exists(_fs.ResolveToHostPath("notes.txt")!).Should().BeFalse();
+        File.ReadAllText(_fs.ResolveToHostPath("memo.txt")!).Should().Be("notes");
+    }
+
+    [Fact]
+    public void RenameFile_MissingSource_ReportsFileNotFound()
+    {
+        _dos.ParseCommand(CmdPair(UltimateDosTarget.CmdRenameFile, "nope.txt", "memo.txt"))
+            .Status.Should().Be("82,FILE NOT FOUND");
+    }
+
+    [Fact]
+    public void RenameFile_OntoAnExistingName_ReportsAnError()
+    {
+        _dos.ParseCommand(CmdPair(UltimateDosTarget.CmdRenameFile, "notes.txt", "game.prg"))
+            .Status.Should().Be("87,INTERNAL ERROR");
+        File.Exists(_fs.ResolveToHostPath("notes.txt")!).Should().BeTrue();
+    }
+
+    [Fact]
+    public void RenameFile_MissingSecondName_ReportsAnError()
+    {
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdRenameFile, "notes.txt"))
+            .Status.Should().Be("87,INTERNAL ERROR");
+    }
+
+    [Fact]
+    public void RenameFile_DestinationOutsideTheMount_IsRejected()
+    {
+        _dos.ParseCommand(CmdPair(UltimateDosTarget.CmdRenameFile, "notes.txt", "/SdCard/x"))
+            .Status.Should().Be("87,INTERNAL ERROR");
+        File.Exists(_fs.ResolveToHostPath("notes.txt")!).Should().BeTrue();
+    }
+
+    // ── COPY_FILE ──
+
+    [Fact]
+    public void CopyFile_DuplicatesTheContent()
+    {
+        _dos.ParseCommand(CmdPair(UltimateDosTarget.CmdCopyFile, "notes.txt", "copy.txt"))
+            .Status.Should().Be("00,OK");
+
+        File.ReadAllText(_fs.ResolveToHostPath("notes.txt")!).Should().Be("notes");
+        File.ReadAllText(_fs.ResolveToHostPath("copy.txt")!).Should().Be("notes");
+    }
+
+    [Fact]
+    public void CopyFile_MissingSource_ReportsFileNotFound()
+    {
+        _dos.ParseCommand(CmdPair(UltimateDosTarget.CmdCopyFile, "nope.txt", "copy.txt"))
+            .Status.Should().Be("82,FILE NOT FOUND");
+    }
+
+    [Fact]
+    public void CopyFile_OntoAnExistingName_ReportsAnError()
+    {
+        _dos.ParseCommand(CmdPair(UltimateDosTarget.CmdCopyFile, "notes.txt", "game.prg"))
+            .Status.Should().Be("87,INTERNAL ERROR");
+        new FileInfo(_fs.ResolveToHostPath("game.prg")!).Length.Should().Be(321);
+    }
+
+    // ── OPEN_DIR and READ_DIR ──
+
+    [Fact]
+    public void OpenDir_ReportsOkForAPopulatedDirectory()
+    {
+        var reply = _dos.ParseCommand(Cmd(UltimateDosTarget.CmdOpenDir));
+
+        reply.Status.Should().Be("00,OK");
+        reply.Data.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void OpenDir_EmptyDirectory_ReportsDirectoryEmpty()
+    {
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdChangeDir, "sub"));
+
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdOpenDir))
+            .Status.Should().Be("01,DIRECTORY EMPTY");
+    }
+
+    [Fact]
+    public void ReadDir_YieldsOneEntryPerPartDirectoriesFirst()
+    {
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdOpenDir));
+
+        var names = new List<string>();
+        var attributes = new List<byte>();
+
+        var reply = _dos.ParseCommand(Cmd(UltimateDosTarget.CmdReadDir));
+        var guard = 0;
+        while (true)
+        {
+            if (++guard > 32) throw new InvalidOperationException("directory read never terminated");
+            attributes.Add(reply.Data[0]);
+            names.Add(Encoding.ASCII.GetString(reply.Data, 1, reply.Data.Length - 1));
+            if (reply.LastPart) break;
+            reply = _dos.GetMoreData();
+        }
+
+        names.Should().Equal("sub", "game.prg", "noext", "notes.txt");
+        attributes[0].Should().Be(UltimateFileSystem.AttributeDirectory);
+        attributes.Skip(1).Should().AllBeEquivalentTo(UltimateFileSystem.AttributeArchive);
+    }
+
+    [Fact]
+    public void ReadDir_NonFinalPartsCarryNoStatusFinalPartCarriesOk()
+    {
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdOpenDir));
+
+        var reply = _dos.ParseCommand(Cmd(UltimateDosTarget.CmdReadDir));
+        reply.LastPart.Should().BeFalse();
+        reply.Status.Should().BeEmpty();
+
+        var guard = 0;
+        while (!reply.LastPart)
+        {
+            if (++guard > 32) throw new InvalidOperationException("directory read never terminated");
+            reply = _dos.GetMoreData();
+        }
+        reply.Status.Should().Be("00,OK");
+    }
+
+    [Fact]
+    public void ReadDir_WithoutOpenDir_ReportsCannotReadDirectory()
+    {
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdReadDir))
+            .Status.Should().Be("86,CAN'T READ DIRECTORY");
+    }
+
+    [Fact]
+    public void ReadDir_AfterCompletion_LeavesDataMode()
+    {
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdOpenDir));
+        var reply = _dos.ParseCommand(Cmd(UltimateDosTarget.CmdReadDir));
+        var guard = 0;
+        while (!reply.LastPart)
+        {
+            if (++guard > 32) throw new InvalidOperationException("directory read never terminated");
+            reply = _dos.GetMoreData();
+        }
+
+        _dos.GetMoreData().Status.Should().Be("81,NOT IN DATA MODE");
+    }
+
+    [Fact]
+    public void ReadDir_SingleEntryDirectory_IsImmediatelyTheLastPart()
+    {
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdChangeDir, "sub"));
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdCreateDir, "only"));
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdOpenDir)).Status.Should().Be("00,OK");
+
+        var reply = _dos.ParseCommand(Cmd(UltimateDosTarget.CmdReadDir));
+
+        reply.LastPart.Should().BeTrue();
+        reply.Status.Should().Be("00,OK");
+        Encoding.ASCII.GetString(reply.Data, 1, reply.Data.Length - 1).Should().Be("only");
+    }
+
+    // ── Commands deferred to later milestones ──
+
+    [Theory]
+    [InlineData(UltimateDosTarget.CmdCopyUiPath)]
+    [InlineData(UltimateDosTarget.CmdCopyHomePath)]
+    [InlineData(UltimateDosTarget.CmdLoadReu)]
+    [InlineData(UltimateDosTarget.CmdSaveReu)]
+    [InlineData(UltimateDosTarget.CmdMountDisk)]
+    [InlineData(UltimateDosTarget.CmdUnmountDisk)]
+    [InlineData(UltimateDosTarget.CmdSwapDisk)]
+    [InlineData(UltimateDosTarget.CmdGetTime)]
+    [InlineData(UltimateDosTarget.CmdSetTime)]
+    public void DeferredCommands_ReportNotImplementedRatherThanUnknown(byte code)
+    {
+        var reply = _dos.ParseCommand(Cmd(code));
+
+        reply.Status.Should().Be("99,FUNCTION NOT IMPLEMENTED",
+            "a recognised-but-deferred command must not look like a typo");
+        reply.Data.Should().BeEmpty();
+        reply.LastPart.Should().BeTrue();
+    }
+}
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `dotnet test --filter "FullyQualifiedName~UltimateDosTargetInfoTests"`
+Expected: FAIL — compile error, `UltimateDosTarget.FatDate` does not exist; the
+remaining tests would fail with `"21,UNKNOWN COMMAND"`.
+
+- [ ] **Step 3: Add the new command cases**
+
+In `ParseCommand`, add above the `_ =>` default:
+
+```csharp
+            CmdFileInfo   => OpenFileInfo(),
+            CmdFileStat   => FileStat(ReadString(command, 2)),
+            CmdDeleteFile => Delete(ReadString(command, 2)),
+            CmdRenameFile => RenameOrCopy(command, copy: false),
+            CmdCopyFile   => RenameOrCopy(command, copy: true),
+            CmdOpenDir    => OpenDirectory(),
+            CmdReadDir    => BeginReadDirectory(),
+
+            // Recognised commands deferred to a later milestone. Answering
+            // "not implemented" rather than "unknown command" keeps the gap
+            // visible instead of looking like a malformed request.
+            CmdCopyUiPath or CmdCopyHomePath or CmdLoadReu or CmdSaveReu or
+            CmdMountDisk or CmdUnmountDisk or CmdSwapDisk or CmdGetTime or CmdSetTime
+                => UciReply.Empty(StatusNotImplemented),
+```
+
+- [ ] **Step 4: Add the implementation methods**
+
+Insert after `ReadNextChunk`:
+
+```csharp
+    /// <summary>FAT packed date: year since 1980 in bits 15-9, month 8-5, day 4-0.</summary>
+    internal static ushort FatDate(DateTime when)
+    {
+        if (when.Year < 1980) return 0;
+        return (ushort)(((when.Year - 1980) << 9) | (when.Month << 5) | when.Day);
+    }
+
+    /// <summary>FAT packed time: hour in bits 15-11, minute 10-5, two-second units 4-0.</summary>
+    internal static ushort FatTime(DateTime when)
+        => (ushort)((when.Hour << 11) | (when.Minute << 5) | (when.Second / 2));
+
+    /// <summary>
+    /// Build the t_dos_info reply: size, FAT date and time, space-padded three
+    /// character extension, attribute, then the name with no terminator.
+    /// </summary>
+    private static byte[] BuildInfo(string name, long size, byte attributes, DateTime modified)
+    {
+        var nameBytes = Encoding.ASCII.GetBytes(name);
+        var data = new byte[12 + nameBytes.Length];
+
+        BitConverter.TryWriteBytes(data.AsSpan(0, 4), (uint)Math.Min(size, uint.MaxValue));
+        BitConverter.TryWriteBytes(data.AsSpan(4, 2), FatDate(modified));
+        BitConverter.TryWriteBytes(data.AsSpan(6, 2), FatTime(modified));
+
+        data[8] = data[9] = data[10] = (byte)' ';
+        var extension = Path.GetExtension(name);
+        if (extension.StartsWith('.')) extension = extension[1..];
+        extension = extension.ToUpperInvariant();
+        for (var i = 0; i < Math.Min(3, extension.Length); i++)
+            data[8 + i] = (byte)extension[i];
+
+        data[11] = attributes;
+        Array.Copy(nameBytes, 0, data, 12, nameBytes.Length);
+        return data;
+    }
+
+    private UciReply FileStat(string name)
+    {
+        var host = _fileSystem.ResolveToHostPath(name);
+        if (host == null)
+            return UciReply.Empty(StatusFileNotFound);
+
+        var leaf = Path.GetFileName(host);
+
+        if (Directory.Exists(host))
+        {
+            var info = new DirectoryInfo(host);
+            return UciReply.Ok(BuildInfo(
+                leaf, 0, UltimateFileSystem.AttributeDirectory, info.LastWriteTime));
+        }
+
+        if (File.Exists(host))
+        {
+            var info = new FileInfo(host);
+            return UciReply.Ok(BuildInfo(
+                leaf, info.Length, UltimateFileSystem.AttributeArchive, info.LastWriteTime));
+        }
+
+        return UciReply.Empty(StatusFileNotFound);
+    }
+
+    // Named OpenFileInfo, not FileInfo: a method called FileInfo would shadow the
+    // System.IO.FileInfo type inside this class and break every use of it below.
+    private UciReply OpenFileInfo()
+    {
+        if (_file == null)
+            return UciReply.Empty(StatusNoFileOpen);
+
+        try
+        {
+            var info = new FileInfo(_file.Name);
+            return UciReply.Ok(BuildInfo(
+                info.Name, info.Length, UltimateFileSystem.AttributeArchive, info.LastWriteTime));
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn($"DOS: could not stat the open file: {ex.Message}");
+            return UciReply.Empty(StatusFileNotFound);
+        }
+    }
+
+    private UciReply Delete(string name)
+    {
+        var host = _fileSystem.ResolveToHostPath(name);
+        if (host == null)
+            return UciReply.Empty(StatusFileNotFound);
+
+        try
+        {
+            if (File.Exists(host))
+            {
+                File.Delete(host);
+                return UciReply.Empty(UciConstants.StatusOk);
+            }
+
+            if (Directory.Exists(host))
+            {
+                // Non-recursive, matching f_unlink: a populated directory fails.
+                Directory.Delete(host, recursive: false);
+                return UciReply.Empty(UciConstants.StatusOk);
+            }
+
+            return UciReply.Empty(StatusFileNotFound);
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn($"DOS: could not delete '{name}': {ex.Message}");
+            return UciReply.Empty(StatusInternalError);
+        }
+    }
+
+    /// <summary>
+    /// RENAME_FILE and COPY_FILE share a wire format: the source name at byte 2,
+    /// a NUL, then the destination name.
+    /// </summary>
+    private UciReply RenameOrCopy(byte[] command, bool copy)
+    {
+        var source = ReadString(command, 2);
+        var separator = 2 + source.Length;
+
+        if (separator >= command.Length)
+        {
+            Logger.Warn("DOS: rename/copy command carries no destination name");
+            return UciReply.Empty(StatusInternalError);
+        }
+
+        var destination = ReadString(command, separator + 1);
+        if (destination.Length == 0)
+            return UciReply.Empty(StatusInternalError);
+
+        var sourceHost = _fileSystem.ResolveToHostPath(source);
+        if (sourceHost == null || (!File.Exists(sourceHost) && !Directory.Exists(sourceHost)))
+            return UciReply.Empty(StatusFileNotFound);
+
+        var destinationHost = _fileSystem.ResolveToHostPath(destination);
+        if (destinationHost == null)
+        {
+            Logger.Warn($"DOS: rename/copy destination '{destination}' is outside the mount");
+            return UciReply.Empty(StatusInternalError);
+        }
+
+        if (File.Exists(destinationHost) || Directory.Exists(destinationHost))
+            return UciReply.Empty(StatusInternalError);
+
+        try
+        {
+            if (copy) File.Copy(sourceHost, destinationHost);
+            else if (Directory.Exists(sourceHost)) Directory.Move(sourceHost, destinationHost);
+            else File.Move(sourceHost, destinationHost);
+
+            return UciReply.Empty(UciConstants.StatusOk);
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn($"DOS: {(copy ? "copy" : "rename")} of '{source}' failed: {ex.Message}");
+            return UciReply.Empty(StatusInternalError);
+        }
+    }
+
+    private UciReply OpenDirectory()
+    {
+        _directory = _fileSystem.ListCurrentDirectory();
+        _directoryIndex = 0;
+
+        return UciReply.Empty(_directory.Count == 0
+            ? StatusDirectoryEmpty
+            : UciConstants.StatusOk);
+    }
+
+    private UciReply BeginReadDirectory()
+    {
+        if (_directory.Count == 0)
+        {
+            Logger.Debug("DOS: READ_DIR without a preceding OPEN_DIR");
+            return UciReply.Empty(StatusCannotReadDir);
+        }
+
+        _directoryIndex = 0;
+        _state = DosState.InDirectory;
+        return GetMoreData();
+    }
+
+    private UciReply NextDirectoryEntry()
+    {
+        if (_directoryIndex >= _directory.Count)
+        {
+            _state = DosState.Idle;
+            return UciReply.Empty(StatusInternalError);
+        }
+
+        var entry = _directory[_directoryIndex++];
+        var nameBytes = Encoding.ASCII.GetBytes(entry.Name);
+
+        var data = new byte[1 + nameBytes.Length];
+        data[0] = entry.Attributes;
+        Array.Copy(nameBytes, 0, data, 1, nameBytes.Length);
+
+        var lastPart = _directoryIndex >= _directory.Count;
+        if (lastPart)
+            _state = DosState.Idle;
+
+        return new UciReply(data, lastPart ? UciConstants.StatusOk : UciConstants.StatusEmpty, lastPart);
+    }
+```
+
+- [ ] **Step 5: Add the `InDirectory` branch to `GetMoreData`**
+
+Insert before the `default:` label:
+
+```csharp
+            case DosState.InDirectory:
+                return NextDirectoryEntry();
+```
+
+- [ ] **Step 6: Run test to verify it passes**
+
+Run: `dotnet test --filter "FullyQualifiedName~UltimateDosTargetInfoTests"`
+Expected: PASS — 37 passed (the deferred-command `[Theory]` contributes 9).
+
+- [ ] **Step 7: Run every DOS test together**
+
+Run: `dotnet test --filter "FullyQualifiedName~UltimateDosTarget"`
+Expected: PASS — 82 passed across the three DOS test files.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add sim6502/Systems/Ultimate/UltimateDosTarget.cs \
+        sim6502tests/Systems/Ultimate/UltimateDosTargetInfoTests.cs
+git commit -m "feat(ultimate): Ultimate DOS stat, info, delete, rename, copy, listing
+
+FILE_INFO and FILE_STAT emit the t_dos_info struct byte for byte, including
+FAT-packed date and time and the space-padded three character extension.
+READ_DIR walks the listing one entry per DATA_MORE part. Commands recognised
+but deferred to later milestones answer '99,FUNCTION NOT IMPLEMENTED' rather
+than looking like typos, and a test pins that."
+```
+
+---
+
 ## Remaining tasks
 
-Tasks 9-14 are listed with their file sets, interfaces, and the behaviour each
+Tasks 10-14 are listed with their file sets, interfaces, and the behaviour each
 must pin, pending expansion to full step-by-step form.
-
-### Task 9: `UltimateDosTarget` — info, stat, delete, rename, copy, directory listing
-
-**Files:** modify `UltimateDosTarget.cs`; test
-`sim6502tests/Systems/Ultimate/UltimateDosTargetInfoTests.cs`.
-
-Commands: `FILE_INFO 0x07`, `FILE_STAT 0x08`, `DELETE_FILE 0x09`,
-`RENAME_FILE 0x0A` (old name at byte 2, new name after its NUL),
-`COPY_FILE 0x0B` (same layout), `OPEN_DIR 0x13`, `READ_DIR 0x14`.
-
-`FILE_INFO`/`FILE_STAT` reply layout, packed little-endian, total
-`12 + strlen(filename)` bytes with no terminator: size `uint32`, date `uint16`,
-time `uint16`, extension `char[3]` space-padded, attribute `uint8`, filename.
-FAT encoding: `date = ((year - 1980) << 9) | (month << 5) | day`,
-`time = (hour << 11) | (minute << 5) | (second / 2)`.
-
-`READ_DIR` yields one entry per part — byte 0 the attribute, then the name with no
-terminator — `LastPart` on the final entry with status `"00,OK"`, status `""`
-before that. `OPEN_DIR` answers `"01,DIRECTORY EMPTY"` for an empty directory and
-`"86,CAN'T READ DIRECTORY"` on failure.
-
-Out of scope, and must answer `"99,FUNCTION NOT IMPLEMENTED"` rather than falling
-through to unknown-command: `COPY_UI_PATH 0x15`, `COPY_HOME_PATH 0x17`,
-`LOAD_REU 0x21`, `SAVE_REU 0x22`, `MOUNT_DISK 0x23`, `UMOUNT_DISK 0x24`,
-`SWAP_DISK 0x25`, `GET_TIME 0x26`, `SET_TIME 0x27`. A test must assert this, so
-the gap is explicit rather than silent.
 
 ### Task 10: `ControlTarget`
 
