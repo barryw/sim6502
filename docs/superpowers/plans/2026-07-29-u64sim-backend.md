@@ -11,6 +11,7 @@
 ## Global Constraints
 
 - **Licence: GPL-3.0.** sim6502 relicenses from BSD-2-Clause. Every file ported from `1541ultimate` carries an origin header naming the upstream file. Aaron Mell's BSD-2 notice for the simulator core is retained verbatim.
+- **Origin header form.** For a file derived from a single upstream file, the header is the two-line template in Task 1. For a file derived from several — `UciConstants.cs` draws on three — the first line ends at the colon and the paths follow on indented continuation lines, then the author line. Both forms are correct; the requirement is that every upstream file is named, not that the block is a fixed number of lines.
 - **Reference clone** for all ported sources: `/private/tmp/claude-501/-Users-barry-Git-sim6502/7884b568-e680-4b66-a6d6-ab5808997a30/scratchpad/u64`. If absent, re-clone: `git clone --depth 1 https://github.com/GideonZ/1541ultimate.git`.
 - **Status strings are byte-exact.** Every DOS/UCI status string must match upstream character for character. A test that asserts `"00,OK"` must fail if the implementation emits `"00, OK"`.
 - **Buffer geometry is fixed:** command `0..895` (896 bytes), response `896..1791` (896 bytes), status `1792..2047` (256 bytes). Total backing store 2048 bytes.
@@ -407,7 +408,10 @@ public class C64MemoryMapIoHandlerTests
     [Fact]
     public void GenericMemoryMap_RegisterIoHandler_Throws()
     {
-        var map = new GenericMemoryMap();
+        // Must be an interface-typed reference: C# reaches a default interface
+        // implementation only through the interface, never through the concrete
+        // class, even when the class does not override it.
+        IMemoryMap map = new GenericMemoryMap();
         var act = () => map.RegisterIoHandler(0xDF1B, 0xDF1F, new RecordingHandler());
         act.Should().Throw<NotSupportedException>();
     }
