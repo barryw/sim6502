@@ -132,7 +132,7 @@ namespace sim6502
             public int NovaVmTimeout { get; set; } = 10000;
 
             [Option("u64sim-fs-root", Required = false,
-                HelpText = "Host directory exposed to the C64 as the Ultimate's /Usb0 mount")]
+                HelpText = "Host directory exposed to the C64 as the Ultimate's mount (see --u64sim-mount)")]
             public string? U64SimFsRoot { get; set; }
 
             [Option("u64sim-uci-latency", Required = false, Default = 64,

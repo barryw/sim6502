@@ -206,6 +206,7 @@ public class Sim6502CliTests
         var opts = NewOptions("unused.suite", backend: "u64sim");
         opts.U64SimFsRoot = "/some/fixture/root";
         opts.U64SimUciLatency = 128;
+        opts.U64SimMount = "USB1";
 
         var configs = Sim6502Cli.BuildBackendConfigs(opts);
 
@@ -214,6 +215,7 @@ public class Sim6502CliTests
         configs.U64Sim.Should().NotBeNull();
         configs.U64Sim!.FsRoot.Should().Be("/some/fixture/root");
         configs.U64Sim.UciLatencyCycles.Should().Be(128);
+        configs.U64Sim.MountName.Should().Be("USB1");
     }
 
     [Fact]
