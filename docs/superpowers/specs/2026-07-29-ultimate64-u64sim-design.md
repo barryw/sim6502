@@ -168,7 +168,7 @@ suite("ultimate dos") {
 
   test("dos-open-read", "read a file through the UCI DOS target") {
     uci($01, $11, "/Usb0/data")                 ; host-side CHANGE_DIR
-    assert(uci_status() == "00,OK", "chdir succeeded")
+    assert(uci_status("00,OK"), "chdir succeeded")
 
     ; the code under test drives $DF1C-$DF1F itself
     jsr([load_via_uci], stop_on_rts = true, fail_on_brk = true)
@@ -181,21 +181,34 @@ suite("ultimate dos") {
 - `uci(target, command, args...)` — issue a UCI command from the host. Args are
   expressions or string literals; strings are appended as raw bytes, matching the
   wire format.
-- `uci_status()` — status string from the last `uci(...)` call, e.g. `"00,OK"`.
+- `uci_status("00,OK")` — predicate; true when the last `uci(...)` call's status
+  string matches. A predicate rather than a string-returning accessor, because the
+  DSL's comparison machinery is int- and bool-valued only (`_intValues` /
+  `_boolValues` in `SimBaseListener`). Returning a string would mean a third value
+  type and a new comparison LHS; a predicate reuses the existing `boolFunction`
+  path exactly as `screen_contains(...)` does. The failure message reports the
+  actual status string, so diagnosability is unchanged.
 - `uci_data(n)` — byte `n` of the response data from the last `uci(...)` call.
 
 Grammar work: keywords `ultimate`, `fs_root`, `uci`, `uci_status`, `uci_data`; an
 `ultimateDeclaration` rule in `suite`; a `uciFunction` in `setupContents` and
-`testContents`; `uci_data` into `intFunction` and `uci_status` into the comparison
-LHS so both work inside `assert(...)`.
+`testContents`; `uci_data` into `intFunction`, `uci_status` into `boolFunction`.
 
 ## Error handling
 
 - Unknown target → reply `NO TARGET`, status `21,UNKNOWN COMMAND` — byte-identical
   to `command_intf.cc` lines 223-226.
 - Unknown command on a known target → same status, empty reply.
-- Command longer than 896 bytes → set `ERROR` (status bit 3) and discard. Cleared
-  only by `CLR_ERR`. Response and status queues clamp at 896 and 256.
+- Command longer than 896 bytes → the command pointer **saturates** at the buffer
+  end and further bytes overwrite the last cell. No error is raised. This is what
+  `command_protocol.vhd` line 145 actually does (`if command_pointer /=
+  c_cmd_if_command_buffer_end then command_pointer <= command_pointer + 1`) and the
+  port matches it rather than inventing a friendlier behaviour that hardware would
+  not reproduce.
+- `PUSH_CMD` while the state is not idle → set `ERROR` (status bit 3). This is the
+  only path that raises `ERROR`, and it is cleared only by `CLR_ERR`. A reply larger
+  than the 896-byte response queue or a status larger than the 256-byte status queue
+  is truncated with a logged warning.
 - `ABORT` mid-transfer → target's `Abort(offset)` is called with bytes already
   consumed, then state resets to idle, matching `command_intf.cc` lines 121-129.
 - DOS errors use Gideon's exact strings: `83,NO SUCH DIRECTORY`,
