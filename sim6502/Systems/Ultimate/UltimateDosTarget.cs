@@ -216,7 +216,7 @@ public sealed class UltimateDosTarget : ICommandTarget, IDisposable
         if (host == null)
         {
             Logger.Warn($"DOS: open rejected for out-of-mount path '{name}'");
-            return UciReply.Empty(StatusFileNotFound);
+            return UciReply.Empty(FatFsStatus.FileDoesntExist);
         }
 
         // FatFs flag semantics: CREATE_ALWAYS truncates, CREATE_NEW must not exist,
@@ -248,16 +248,25 @@ public sealed class UltimateDosTarget : ICommandTarget, IDisposable
         }
         catch (FileNotFoundException)
         {
-            return UciReply.Empty(StatusFileNotFound);
+            return UciReply.Empty(FatFsStatus.FileDoesntExist);
         }
         catch (DirectoryNotFoundException)
         {
-            return UciReply.Empty(StatusNoSuchDirectory);
+            return UciReply.Empty(FatFsStatus.PathDoesntExist);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return UciReply.Empty(FatFsStatus.AccessDenied);
+        }
+        catch (IOException) when (mode == FileMode.CreateNew)
+        {
+            return UciReply.Empty(FatFsStatus.FileExists);
         }
         catch (Exception ex)
         {
-            // Upstream surfaces FatFs error text here. Porting that table buys no
-            // test value, so failures map onto the documented DOS statuses.
+            // Upstream maps every FatFs result through get_error_string; the
+            // cases above cover the ones .NET distinguishes. Anything else is a
+            // genuine internal failure.
             Logger.Warn($"DOS: could not open '{name}': {ex.Message}");
             return UciReply.Empty(StatusInternalError);
         }

@@ -49,7 +49,7 @@ suites {
 
     test("dos-open-missing", "opening a missing file is reported") {
       uci($01, $02, $01, "no-such-file.prg")
-      assert(uci_status("82,FILE NOT FOUND"), "OPEN_FILE on a missing file failed")
+      assert(uci_status("FILE DOESN'T EXIST"), "OPEN_FILE on a missing file failed")
     }
 
     test("dos-echo", "ECHO returns the command it was given") {

@@ -75,7 +75,7 @@ public class UltimateDosTargetFileTests : IDisposable
     {
         var reply = _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "nope.txt"));
 
-        reply.Status.Should().Be("82,FILE NOT FOUND");
+        reply.Status.Should().Be(FatFsStatus.FileDoesntExist);
         reply.Data.Should().BeEmpty();
     }
 
@@ -83,7 +83,19 @@ public class UltimateDosTargetFileTests : IDisposable
     public void OpenFile_OutsideTheMount_IsRejected()
     {
         _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "/SdCard/x.txt"))
-            .Status.Should().Be("82,FILE NOT FOUND");
+            .Status.Should().Be(FatFsStatus.FileDoesntExist);
+    }
+
+    [Fact]
+    public void OpenFile_Missing_ReturnsFatFsStringNotDosStatus()
+    {
+        // Upstream dos.cc:111-124 returns FileSystem::get_error_string(res) here,
+        // never c_status_file_not_found. Verified against fw 3.14d on real
+        // hardware, which answers "FILE DOESN'T EXIST".
+        var reply = _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "no-such-file.prg"));
+
+        reply.Status.Should().Be(FatFsStatus.FileDoesntExist);
+        reply.Status.Should().NotBe(UltimateDosTarget.StatusFileNotFound);
     }
 
     [Fact]
@@ -96,7 +108,7 @@ public class UltimateDosTargetFileTests : IDisposable
         // DirectoryNotFoundException rather than FileNotFoundException.
         var reply = _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "nosuchdir/x.txt"));
 
-        reply.Status.Should().Be("83,NO SUCH DIRECTORY");
+        reply.Status.Should().Be(FatFsStatus.PathDoesntExist);
     }
 
     [Fact]
@@ -114,10 +126,12 @@ public class UltimateDosTargetFileTests : IDisposable
     [Fact]
     public void OpenFile_CreateNew_FailsWhenTheFileExists()
     {
+        // .NET raises IOException when FileMode.CreateNew targets an existing
+        // file; upstream FatFs reports this as FR_EXIST -> "FILE EXISTS".
         _dos.ParseCommand(OpenCmd(
                 (byte)(UltimateDosTarget.FileAttributeWrite | UltimateDosTarget.FileAttributeCreateNew),
                 "short.txt"))
-            .Status.Should().Be("87,INTERNAL ERROR");
+            .Status.Should().Be(FatFsStatus.FileExists);
     }
 
     [Fact]
