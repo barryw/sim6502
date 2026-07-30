@@ -1752,63 +1752,1690 @@ that the Busy state is held for the configured cycle latency."
 
 ---
 
+## Task 6: `UltimateFileSystem`
+
+**Files:**
+- Create: `sim6502/Systems/Ultimate/UltimateFileSystem.cs`
+- Test: `sim6502tests/Systems/Ultimate/UltimateFileSystemTests.cs`
+
+**Interfaces:**
+- Consumes: nothing from earlier tasks.
+- Produces:
+  - `readonly record struct UltimateDirEntry(string Name, byte Attributes, long Size, DateTime Modified)`
+  - `sealed class UltimateFileSystem : IDisposable`
+    - `UltimateFileSystem(string hostRoot, string mountName = "Usb0")`
+    - `const byte AttributeDirectory = 0x10`, `const byte AttributeArchive = 0x20`
+    - `string MountRoot { get; }` — `"/Usb0"`
+    - `string CurrentPath { get; }` — starts at `MountRoot`
+    - `bool ChangeDirectory(string path)`
+    - `string? ResolveToHostPath(string ultimatePath)` — null when the path escapes the root or is malformed
+    - `IReadOnlyList<UltimateDirEntry> ListCurrentDirectory()`
+    - `void Dispose()`
+
+This is the only component that touches real disk. It is a trust boundary: a UCI
+command carrying `../../etc/passwd` must not reach a real path. Two independent
+guards are used, deliberately — symlinks are never copied into the working tree, so
+they cannot be followed out; and every resolution is canonicalised and prefix
+checked, so `..` cannot climb out. Neither guard inspects the input string for
+suspicious substrings, which is the approach that reliably gets bypassed.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `sim6502tests/Systems/Ultimate/UltimateFileSystemTests.cs`:
+
+```csharp
+using FluentAssertions;
+using sim6502.Systems.Ultimate;
+using Xunit;
+
+namespace sim6502tests.Systems.Ultimate;
+
+public class UltimateFileSystemTests : IDisposable
+{
+    private readonly string _fixture;
+
+    public UltimateFileSystemTests()
+    {
+        _fixture = Path.Combine(Path.GetTempPath(), "u64sim-fixture-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(_fixture, "data"));
+        Directory.CreateDirectory(Path.Combine(_fixture, "data", "nested"));
+        File.WriteAllText(Path.Combine(_fixture, "hello.txt"), "hello");
+        File.WriteAllBytes(Path.Combine(_fixture, "data", "bytes.bin"), new byte[] { 1, 2, 3, 4 });
+    }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_fixture)) Directory.Delete(_fixture, recursive: true);
+    }
+
+    private UltimateFileSystem NewFs() => new(_fixture);
+
+    [Fact]
+    public void CurrentPath_StartsAtMountRoot()
+    {
+        using var fs = NewFs();
+        fs.MountRoot.Should().Be("/Usb0");
+        fs.CurrentPath.Should().Be("/Usb0");
+    }
+
+    [Fact]
+    public void Constructor_CopiesFixtureSoOriginalIsNeverMutated()
+    {
+        using var fs = NewFs();
+        var host = fs.ResolveToHostPath("hello.txt");
+        host.Should().NotBeNull();
+        host.Should().NotStartWith(_fixture, "the working tree must be a copy, not the fixture");
+
+        File.WriteAllText(host!, "overwritten");
+        File.ReadAllText(Path.Combine(_fixture, "hello.txt")).Should().Be("hello");
+    }
+
+    [Fact]
+    public void Dispose_RemovesTheWorkingCopy()
+    {
+        string host;
+        using (var fs = NewFs())
+        {
+            host = fs.ResolveToHostPath("hello.txt")!;
+            File.Exists(host).Should().BeTrue();
+        }
+        File.Exists(host).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ChangeDirectory_Relative_Succeeds()
+    {
+        using var fs = NewFs();
+        fs.ChangeDirectory("data").Should().BeTrue();
+        fs.CurrentPath.Should().Be("/Usb0/data");
+        fs.ChangeDirectory("nested").Should().BeTrue();
+        fs.CurrentPath.Should().Be("/Usb0/data/nested");
+    }
+
+    [Fact]
+    public void ChangeDirectory_Absolute_Succeeds()
+    {
+        using var fs = NewFs();
+        fs.ChangeDirectory("/Usb0/data/nested").Should().BeTrue();
+        fs.CurrentPath.Should().Be("/Usb0/data/nested");
+    }
+
+    [Fact]
+    public void ChangeDirectory_DotIsNoOp()
+    {
+        using var fs = NewFs();
+        fs.ChangeDirectory("data").Should().BeTrue();
+        fs.ChangeDirectory(".").Should().BeTrue();
+        fs.CurrentPath.Should().Be("/Usb0/data");
+    }
+
+    [Fact]
+    public void ChangeDirectory_DotDot_GoesUp()
+    {
+        using var fs = NewFs();
+        fs.ChangeDirectory("data/nested").Should().BeTrue();
+        fs.ChangeDirectory("..").Should().BeTrue();
+        fs.CurrentPath.Should().Be("/Usb0/data");
+    }
+
+    [Fact]
+    public void ChangeDirectory_DotDotAtRoot_IsNoOpNotAnEscape()
+    {
+        using var fs = NewFs();
+        fs.ChangeDirectory("..").Should().BeTrue();
+        fs.CurrentPath.Should().Be("/Usb0");
+        fs.ChangeDirectory("../../..").Should().BeTrue();
+        fs.CurrentPath.Should().Be("/Usb0");
+    }
+
+    [Fact]
+    public void ChangeDirectory_NonexistentPath_FailsAndLeavesPathUnchanged()
+    {
+        using var fs = NewFs();
+        fs.ChangeDirectory("data").Should().BeTrue();
+        fs.ChangeDirectory("nope").Should().BeFalse();
+        fs.CurrentPath.Should().Be("/Usb0/data");
+    }
+
+    [Fact]
+    public void ChangeDirectory_IntoAFile_Fails()
+    {
+        using var fs = NewFs();
+        fs.ChangeDirectory("hello.txt").Should().BeFalse();
+        fs.CurrentPath.Should().Be("/Usb0");
+    }
+
+    [Fact]
+    public void ChangeDirectory_WrongMountName_Fails()
+    {
+        using var fs = NewFs();
+        fs.ChangeDirectory("/SdCard/data").Should().BeFalse();
+        fs.CurrentPath.Should().Be("/Usb0");
+    }
+
+    [Theory]
+    [InlineData("../../../../etc/passwd")]
+    [InlineData("/Usb0/../../etc/passwd")]
+    [InlineData("data/../../../etc/passwd")]
+    public void ResolveToHostPath_TraversalAttempts_StayInsideTheRoot(string attempt)
+    {
+        using var fs = NewFs();
+        var host = fs.ResolveToHostPath(attempt);
+
+        // Either rejected outright, or clamped to somewhere inside the working root.
+        if (host != null)
+            host.Should().StartWith(fs.WorkingRoot);
+        host.Should().NotContain("etc" + Path.DirectorySeparatorChar + "passwd");
+    }
+
+    [Fact]
+    public void ResolveToHostPath_EmbeddedNul_IsRejected()
+    {
+        using var fs = NewFs();
+        fs.ResolveToHostPath("hel\0lo.txt").Should().BeNull();
+    }
+
+    [Fact]
+    public void ResolveToHostPath_RelativeToCurrentDirectory()
+    {
+        using var fs = NewFs();
+        fs.ChangeDirectory("data").Should().BeTrue();
+        var host = fs.ResolveToHostPath("bytes.bin");
+        host.Should().NotBeNull();
+        File.ReadAllBytes(host!).Should().Equal(1, 2, 3, 4);
+    }
+
+    [Fact]
+    public void ResolveToHostPath_AbsoluteIgnoresCurrentDirectory()
+    {
+        using var fs = NewFs();
+        fs.ChangeDirectory("data/nested").Should().BeTrue();
+        var host = fs.ResolveToHostPath("/Usb0/hello.txt");
+        host.Should().NotBeNull();
+        File.ReadAllText(host!).Should().Be("hello");
+    }
+
+    [Fact]
+    public void ListCurrentDirectory_ReportsDirectoriesAndFilesWithFatAttributes()
+    {
+        using var fs = NewFs();
+        var entries = fs.ListCurrentDirectory();
+
+        entries.Should().HaveCount(2);
+        var dir = entries.Single(e => e.Name == "data");
+        dir.Attributes.Should().Be(UltimateFileSystem.AttributeDirectory);
+
+        var file = entries.Single(e => e.Name == "hello.txt");
+        file.Attributes.Should().Be(UltimateFileSystem.AttributeArchive);
+        file.Size.Should().Be(5);
+    }
+
+    [Fact]
+    public void ListCurrentDirectory_DirectoriesBeforeFilesEachAlphabetical()
+    {
+        using var fs = NewFs();
+        File.WriteAllText(Path.Combine(fs.WorkingRoot, "aaa.txt"), "a");
+        Directory.CreateDirectory(Path.Combine(fs.WorkingRoot, "zzz"));
+
+        var names = fs.ListCurrentDirectory().Select(e => e.Name).ToArray();
+        names.Should().Equal("data", "zzz", "aaa.txt", "hello.txt");
+    }
+
+    [Fact]
+    public void ListCurrentDirectory_EmptyDirectory_IsEmpty()
+    {
+        using var fs = NewFs();
+        fs.ChangeDirectory("data/nested").Should().BeTrue();
+        fs.ListCurrentDirectory().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Constructor_MissingHostRoot_Throws()
+    {
+        var act = () => new UltimateFileSystem(Path.Combine(_fixture, "does-not-exist"));
+        act.Should().Throw<DirectoryNotFoundException>();
+    }
+
+    [Fact]
+    public void Symlinks_AreNotCopiedIntoTheWorkingTree()
+    {
+        var outside = Path.Combine(Path.GetTempPath(), "u64sim-outside-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outside);
+        File.WriteAllText(Path.Combine(outside, "secret.txt"), "secret");
+        try
+        {
+            try
+            {
+                File.CreateSymbolicLink(Path.Combine(_fixture, "escape.txt"),
+                                        Path.Combine(outside, "secret.txt"));
+            }
+            catch (Exception)
+            {
+                return; // platform forbids symlink creation; nothing to assert
+            }
+
+            using var fs = NewFs();
+            File.Exists(Path.Combine(fs.WorkingRoot, "escape.txt")).Should().BeFalse();
+            fs.ListCurrentDirectory().Select(e => e.Name).Should().NotContain("escape.txt");
+        }
+        finally
+        {
+            Directory.Delete(outside, recursive: true);
+        }
+    }
+}
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `dotnet test --filter "FullyQualifiedName~UltimateFileSystemTests"`
+Expected: FAIL — compile error, `UltimateFileSystem` does not exist.
+
+- [ ] **Step 3: Implement `UltimateFileSystem.cs`**
+
+```csharp
+// Models the Ultimate's filesystem namespace as seen through the UCI DOS targets.
+// Behaviour corresponds to the Path/FileManager abstractions used by
+// GideonZ/1541ultimate software/filemanager/dos.cc (GPL-3.0), reimplemented over
+// a host directory. Original author of the upstream behaviour: Gideon Zweijtzer.
+// See NOTICE.
+
+using NLog;
+
+namespace sim6502.Systems.Ultimate;
+
+/// <summary>One entry from an Ultimate directory listing.</summary>
+/// <param name="Name">Entry name with no path component.</param>
+/// <param name="Attributes">FAT attribute byte.</param>
+/// <param name="Size">Size in bytes; zero for directories.</param>
+/// <param name="Modified">Last write time, used for the FAT date and time fields.</param>
+public readonly record struct UltimateDirEntry(
+    string Name,
+    byte Attributes,
+    long Size,
+    DateTime Modified);
+
+/// <summary>
+/// Exposes a host directory as the Ultimate's mounted filesystem, rooted at
+/// <c>/Usb0</c> by default.
+///
+/// The host tree is copied to a temporary directory at construction and the copy
+/// is deleted on dispose, so tests operate on throwaway state and fixture files
+/// are never mutated. Symlinks are not copied, so there is no way to follow one
+/// out of the working tree. Every path is canonicalised and prefix checked against
+/// the working root before it is handed back, so <c>..</c> cannot climb out either.
+/// </summary>
+public sealed class UltimateFileSystem : IDisposable
+{
+    private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
+
+    /// <summary>FAT AM_DIR.</summary>
+    public const byte AttributeDirectory = 0x10;
+    /// <summary>FAT AM_ARC — what the Ultimate reports for ordinary files.</summary>
+    public const byte AttributeArchive = 0x20;
+
+    private readonly string _mountName;
+    private readonly List<string> _current = new();
+    private bool _disposed;
+
+    public UltimateFileSystem(string hostRoot, string mountName = "Usb0")
+    {
+        if (string.IsNullOrWhiteSpace(hostRoot))
+            throw new ArgumentException("A host root directory is required", nameof(hostRoot));
+        if (string.IsNullOrWhiteSpace(mountName))
+            throw new ArgumentException("A mount name is required", nameof(mountName));
+
+        var source = Path.GetFullPath(hostRoot);
+        if (!Directory.Exists(source))
+            throw new DirectoryNotFoundException(
+                $"Ultimate filesystem root not found: '{hostRoot}'");
+
+        _mountName = mountName;
+        WorkingRoot = Path.GetFullPath(Path.Combine(
+            Path.GetTempPath(), "sim6502-u64sim-" + Guid.NewGuid().ToString("N")));
+
+        CopyTree(source, WorkingRoot);
+        Logger.Debug($"Ultimate filesystem '{MountRoot}' backed by '{source}', " +
+                     $"working copy at '{WorkingRoot}'");
+    }
+
+    /// <summary>Canonical host path of the throwaway working copy.</summary>
+    public string WorkingRoot { get; }
+
+    /// <summary>The Ultimate-side mount point, e.g. <c>/Usb0</c>.</summary>
+    public string MountRoot => "/" + _mountName;
+
+    /// <summary>Current directory as the C64 sees it, e.g. <c>/Usb0/data</c>.</summary>
+    public string CurrentPath =>
+        _current.Count == 0 ? MountRoot : MountRoot + "/" + string.Join('/', _current);
+
+    /// <summary>
+    /// Change directory. Accepts absolute paths under the mount point and relative
+    /// paths, and understands <c>.</c> and <c>..</c>. Returns false and leaves the
+    /// current directory untouched if the target does not exist or is not a directory.
+    /// </summary>
+    public bool ChangeDirectory(string path)
+    {
+        if (!TryNormalise(path, out var segments))
+            return false;
+
+        var host = ToHostPath(segments);
+        if (host == null || !Directory.Exists(host))
+            return false;
+
+        _current.Clear();
+        _current.AddRange(segments);
+        return true;
+    }
+
+    /// <summary>
+    /// Map an Ultimate path to a host path. Returns null when the path is malformed
+    /// or resolves outside the working root. The returned path is not guaranteed to
+    /// exist — callers create, read, or stat it as the command requires.
+    /// </summary>
+    public string? ResolveToHostPath(string ultimatePath)
+    {
+        return TryNormalise(ultimatePath, out var segments) ? ToHostPath(segments) : null;
+    }
+
+    /// <summary>
+    /// List the current directory: directories first, then files, each group sorted
+    /// by ordinal name comparison so listings are stable across platforms.
+    /// </summary>
+    public IReadOnlyList<UltimateDirEntry> ListCurrentDirectory()
+    {
+        var host = ToHostPath(_current);
+        if (host == null || !Directory.Exists(host))
+            return Array.Empty<UltimateDirEntry>();
+
+        var entries = new List<UltimateDirEntry>();
+
+        foreach (var dir in Directory.GetDirectories(host).OrderBy(p => p, StringComparer.Ordinal))
+        {
+            var info = new DirectoryInfo(dir);
+            entries.Add(new UltimateDirEntry(info.Name, AttributeDirectory, 0, info.LastWriteTime));
+        }
+
+        foreach (var file in Directory.GetFiles(host).OrderBy(p => p, StringComparer.Ordinal))
+        {
+            var info = new FileInfo(file);
+            entries.Add(new UltimateDirEntry(info.Name, AttributeArchive, info.Length, info.LastWriteTime));
+        }
+
+        return entries;
+    }
+
+    /// <summary>
+    /// Split an Ultimate path into normalised segments relative to the mount root.
+    /// Returns false for malformed input or a mount name we do not serve.
+    /// <c>..</c> at the root is absorbed rather than treated as an escape, matching
+    /// the upstream Path behaviour.
+    /// </summary>
+    private bool TryNormalise(string path, out List<string> segments)
+    {
+        segments = new List<string>();
+
+        if (path == null) return false;
+        if (path.Contains('\0')) return false;
+
+        var trimmed = path.Trim();
+        var absolute = trimmed.StartsWith('/');
+        var body = trimmed;
+
+        if (absolute)
+        {
+            var parts = trimmed.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 0)
+                return true; // "/" means the mount root
+
+            if (!string.Equals(parts[0], _mountName, StringComparison.OrdinalIgnoreCase))
+                return false; // a mount we do not serve
+
+            body = string.Join('/', parts.Skip(1));
+        }
+        else
+        {
+            segments.AddRange(_current);
+        }
+
+        foreach (var segment in body.Split('/', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (segment == ".") continue;
+
+            if (segment == "..")
+            {
+                if (segments.Count > 0) segments.RemoveAt(segments.Count - 1);
+                continue; // at the root this is a no-op, not an escape
+            }
+
+            if (segment.Contains('\0')) { segments.Clear(); return false; }
+            segments.Add(segment);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Combine normalised segments with the working root and confirm the result is
+    /// genuinely inside it. This is the second, independent guard: even if
+    /// normalisation were wrong, nothing outside the root is ever returned.
+    /// </summary>
+    private string? ToHostPath(IReadOnlyList<string> segments)
+    {
+        string candidate;
+        try
+        {
+            candidate = Path.GetFullPath(segments.Count == 0
+                ? WorkingRoot
+                : Path.Combine(WorkingRoot, Path.Combine(segments.ToArray())));
+        }
+        catch (Exception ex)
+        {
+            Logger.Debug($"Ultimate path could not be canonicalised: {ex.Message}");
+            return null;
+        }
+
+        if (candidate == WorkingRoot)
+            return candidate;
+
+        var rootWithSeparator = WorkingRoot.EndsWith(Path.DirectorySeparatorChar)
+            ? WorkingRoot
+            : WorkingRoot + Path.DirectorySeparatorChar;
+
+        if (!candidate.StartsWith(rootWithSeparator, StringComparison.Ordinal))
+        {
+            Logger.Warn($"Rejected Ultimate path resolving outside '{MountRoot}': '{candidate}'");
+            return null;
+        }
+
+        return candidate;
+    }
+
+    /// <summary>
+    /// Recursively copy a tree, skipping symlinks so the working copy cannot be
+    /// used to reach anything outside itself.
+    /// </summary>
+    private static void CopyTree(string source, string destination)
+    {
+        Directory.CreateDirectory(destination);
+
+        foreach (var dir in Directory.GetDirectories(source))
+        {
+            var info = new DirectoryInfo(dir);
+            if (info.LinkTarget != null)
+            {
+                Logger.Warn($"Skipping symlinked directory '{info.Name}' when building " +
+                            "the Ultimate working copy");
+                continue;
+            }
+            CopyTree(dir, Path.Combine(destination, info.Name));
+        }
+
+        foreach (var file in Directory.GetFiles(source))
+        {
+            var info = new FileInfo(file);
+            if (info.LinkTarget != null)
+            {
+                Logger.Warn($"Skipping symlinked file '{info.Name}' when building " +
+                            "the Ultimate working copy");
+                continue;
+            }
+            File.Copy(file, Path.Combine(destination, info.Name), overwrite: true);
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        try
+        {
+            if (Directory.Exists(WorkingRoot))
+                Directory.Delete(WorkingRoot, recursive: true);
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn($"Could not remove the Ultimate working copy '{WorkingRoot}': {ex.Message}");
+        }
+    }
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `dotnet test --filter "FullyQualifiedName~UltimateFileSystemTests"`
+Expected: PASS — 20 passed (the traversal `[Theory]` contributes 3).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add sim6502/Systems/Ultimate/UltimateFileSystem.cs \
+        sim6502tests/Systems/Ultimate/UltimateFileSystemTests.cs
+git commit -m "feat(ultimate): map a host directory to the Ultimate /Usb0 namespace
+
+The fixture tree is copied to a temp directory so tests never mutate fixtures.
+Two independent guards keep UCI paths inside the root: symlinks are not copied
+into the working tree, and every resolution is canonicalised and prefix checked
+rather than string-inspected."
+```
+
+---
+
+## Task 7: `UltimateDosTarget` — identity, navigation, echo
+
+**Files:**
+- Create: `sim6502/Systems/Ultimate/UltimateDosTarget.cs`
+- Test: `sim6502tests/Systems/Ultimate/UltimateDosTargetNavigationTests.cs`
+
+**Interfaces:**
+- Consumes: `ICommandTarget`, `UciReply`, `UciConstants` (Task 3); `UltimateFileSystem` (Task 6).
+- Produces:
+  - `sealed class UltimateDosTarget : ICommandTarget`
+    - `UltimateDosTarget(UltimateFileSystem fileSystem, string version = "ULTIMATE-II DOS V1.2")`
+    - command-code constants `CmdIdentify = 0x01` … `CmdEcho = 0xF0` (full list in Step 3)
+    - status-string constants `StatusNoSuchDirectory` … (full list in Step 3)
+    - `void ResetState()` — used by `ControlTarget`'s REBOOT in Task 10
+  - `protected`/`private` helper `static string ReadString(byte[] command, int offset)`
+    used by Tasks 8 and 9.
+
+Tasks 8 and 9 add cases to the same `switch`. Until then, file and directory
+commands fall through to `"21,UNKNOWN COMMAND"`; that is expected mid-sequence and
+Task 9 adds the test that pins the final command coverage.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `sim6502tests/Systems/Ultimate/UltimateDosTargetNavigationTests.cs`:
+
+```csharp
+using System.Text;
+using FluentAssertions;
+using sim6502.Systems.Ultimate;
+using Xunit;
+
+namespace sim6502tests.Systems.Ultimate;
+
+public class UltimateDosTargetNavigationTests : IDisposable
+{
+    private readonly string _fixture;
+    private readonly UltimateFileSystem _fs;
+    private readonly UltimateDosTarget _dos;
+
+    public UltimateDosTargetNavigationTests()
+    {
+        _fixture = Path.Combine(Path.GetTempPath(), "u64sim-dosnav-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(_fixture, "data", "nested"));
+        File.WriteAllText(Path.Combine(_fixture, "hello.txt"), "hello");
+
+        _fs = new UltimateFileSystem(_fixture);
+        _dos = new UltimateDosTarget(_fs);
+    }
+
+    public void Dispose()
+    {
+        _fs.Dispose();
+        if (Directory.Exists(_fixture)) Directory.Delete(_fixture, recursive: true);
+    }
+
+    /// <summary>Build a command: target byte, command byte, then an ASCII argument.</summary>
+    private static byte[] Cmd(byte code, string? argument = null)
+    {
+        var bytes = new List<byte> { 0x01, code };
+        if (argument != null) bytes.AddRange(Encoding.ASCII.GetBytes(argument));
+        return bytes.ToArray();
+    }
+
+    private static string Text(UciReply reply) => Encoding.ASCII.GetString(reply.Data);
+
+    [Fact]
+    public void Identify_ReturnsTheVersionStringWithOkStatus()
+    {
+        var reply = _dos.ParseCommand(Cmd(UltimateDosTarget.CmdIdentify));
+
+        Text(reply).Should().Be("ULTIMATE-II DOS V1.2");
+        reply.Status.Should().Be("00,OK");
+        reply.LastPart.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Identify_HonoursAConfiguredVersion()
+    {
+        var dos = new UltimateDosTarget(_fs, "ULTIMATE-II DOS V1.1");
+        Text(dos.ParseCommand(Cmd(UltimateDosTarget.CmdIdentify)))
+            .Should().Be("ULTIMATE-II DOS V1.1");
+    }
+
+    [Fact]
+    public void UnknownCommand_IsRejectedWithNoData()
+    {
+        var reply = _dos.ParseCommand(Cmd(0x7E));
+
+        reply.Data.Should().BeEmpty();
+        reply.Status.Should().Be("21,UNKNOWN COMMAND");
+        reply.LastPart.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ChangeDir_Relative_MovesAndReportsOk()
+    {
+        var reply = _dos.ParseCommand(Cmd(UltimateDosTarget.CmdChangeDir, "data"));
+
+        reply.Status.Should().Be("00,OK");
+        reply.Data.Should().BeEmpty();
+        _fs.CurrentPath.Should().Be("/Usb0/data");
+    }
+
+    [Fact]
+    public void ChangeDir_Absolute_Moves()
+    {
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdChangeDir, "/Usb0/data/nested"))
+            .Status.Should().Be("00,OK");
+        _fs.CurrentPath.Should().Be("/Usb0/data/nested");
+    }
+
+    [Fact]
+    public void ChangeDir_DotAndDotDot_Work()
+    {
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdChangeDir, "data/nested"));
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdChangeDir, ".")).Status.Should().Be("00,OK");
+        _fs.CurrentPath.Should().Be("/Usb0/data/nested");
+
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdChangeDir, "..")).Status.Should().Be("00,OK");
+        _fs.CurrentPath.Should().Be("/Usb0/data");
+    }
+
+    [Fact]
+    public void ChangeDir_Nonexistent_FailsAndLeavesThePathAlone()
+    {
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdChangeDir, "data"));
+
+        var reply = _dos.ParseCommand(Cmd(UltimateDosTarget.CmdChangeDir, "nope"));
+
+        reply.Status.Should().Be("83,NO SUCH DIRECTORY");
+        reply.Data.Should().BeEmpty();
+        _fs.CurrentPath.Should().Be("/Usb0/data", "a failed cd must not move the path");
+    }
+
+    [Fact]
+    public void ChangeDir_IntoAFile_Fails()
+    {
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdChangeDir, "hello.txt"))
+            .Status.Should().Be("83,NO SUCH DIRECTORY");
+        _fs.CurrentPath.Should().Be("/Usb0");
+    }
+
+    [Fact]
+    public void ChangeDir_TraversalAttempt_CannotEscapeTheMount()
+    {
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdChangeDir, "../../.."));
+        _fs.CurrentPath.Should().Be("/Usb0");
+    }
+
+    [Fact]
+    public void GetPath_ReturnsTheCurrentPath()
+    {
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdChangeDir, "data"));
+
+        var reply = _dos.ParseCommand(Cmd(UltimateDosTarget.CmdGetPath));
+
+        Text(reply).Should().Be("/Usb0/data");
+        reply.Status.Should().Be("00,OK");
+        reply.LastPart.Should().BeTrue();
+    }
+
+    [Fact]
+    public void GetPath_AtRoot_ReturnsTheMountRoot()
+    {
+        Text(_dos.ParseCommand(Cmd(UltimateDosTarget.CmdGetPath))).Should().Be("/Usb0");
+    }
+
+    [Fact]
+    public void CreateDir_MakesTheDirectory()
+    {
+        var reply = _dos.ParseCommand(Cmd(UltimateDosTarget.CmdCreateDir, "fresh"));
+
+        reply.Status.Should().Be("00,OK");
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdChangeDir, "fresh")).Status.Should().Be("00,OK");
+        _fs.CurrentPath.Should().Be("/Usb0/fresh");
+    }
+
+    [Fact]
+    public void CreateDir_AlreadyExisting_ReportsAnError()
+    {
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdCreateDir, "twice")).Status.Should().Be("00,OK");
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdCreateDir, "twice"))
+            .Status.Should().Be("87,INTERNAL ERROR");
+    }
+
+    [Fact]
+    public void CreateDir_OutsideTheMount_IsRejected()
+    {
+        var reply = _dos.ParseCommand(Cmd(UltimateDosTarget.CmdCreateDir, "/SdCard/evil"));
+        reply.Status.Should().Be("83,NO SUCH DIRECTORY");
+        Directory.Exists(Path.Combine(_fixture, "..", "SdCard")).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Echo_ReturnsTheWholeCommandIncludingTheHeaderBytes()
+    {
+        var command = new byte[] { 0x01, UltimateDosTarget.CmdEcho, 0xDE, 0xAD, 0xBE, 0xEF };
+
+        var reply = _dos.ParseCommand(command);
+
+        reply.Data.Should().Equal(command);
+        reply.Status.Should().Be("00,OK");
+        reply.LastPart.Should().BeTrue();
+    }
+
+    [Fact]
+    public void GetMoreData_WhenIdle_ReportsNotInDataMode()
+    {
+        var reply = _dos.GetMoreData();
+
+        reply.Data.Should().BeEmpty();
+        reply.Status.Should().Be("81,NOT IN DATA MODE");
+        reply.LastPart.Should().BeTrue();
+    }
+
+    [Fact]
+    public void TwoTargets_HaveIndependentPaths()
+    {
+        var second = new UltimateDosTarget(new UltimateFileSystem(_fixture));
+        try
+        {
+            _dos.ParseCommand(Cmd(UltimateDosTarget.CmdChangeDir, "data"));
+
+            Text(second.ParseCommand(Cmd(UltimateDosTarget.CmdGetPath))).Should().Be("/Usb0");
+            Text(_dos.ParseCommand(Cmd(UltimateDosTarget.CmdGetPath))).Should().Be("/Usb0/data");
+        }
+        finally
+        {
+            second.Dispose();
+        }
+    }
+
+    [Fact]
+    public void ShortCommand_IsRejectedRatherThanThrowing()
+    {
+        var reply = _dos.ParseCommand(new byte[] { 0x01 });
+        reply.Status.Should().Be("21,UNKNOWN COMMAND");
+    }
+}
+```
+
+Note the `second.Dispose()` in `TwoTargets_HaveIndependentPaths`: the target owns
+nothing, but it needs an `IDisposable` surface to release the file handle opened in
+Task 8 and the second `UltimateFileSystem` created here. Implement
+`UltimateDosTarget : ICommandTarget, IDisposable` in Step 3, disposing the
+filesystem it was handed only when it created it — here the test hands one in, so
+have `UltimateDosTarget` dispose the filesystem it holds. That keeps the test
+correct and the ownership rule simple: whoever constructs the target hands over the
+filesystem.
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `dotnet test --filter "FullyQualifiedName~UltimateDosTargetNavigationTests"`
+Expected: FAIL — compile error, `UltimateDosTarget` does not exist.
+
+- [ ] **Step 3: Implement `UltimateDosTarget.cs`**
+
+```csharp
+// Ported from GideonZ/1541ultimate (GPL-3.0):
+//   software/filemanager/dos.cc
+//   software/filemanager/dos.h
+// Original author: Gideon Zweijtzer. See NOTICE.
+
+using System.Text;
+using NLog;
+
+namespace sim6502.Systems.Ultimate;
+
+/// <summary>
+/// The Ultimate DOS command target, served at UCI targets $01 and $02. Each
+/// instance keeps its own current directory, open file, and data-mode state, so
+/// two of them can be in use at once without interfering.
+/// </summary>
+public sealed class UltimateDosTarget : ICommandTarget, IDisposable
+{
+    private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
+
+    // ── Command codes (dos.h lines 11-38) ──
+    public const byte CmdIdentify      = 0x01;
+    public const byte CmdOpenFile      = 0x02;
+    public const byte CmdCloseFile     = 0x03;
+    public const byte CmdReadData      = 0x04;
+    public const byte CmdWriteData     = 0x05;
+    public const byte CmdFileSeek      = 0x06;
+    public const byte CmdFileInfo      = 0x07;
+    public const byte CmdFileStat      = 0x08;
+    public const byte CmdDeleteFile    = 0x09;
+    public const byte CmdRenameFile    = 0x0A;
+    public const byte CmdCopyFile      = 0x0B;
+    public const byte CmdChangeDir     = 0x11;
+    public const byte CmdGetPath       = 0x12;
+    public const byte CmdOpenDir       = 0x13;
+    public const byte CmdReadDir       = 0x14;
+    public const byte CmdCopyUiPath    = 0x15;
+    public const byte CmdCreateDir     = 0x16;
+    public const byte CmdCopyHomePath  = 0x17;
+    public const byte CmdLoadReu       = 0x21;
+    public const byte CmdSaveReu       = 0x22;
+    public const byte CmdMountDisk     = 0x23;
+    public const byte CmdUnmountDisk   = 0x24;
+    public const byte CmdSwapDisk      = 0x25;
+    public const byte CmdGetTime       = 0x26;
+    public const byte CmdSetTime       = 0x27;
+    public const byte CmdEcho          = 0xF0;
+
+    // ── File attribute flags for OPEN_FILE ──
+    public const byte FileAttributeRead         = 0x01;
+    public const byte FileAttributeWrite        = 0x02;
+    public const byte FileAttributeCreateNew    = 0x04;
+    public const byte FileAttributeCreateAlways = 0x08;
+
+    // ── Status strings, byte-exact from dos.cc lines 15-30 ──
+    public const string StatusDirectoryEmpty   = "01,DIRECTORY EMPTY";
+    public const string StatusTruncated        = "02,REQUEST TRUNCATED";
+    public const string StatusNotImplemented   = "99,FUNCTION NOT IMPLEMENTED";
+    public const string StatusNotInDataMode    = "81,NOT IN DATA MODE";
+    public const string StatusFileNotFound     = "82,FILE NOT FOUND";
+    public const string StatusNoSuchDirectory  = "83,NO SUCH DIRECTORY";
+    public const string StatusNoFileToClose    = "84,NO FILE TO CLOSE";
+    public const string StatusNoFileOpen       = "85,NO FILE OPEN";
+    public const string StatusCannotReadDir    = "86,CAN'T READ DIRECTORY";
+    public const string StatusInternalError    = "87,INTERNAL ERROR";
+    public const string StatusNoInformation    = "88,NO INFORMATION AVAILABLE";
+    public const string StatusNotADiskImage    = "89,NOT A DISK IMAGE";
+    public const string StatusDriveNotPresent  = "90,DRIVE NOT PRESENT";
+    public const string StatusIncompatible     = "91,INCOMPATIBLE IMAGE";
+    public const string StatusProhibited       = "98,FUNCTION PROHIBITED";
+
+    /// <summary>Read chunk size, matching dos.cc get_more_data.</summary>
+    public const int ReadChunkSize = 512;
+
+    private enum DosState
+    {
+        Idle,
+        InFile,
+        InDirectory
+    }
+
+    private readonly UltimateFileSystem _fileSystem;
+    private readonly string _version;
+
+    private DosState _state = DosState.Idle;
+    private FileStream? _file;
+    private int _remaining;
+    private IReadOnlyList<UltimateDirEntry> _directory = Array.Empty<UltimateDirEntry>();
+    private int _directoryIndex;
+    private bool _disposed;
+
+    public UltimateDosTarget(UltimateFileSystem fileSystem, string version = "ULTIMATE-II DOS V1.2")
+    {
+        _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
+        _version = version;
+    }
+
+    public UciReply ParseCommand(byte[] command)
+    {
+        if (command.Length < 2)
+        {
+            Logger.Warn("DOS: command shorter than two bytes");
+            return UciReply.Empty(UciConstants.StatusUnknownCommand);
+        }
+
+        return command[1] switch
+        {
+            CmdIdentify  => new UciReply(Encoding.ASCII.GetBytes(_version), UciConstants.StatusOk, true),
+            CmdChangeDir => ChangeDirectory(ReadString(command, 2)),
+            CmdGetPath   => UciReply.Ok(Encoding.ASCII.GetBytes(_fileSystem.CurrentPath)),
+            CmdCreateDir => CreateDirectory(ReadString(command, 2)),
+            CmdEcho      => new UciReply(command, UciConstants.StatusOk, true),
+
+            _ => UciReply.Empty(UciConstants.StatusUnknownCommand)
+        };
+    }
+
+    public UciReply GetMoreData()
+    {
+        switch (_state)
+        {
+            case DosState.Idle:
+                Logger.Debug("DOS: more data requested while idle");
+                return UciReply.Empty(StatusNotInDataMode);
+
+            default:
+                Logger.Warn($"DOS: unhandled data-mode state {_state}");
+                _state = DosState.Idle;
+                return UciReply.Empty(StatusInternalError);
+        }
+    }
+
+    public void Abort(int bytesConsumed)
+    {
+        Logger.Debug($"DOS: aborted after {bytesConsumed} response bytes");
+        _state = DosState.Idle;
+    }
+
+    /// <summary>
+    /// Drop all transient state: closes any open file and leaves data mode. Used by
+    /// the control target's REBOOT.
+    /// </summary>
+    public void ResetState()
+    {
+        _file?.Dispose();
+        _file = null;
+        _state = DosState.Idle;
+        _remaining = 0;
+        _directory = Array.Empty<UltimateDirEntry>();
+        _directoryIndex = 0;
+    }
+
+    private UciReply ChangeDirectory(string path)
+    {
+        // UltimateFileSystem.ChangeDirectory leaves the current path untouched on
+        // failure, so there is nothing to roll back here.
+        return _fileSystem.ChangeDirectory(path)
+            ? UciReply.Empty(UciConstants.StatusOk)
+            : UciReply.Empty(StatusNoSuchDirectory);
+    }
+
+    private UciReply CreateDirectory(string name)
+    {
+        var host = _fileSystem.ResolveToHostPath(name);
+        if (host == null)
+            return UciReply.Empty(StatusNoSuchDirectory);
+
+        if (Directory.Exists(host) || File.Exists(host))
+            return UciReply.Empty(StatusInternalError);
+
+        try
+        {
+            Directory.CreateDirectory(host);
+            return UciReply.Empty(UciConstants.StatusOk);
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn($"DOS: could not create directory '{name}': {ex.Message}");
+            return UciReply.Empty(StatusInternalError);
+        }
+    }
+
+    /// <summary>
+    /// Read an ASCII string from the command, ending at an embedded NUL or the end
+    /// of the command. Upstream writes a NUL at command[length] and reads a C
+    /// string, which is the same thing.
+    /// </summary>
+    internal static string ReadString(byte[] command, int offset)
+    {
+        if (offset >= command.Length) return string.Empty;
+
+        var end = Array.IndexOf(command, (byte)0x00, offset);
+        if (end < 0 || end > command.Length) end = command.Length;
+
+        return Encoding.ASCII.GetString(command, offset, end - offset);
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        _file?.Dispose();
+        _file = null;
+        _fileSystem.Dispose();
+    }
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `dotnet test --filter "FullyQualifiedName~UltimateDosTargetNavigationTests"`
+Expected: PASS — 18 passed.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add sim6502/Systems/Ultimate/UltimateDosTarget.cs \
+        sim6502tests/Systems/Ultimate/UltimateDosTargetNavigationTests.cs
+git commit -m "feat(ultimate): Ultimate DOS identity, directory navigation, and echo
+
+Command codes, file attribute flags, and all status strings transcribed
+byte-exact from dos.cc. Covers IDENTIFY, CHANGE_DIR, GET_PATH, CREATE_DIR,
+and ECHO; file and directory-listing commands follow."
+```
+
+---
+
+## Task 8: `UltimateDosTarget` — file open, read, write, seek, close
+
+**Files:**
+- Modify: `sim6502/Systems/Ultimate/UltimateDosTarget.cs`
+- Test: `sim6502tests/Systems/Ultimate/UltimateDosTargetFileTests.cs`
+
+**Interfaces:**
+- Consumes: everything from Task 7.
+- Produces: no new public members beyond the existing constants. `GetMoreData`
+  gains its `InFile` behaviour, which Task 9 extends with `InDirectory`.
+
+Two deliberate deviations from upstream, both to be recorded as comments in the
+code:
+
+1. `dos.cc get_more_data` (lines 784-803) assigns `*status` only on the success
+   path. When `file->read` fails it fills `status_message` but never points
+   `*status` at it, so the caller reads an unassigned pointer. That is an upstream
+   defect, not behaviour to replicate; the port assigns the error status explicitly.
+2. Upstream reports open and I/O failures through `FileSystem::get_error_string`,
+   which yields FatFs error text. Reproducing that verbatim would mean porting the
+   FatFs error table for no test value, so the port maps failures onto the
+   documented DOS statuses: missing file to `"82,FILE NOT FOUND"`, everything else
+   to `"87,INTERNAL ERROR"`.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `sim6502tests/Systems/Ultimate/UltimateDosTargetFileTests.cs`:
+
+```csharp
+using System.Text;
+using FluentAssertions;
+using sim6502.Systems.Ultimate;
+using Xunit;
+
+namespace sim6502tests.Systems.Ultimate;
+
+public class UltimateDosTargetFileTests : IDisposable
+{
+    private readonly string _fixture;
+    private readonly UltimateFileSystem _fs;
+    private readonly UltimateDosTarget _dos;
+
+    private static readonly byte[] Payload =
+        Enumerable.Range(0, 1300).Select(i => (byte)(i & 0xFF)).ToArray();
+
+    public UltimateDosTargetFileTests()
+    {
+        _fixture = Path.Combine(Path.GetTempPath(), "u64sim-dosfile-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_fixture);
+        File.WriteAllText(Path.Combine(_fixture, "short.txt"), "hello");
+        File.WriteAllBytes(Path.Combine(_fixture, "big.bin"), Payload);
+
+        _fs = new UltimateFileSystem(_fixture);
+        _dos = new UltimateDosTarget(_fs);
+    }
+
+    public void Dispose()
+    {
+        _dos.Dispose();
+        if (Directory.Exists(_fixture)) Directory.Delete(_fixture, recursive: true);
+    }
+
+    private static byte[] Cmd(byte code, params byte[] rest)
+    {
+        var bytes = new List<byte> { 0x01, code };
+        bytes.AddRange(rest);
+        return bytes.ToArray();
+    }
+
+    private static byte[] OpenCmd(byte attributes, string name)
+    {
+        var bytes = new List<byte> { 0x01, UltimateDosTarget.CmdOpenFile, attributes };
+        bytes.AddRange(Encoding.ASCII.GetBytes(name));
+        return bytes.ToArray();
+    }
+
+    private static byte[] ReadCmd(int length) => Cmd(
+        UltimateDosTarget.CmdReadData, (byte)(length & 0xFF), (byte)((length >> 8) & 0xFF));
+
+    /// <summary>Drain a data-mode read across every continuation part.</summary>
+    private (byte[] Data, string FinalStatus) Drain(UciReply first)
+    {
+        var data = new List<byte>(first.Data);
+        var reply = first;
+        var guard = 0;
+        while (!reply.LastPart)
+        {
+            if (++guard > 64) throw new InvalidOperationException("data mode never terminated");
+            reply = _dos.GetMoreData();
+            data.AddRange(reply.Data);
+        }
+        return (data.ToArray(), reply.Status);
+    }
+
+    [Fact]
+    public void OpenFile_ForRead_Succeeds()
+    {
+        _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "short.txt"))
+            .Status.Should().Be("00,OK");
+    }
+
+    [Fact]
+    public void OpenFile_Missing_ReportsFileNotFound()
+    {
+        var reply = _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "nope.txt"));
+
+        reply.Status.Should().Be("82,FILE NOT FOUND");
+        reply.Data.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void OpenFile_OutsideTheMount_IsRejected()
+    {
+        _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "/SdCard/x.txt"))
+            .Status.Should().Be("82,FILE NOT FOUND");
+    }
+
+    [Fact]
+    public void OpenFile_CreateAlways_TruncatesAnExistingFile()
+    {
+        _dos.ParseCommand(OpenCmd(
+                (byte)(UltimateDosTarget.FileAttributeWrite | UltimateDosTarget.FileAttributeCreateAlways),
+                "short.txt"))
+            .Status.Should().Be("00,OK");
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdCloseFile)).Status.Should().Be("00,OK");
+
+        new FileInfo(_fs.ResolveToHostPath("short.txt")!).Length.Should().Be(0);
+    }
+
+    [Fact]
+    public void OpenFile_CreateNew_FailsWhenTheFileExists()
+    {
+        _dos.ParseCommand(OpenCmd(
+                (byte)(UltimateDosTarget.FileAttributeWrite | UltimateDosTarget.FileAttributeCreateNew),
+                "short.txt"))
+            .Status.Should().Be("87,INTERNAL ERROR");
+    }
+
+    [Fact]
+    public void OpenFile_CreateNew_MakesAFreshFile()
+    {
+        _dos.ParseCommand(OpenCmd(
+                (byte)(UltimateDosTarget.FileAttributeWrite | UltimateDosTarget.FileAttributeCreateNew),
+                "fresh.dat"))
+            .Status.Should().Be("00,OK");
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdCloseFile)).Status.Should().Be("00,OK");
+
+        File.Exists(_fs.ResolveToHostPath("fresh.dat")!).Should().BeTrue();
+    }
+
+    [Fact]
+    public void OpenFile_ReplacesAnAlreadyOpenFile()
+    {
+        _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "short.txt"));
+        _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "big.bin"))
+            .Status.Should().Be("00,OK");
+
+        var (data, _) = Drain(_dos.ParseCommand(ReadCmd(4)));
+        data.Should().Equal(Payload.Take(4));
+    }
+
+    [Fact]
+    public void CloseFile_WithNoOpenFile_ReportsNoFileToClose()
+    {
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdCloseFile))
+            .Status.Should().Be("84,NO FILE TO CLOSE");
+    }
+
+    [Fact]
+    public void CloseFile_Twice_ReportsNoFileToCloseTheSecondTime()
+    {
+        _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "short.txt"));
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdCloseFile)).Status.Should().Be("00,OK");
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdCloseFile))
+            .Status.Should().Be("84,NO FILE TO CLOSE");
+    }
+
+    [Fact]
+    public void ReadData_WithNoOpenFile_ReportsNoFileOpen()
+    {
+        var reply = _dos.ParseCommand(ReadCmd(16));
+
+        reply.Status.Should().Be("85,NO FILE OPEN");
+        reply.Data.Should().BeEmpty();
+        reply.LastPart.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ReadData_ShorterThanOneChunk_ArrivesInASinglePart()
+    {
+        _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "short.txt"));
+
+        var reply = _dos.ParseCommand(ReadCmd(5));
+
+        Encoding.ASCII.GetString(reply.Data).Should().Be("hello");
+        reply.LastPart.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ReadData_PastEndOfFile_StopsAtTheShortRead()
+    {
+        _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "short.txt"));
+
+        var (data, _) = Drain(_dos.ParseCommand(ReadCmd(100)));
+
+        Encoding.ASCII.GetString(data).Should().Be("hello");
+    }
+
+    [Fact]
+    public void ReadData_SpansChunksOf512Bytes()
+    {
+        _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "big.bin"));
+
+        var first = _dos.ParseCommand(ReadCmd(1300));
+        first.Data.Should().HaveCount(UltimateDosTarget.ReadChunkSize);
+        first.LastPart.Should().BeFalse();
+
+        var second = _dos.GetMoreData();
+        second.Data.Should().HaveCount(UltimateDosTarget.ReadChunkSize);
+        second.LastPart.Should().BeFalse();
+
+        var third = _dos.GetMoreData();
+        third.Data.Should().HaveCount(1300 - 2 * UltimateDosTarget.ReadChunkSize);
+        third.LastPart.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ReadData_ReturnsTheWholePayloadAcrossChunks()
+    {
+        _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "big.bin"));
+
+        var (data, _) = Drain(_dos.ParseCommand(ReadCmd(1300)));
+
+        data.Should().Equal(Payload);
+    }
+
+    [Fact]
+    public void ReadData_NonFinalChunks_CarryNoStatus()
+    {
+        _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "big.bin"));
+
+        _dos.ParseCommand(ReadCmd(1300)).Status.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ReadData_ZeroLength_IsAnImmediateLastPart()
+    {
+        _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "short.txt"));
+
+        var reply = _dos.ParseCommand(ReadCmd(0));
+
+        reply.Data.Should().BeEmpty();
+        reply.LastPart.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ReadData_AfterCompletion_LeavesDataMode()
+    {
+        _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "short.txt"));
+        Drain(_dos.ParseCommand(ReadCmd(5)));
+
+        _dos.GetMoreData().Status.Should().Be("81,NOT IN DATA MODE");
+    }
+
+    [Fact]
+    public void Abort_LeavesDataModeMidTransfer()
+    {
+        _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "big.bin"));
+        _dos.ParseCommand(ReadCmd(1300)).LastPart.Should().BeFalse();
+
+        _dos.Abort(UltimateDosTarget.ReadChunkSize);
+
+        _dos.GetMoreData().Status.Should().Be("81,NOT IN DATA MODE");
+    }
+
+    [Fact]
+    public void WriteData_WithNoOpenFile_ReportsNoFileOpen()
+    {
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdWriteData, 0x00, 0x00, 0x41))
+            .Status.Should().Be("85,NO FILE OPEN");
+    }
+
+    [Fact]
+    public void WriteData_SkipsTheTwoDummyBytes()
+    {
+        _dos.ParseCommand(OpenCmd(
+            (byte)(UltimateDosTarget.FileAttributeWrite | UltimateDosTarget.FileAttributeCreateAlways),
+            "out.dat"));
+
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdWriteData, 0xFF, 0xFF, 0x41, 0x42, 0x43))
+            .Status.Should().Be("00,OK");
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdCloseFile)).Status.Should().Be("00,OK");
+
+        File.ReadAllBytes(_fs.ResolveToHostPath("out.dat")!).Should().Equal(0x41, 0x42, 0x43);
+    }
+
+    [Fact]
+    public void WriteData_WithNoPayload_IsAcceptedAndWritesNothing()
+    {
+        _dos.ParseCommand(OpenCmd(
+            (byte)(UltimateDosTarget.FileAttributeWrite | UltimateDosTarget.FileAttributeCreateAlways),
+            "empty.dat"));
+
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdWriteData, 0x00, 0x00))
+            .Status.Should().Be("00,OK");
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdCloseFile));
+
+        new FileInfo(_fs.ResolveToHostPath("empty.dat")!).Length.Should().Be(0);
+    }
+
+    [Fact]
+    public void WriteThenReadBack_RoundTrips()
+    {
+        _dos.ParseCommand(OpenCmd(
+            (byte)(UltimateDosTarget.FileAttributeWrite | UltimateDosTarget.FileAttributeCreateAlways),
+            "round.dat"));
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdWriteData, 0x00, 0x00, 0xDE, 0xAD, 0xBE, 0xEF));
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdCloseFile));
+
+        _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "round.dat"));
+        var (data, _) = Drain(_dos.ParseCommand(ReadCmd(4)));
+
+        data.Should().Equal(0xDE, 0xAD, 0xBE, 0xEF);
+    }
+
+    [Fact]
+    public void FileSeek_WithNoOpenFile_ReportsNoFileOpen()
+    {
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdFileSeek, 0x00, 0x00, 0x00, 0x00))
+            .Status.Should().Be("85,NO FILE OPEN");
+    }
+
+    [Fact]
+    public void FileSeek_MovesTheReadPosition()
+    {
+        _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "big.bin"));
+
+        // 0x00000200 = 512, little-endian
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdFileSeek, 0x00, 0x02, 0x00, 0x00))
+            .Status.Should().Be("00,OK");
+
+        var (data, _) = Drain(_dos.ParseCommand(ReadCmd(4)));
+        data.Should().Equal(Payload.Skip(512).Take(4));
+    }
+
+    [Fact]
+    public void FileSeek_Is32BitLittleEndian()
+    {
+        _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "big.bin"));
+
+        // 0x00000004
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdFileSeek, 0x04, 0x00, 0x00, 0x00));
+        var (data, _) = Drain(_dos.ParseCommand(ReadCmd(2)));
+
+        data.Should().Equal(Payload[4], Payload[5]);
+    }
+
+    [Fact]
+    public void FileSeek_BeyondEndOfFile_ClampsToTheEnd()
+    {
+        _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "short.txt"));
+
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdFileSeek, 0xFF, 0x00, 0x00, 0x00))
+            .Status.Should().Be("00,OK");
+
+        _dos.ParseCommand(ReadCmd(4)).Data.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void FileSeek_TooShortACommand_ReportsAnError()
+    {
+        _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "short.txt"));
+
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdFileSeek, 0x00))
+            .Status.Should().Be("87,INTERNAL ERROR");
+    }
+
+    [Fact]
+    public void ResetState_ClosesTheOpenFileAndLeavesDataMode()
+    {
+        _dos.ParseCommand(OpenCmd(UltimateDosTarget.FileAttributeRead, "big.bin"));
+        _dos.ParseCommand(ReadCmd(1300));
+
+        _dos.ResetState();
+
+        _dos.GetMoreData().Status.Should().Be("81,NOT IN DATA MODE");
+        _dos.ParseCommand(Cmd(UltimateDosTarget.CmdCloseFile))
+            .Status.Should().Be("84,NO FILE TO CLOSE");
+    }
+}
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `dotnet test --filter "FullyQualifiedName~UltimateDosTargetFileTests"`
+Expected: FAIL — most tests fail with status `"21,UNKNOWN COMMAND"`, because the
+file commands are not yet in the switch.
+
+- [ ] **Step 3: Add the file command cases**
+
+In `UltimateDosTarget.ParseCommand`, add these five cases above the `_ =>` default:
+
+```csharp
+            CmdOpenFile  => OpenFile(command),
+            CmdCloseFile => CloseFile(),
+            CmdReadData  => BeginRead(command),
+            CmdWriteData => WriteData(command),
+            CmdFileSeek  => Seek(command),
+```
+
+- [ ] **Step 4: Add the file operation methods**
+
+Insert these into `UltimateDosTarget`, after `CreateDirectory`:
+
+```csharp
+    private UciReply OpenFile(byte[] command)
+    {
+        if (command.Length < 3)
+            return UciReply.Empty(StatusInternalError);
+
+        var attributes = command[2];
+        var name = ReadString(command, 3);
+
+        var host = _fileSystem.ResolveToHostPath(name);
+        if (host == null)
+        {
+            Logger.Warn($"DOS: open rejected for out-of-mount path '{name}'");
+            return UciReply.Empty(StatusFileNotFound);
+        }
+
+        // FatFs flag semantics: CREATE_ALWAYS truncates, CREATE_NEW must not exist,
+        // otherwise the file must already be there.
+        var mode = (attributes & FileAttributeCreateAlways) != 0 ? FileMode.Create
+                 : (attributes & FileAttributeCreateNew) != 0    ? FileMode.CreateNew
+                 : FileMode.Open;
+
+        var wantsWrite = (attributes & FileAttributeWrite) != 0;
+        var wantsRead  = (attributes & FileAttributeRead) != 0 || !wantsWrite;
+
+        var access = wantsRead && wantsWrite ? FileAccess.ReadWrite
+                   : wantsWrite              ? FileAccess.Write
+                   : FileAccess.Read;
+
+        // .NET forbids creating a file opened read-only; widen so the flag
+        // combination the C64 asked for still works.
+        if (mode != FileMode.Open && access == FileAccess.Read)
+            access = FileAccess.ReadWrite;
+
+        _file?.Dispose();
+        _file = null;
+        _state = DosState.Idle;
+
+        try
+        {
+            _file = new FileStream(host, mode, access);
+            return UciReply.Empty(UciConstants.StatusOk);
+        }
+        catch (FileNotFoundException)
+        {
+            return UciReply.Empty(StatusFileNotFound);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return UciReply.Empty(StatusNoSuchDirectory);
+        }
+        catch (Exception ex)
+        {
+            // Upstream surfaces FatFs error text here. Porting that table buys no
+            // test value, so failures map onto the documented DOS statuses.
+            Logger.Warn($"DOS: could not open '{name}': {ex.Message}");
+            return UciReply.Empty(StatusInternalError);
+        }
+    }
+
+    private UciReply CloseFile()
+    {
+        if (_file == null)
+            return UciReply.Empty(StatusNoFileToClose);
+
+        _file.Dispose();
+        _file = null;
+        _state = DosState.Idle;
+        return UciReply.Empty(UciConstants.StatusOk);
+    }
+
+    private UciReply BeginRead(byte[] command)
+    {
+        if (_file == null)
+            return UciReply.Empty(StatusNoFileOpen);
+
+        if (command.Length < 4)
+            return UciReply.Empty(StatusInternalError);
+
+        _remaining = (command[3] << 8) | command[2];
+        _state = DosState.InFile;
+        return GetMoreData();
+    }
+
+    private UciReply WriteData(byte[] command)
+    {
+        if (_file == null)
+            return UciReply.Empty(StatusNoFileOpen);
+
+        // Bytes 2 and 3 are dummies; the payload starts at byte 4.
+        var offset = 4;
+        var count = Math.Max(0, command.Length - offset);
+
+        try
+        {
+            if (count > 0)
+                _file.Write(command, offset, count);
+            _file.Flush();
+            return UciReply.Empty(UciConstants.StatusOk);
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn($"DOS: write of {count} bytes failed: {ex.Message}");
+            return UciReply.Empty(StatusInternalError);
+        }
+    }
+
+    private UciReply Seek(byte[] command)
+    {
+        if (_file == null)
+            return UciReply.Empty(StatusNoFileOpen);
+
+        if (command.Length < 6)
+            return UciReply.Empty(StatusInternalError);
+
+        var position = (long)command[2]
+                     | ((long)command[3] << 8)
+                     | ((long)command[4] << 16)
+                     | ((long)command[5] << 24);
+
+        try
+        {
+            // FatFs clamps a seek past the end on a read-only file rather than
+            // failing, so clamp here too.
+            _file.Position = Math.Min(position, _file.Length);
+            return UciReply.Empty(UciConstants.StatusOk);
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn($"DOS: seek to {position} failed: {ex.Message}");
+            return UciReply.Empty(StatusInternalError);
+        }
+    }
+
+    private UciReply ReadNextChunk()
+    {
+        var length = Math.Min(_remaining, ReadChunkSize);
+        var buffer = new byte[length];
+        int transferred;
+
+        try
+        {
+            transferred = length == 0 ? 0 : _file!.Read(buffer, 0, length);
+        }
+        catch (Exception ex)
+        {
+            // dos.cc leaves *status unassigned on this path — an upstream defect.
+            // Assign the error status explicitly instead.
+            Logger.Warn($"DOS: read failed: {ex.Message}");
+            _state = DosState.Idle;
+            return UciReply.Empty(StatusInternalError);
+        }
+
+        _remaining -= transferred;
+
+        var lastPart = transferred != length || _remaining == 0;
+        if (lastPart)
+            _state = DosState.Idle;
+
+        var data = transferred == length ? buffer : buffer[..transferred];
+        return new UciReply(data, UciConstants.StatusEmpty, lastPart);
+    }
+```
+
+- [ ] **Step 5: Add the `InFile` branch to `GetMoreData`**
+
+Replace the `switch (_state)` body in `GetMoreData` with:
+
+```csharp
+        switch (_state)
+        {
+            case DosState.Idle:
+                Logger.Debug("DOS: more data requested while idle");
+                return UciReply.Empty(StatusNotInDataMode);
+
+            case DosState.InFile:
+                return ReadNextChunk();
+
+            default:
+                Logger.Warn($"DOS: unhandled data-mode state {_state}");
+                _state = DosState.Idle;
+                return UciReply.Empty(StatusInternalError);
+        }
+```
+
+- [ ] **Step 6: Run test to verify it passes**
+
+Run: `dotnet test --filter "FullyQualifiedName~UltimateDosTargetFileTests"`
+Expected: PASS — 27 passed.
+
+- [ ] **Step 7: Check the navigation tests still pass**
+
+Run: `dotnet test --filter "FullyQualifiedName~UltimateDosTarget"`
+Expected: PASS — 45 passed across both files.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add sim6502/Systems/Ultimate/UltimateDosTarget.cs \
+        sim6502tests/Systems/Ultimate/UltimateDosTargetFileTests.cs
+git commit -m "feat(ultimate): Ultimate DOS file open, read, write, seek, and close
+
+READ_DATA chunks at 512 bytes through the DATA_MORE path and ends on a short
+read or an exhausted length, matching dos.cc get_more_data. Two documented
+deviations: the error status on a failed read is assigned explicitly rather
+than left as upstream's unassigned pointer, and FatFs error text is mapped
+onto the documented DOS statuses."
+```
+
+---
+
 ## Remaining tasks
 
-Tasks 6-14 follow the same shape. They are listed here with their file sets,
-interfaces, and the behaviour each must pin, and will be expanded to full
-step-by-step form before execution reaches them.
-
-### Task 6: `UltimateFileSystem`
-
-**Files:** create `sim6502/Systems/Ultimate/UltimateFileSystem.cs`; test
-`sim6502tests/Systems/Ultimate/UltimateFileSystemTests.cs`.
-
-**Produces:** `sealed class UltimateFileSystem : IDisposable` with
-`UltimateFileSystem(string hostRoot, string mountName = "Usb0")`,
-`string CurrentPath { get; }`, `bool ChangeDirectory(string path)`,
-`string? ResolveToHostPath(string ultimatePath)`,
-`IReadOnlyList<UltimateDirEntry> ListCurrentDirectory()`, and
-`readonly record struct UltimateDirEntry(string Name, byte Attributes, long Size, DateTime Modified)`.
-
-Must pin: the fixture tree is copied to a temp directory at construction and
-deleted on dispose, so tests never mutate fixtures; symlinks are **not** copied
-(removing the symlink escape surface entirely) and a warning is logged for each
-one skipped; `ResolveToHostPath` returns null for any path that escapes the root,
-verified by canonicalising with `Path.GetFullPath` and checking the root prefix,
-never by inspecting the input string; `..` at the root is a no-op rather than an
-escape; `CurrentPath` starts at `/Usb0`; directory attribute is `0x10`, file
-attribute `0x20`.
-
-### Task 7: `UltimateDosTarget` — identity, navigation, echo
-
-**Files:** create `sim6502/Systems/Ultimate/UltimateDosTarget.cs`; test
-`sim6502tests/Systems/Ultimate/UltimateDosTargetNavigationTests.cs`.
-
-**Produces:** `sealed class UltimateDosTarget : ICommandTarget` with
-`UltimateDosTarget(UltimateFileSystem fs, string version = "ULTIMATE-II DOS V1.2")`.
-
-Commands: `IDENTIFY 0x01`, `CHANGE_DIR 0x11`, `GET_PATH 0x12`,
-`CREATE_DIR 0x16`, `ECHO 0xF0`, plus the unknown-command fallback.
-Status strings verbatim: `"00,OK"`, `"83,NO SUCH DIRECTORY"`,
-`"21,UNKNOWN COMMAND"`. `CHANGE_DIR` restores the previous path on failure.
-`ECHO` replies with the whole command including bytes 0 and 1.
-
-### Task 8: `UltimateDosTarget` — file open, read, write, seek, close
-
-**Files:** modify `UltimateDosTarget.cs`; test
-`sim6502tests/Systems/Ultimate/UltimateDosTargetFileTests.cs`.
-
-Commands: `OPEN_FILE 0x02` (attribute at byte 2, filename from byte 3;
-`FA_READ 0x01`, `FA_WRITE 0x02`, `FA_CREATE_NEW 0x04`, `FA_CREATE_ALWAYS 0x08`),
-`CLOSE_FILE 0x03`, `READ_DATA 0x04` (length little-endian at bytes 2-3, 512-byte
-chunks via `GetMoreData`, `LastPart` when a short read occurs or `remaining`
-reaches zero, status `""` on every successful chunk), `WRITE_DATA 0x05` (payload
-from byte 4; bytes 2 and 3 are dummies), `FILE_SEEK 0x06` (little-endian 32-bit
-position at bytes 2-5).
-
-Deliberate deviation to record in the code: `dos.cc get_more_data` assigns
-`*status` only on the success path, leaving it unset when a read fails. That is an
-uninitialised-pointer read upstream; the port assigns the error status explicitly.
+Tasks 9-14 are listed with their file sets, interfaces, and the behaviour each
+must pin, pending expansion to full step-by-step form.
 
 ### Task 9: `UltimateDosTarget` — info, stat, delete, rename, copy, directory listing
 
