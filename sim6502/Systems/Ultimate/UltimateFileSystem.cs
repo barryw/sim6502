@@ -25,9 +25,17 @@ public readonly record struct UltimateDirEntry(
 ///
 /// The host tree is copied to a temporary directory at construction and the copy
 /// is deleted on dispose, so tests operate on throwaway state and fixture files
-/// are never mutated. Symlinks are not copied, so there is no way to follow one
-/// out of the working tree. Every path is canonicalised and prefix checked against
-/// the working root before it is handed back, so <c>..</c> cannot climb out either.
+/// are never mutated. Every path is canonicalised and prefix checked against the
+/// working root before it is handed back, so <c>..</c> cannot climb out.
+///
+/// Symlinks present in the host fixture tree are not copied into the working
+/// copy, so the copy starts link-free. The containment check itself is lexical:
+/// <see cref="Path.GetFullPath(string)"/> canonicalises <c>.</c> and <c>..</c>
+/// but does not resolve symlinks, so a link created inside the working copy
+/// after construction would be followed straight out of it. The working copy is
+/// therefore assumed to remain link-free — nothing in the current command set
+/// can create one; a future task that adds link creation must add a physical
+/// resolve check before returning a path.
 /// </summary>
 public sealed class UltimateFileSystem : IDisposable
 {
@@ -175,8 +183,6 @@ public sealed class UltimateFileSystem : IDisposable
                     segments.RemoveAt(segments.Count - 1);
                 continue; // at the root this is a no-op, not an escape
             }
-
-            if (segment.Contains('\0')) { segments.Clear(); return false; }
 
             segments.Add(segment);
         }

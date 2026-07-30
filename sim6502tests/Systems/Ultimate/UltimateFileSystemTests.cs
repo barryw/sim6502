@@ -48,12 +48,15 @@ public class UltimateFileSystemTests : IDisposable
     public void Dispose_RemovesTheWorkingCopy()
     {
         string host;
+        string root;
         using (var fs = NewFs())
         {
+            root = fs.WorkingRoot;
             host = fs.ResolveToHostPath("hello.txt")!;
             File.Exists(host).Should().BeTrue();
         }
         File.Exists(host).Should().BeFalse();
+        Directory.Exists(root).Should().BeFalse();
     }
 
     [Fact]
@@ -156,6 +159,12 @@ public class UltimateFileSystemTests : IDisposable
             : fs.WorkingRoot + Path.DirectorySeparatorChar;
         (canonical == fs.WorkingRoot || canonical.StartsWith(rootWithSeparator, StringComparison.Ordinal))
             .Should().BeTrue($"'{canonical}' must not escape the working root '{fs.WorkingRoot}'");
+
+        // The general containment property above holds even for a buggy
+        // implementation that always returns null. Pin the documented, specific
+        // outcome for these three inputs too: under chroot-style absorption of an
+        // underflowing "..", all three resolve to exactly the same place.
+        canonical.Should().Be(Path.Combine(fs.WorkingRoot, "etc", "passwd"));
     }
 
     [Fact]
@@ -256,9 +265,19 @@ public class UltimateFileSystemTests : IDisposable
                 File.CreateSymbolicLink(Path.Combine(_fixture, "escape.txt"),
                                         Path.Combine(outside, "secret.txt"));
             }
-            catch (Exception)
+            catch (Exception ex)
+                when ((ex is IOException or UnauthorizedAccessException) && OperatingSystem.IsWindows())
             {
-                return; // platform forbids symlink creation; nothing to assert
+                // ponytail: xunit 2.9.3 has no Assert.Skip (dynamic skip landed in
+                // xunit v3), so there is no way to mark this "skipped" instead of
+                // "passed" without a runner upgrade. Windows can legitimately lack
+                // symlink privilege (no Developer Mode, no elevation); every other
+                // platform always permits symlink creation, so failures there are
+                // a real environment problem and must fail loudly, not disappear.
+                Console.WriteLine(
+                    "SKIPPED Symlinks_AreNotCopiedIntoTheWorkingTree: no symlink " +
+                    "privilege on this Windows host — the copy-time guard was not exercised.");
+                return;
             }
 
             using var fs = NewFs();
@@ -269,5 +288,48 @@ public class UltimateFileSystemTests : IDisposable
         {
             Directory.Delete(outside, recursive: true);
         }
+    }
+
+    [Fact]
+    public void Symlinks_SymlinkedDirectory_IsNotCopiedIntoTheWorkingTree()
+    {
+        var outside = Path.Combine(Path.GetTempPath(), "u64sim-outside-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outside);
+        File.WriteAllText(Path.Combine(outside, "secret.txt"), "secret");
+        try
+        {
+            try
+            {
+                Directory.CreateSymbolicLink(Path.Combine(_fixture, "escape-dir"), outside);
+            }
+            catch (Exception ex)
+                when ((ex is IOException or UnauthorizedAccessException) && OperatingSystem.IsWindows())
+            {
+                // See Symlinks_AreNotCopiedIntoTheWorkingTree for why this skip is
+                // Windows-only and logged rather than silent.
+                Console.WriteLine(
+                    "SKIPPED Symlinks_SymlinkedDirectory_IsNotCopiedIntoTheWorkingTree: " +
+                    "no symlink privilege on this Windows host — the copy-time guard was not exercised.");
+                return;
+            }
+
+            using var fs = NewFs();
+            Directory.Exists(Path.Combine(fs.WorkingRoot, "escape-dir")).Should().BeFalse();
+            fs.ListCurrentDirectory().Select(e => e.Name).Should().NotContain("escape-dir");
+        }
+        finally
+        {
+            Directory.Delete(outside, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Constructor_NullOrWhitespaceHostRoot_Throws(string? hostRoot)
+    {
+        var act = () => new UltimateFileSystem(hostRoot!);
+        act.Should().Throw<ArgumentException>();
     }
 }
