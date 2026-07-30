@@ -1,0 +1,85 @@
+; Ultimate 64 feature tests against the simulated UCI and Ultimate DOS.
+;
+; Run with:
+;   dotnet run --project sim6502 -- --suitefile example/ultimate.suite \
+;     --backend u64sim --u64sim-fs-root sim6502tests/Fixtures/usb0
+;
+; Every uci() call here runs host-side, so no assembled program is needed.
+
+suites {
+  suite("ultimate dos through the UCI") {
+    system(c64)
+    ultimate(fs_root = "sim6502tests/Fixtures/usb0")
+
+    test("dos-identify", "the DOS target reports its version") {
+      uci($01, $01)
+      assert(uci_status("00,OK"), "IDENTIFY succeeded")
+      assert(uci_data(0) == $55, "response starts with 'U'")
+      assert(uci_data(1) == $4c, "second byte is 'L'")
+    }
+
+    test("dos-change-directory", "changing into an existing directory succeeds") {
+      uci($01, $11, "/Usb0/data")
+      assert(uci_status("00,OK"), "chdir to /Usb0/data succeeded")
+
+      uci($01, $12)
+      assert(uci_status("00,OK"), "GET_PATH succeeded")
+      assert(uci_data(0) == $2f, "path starts with '/'")
+    }
+
+    test("dos-change-directory-missing", "a missing directory is reported, not ignored") {
+      uci($01, $11, "/Usb0/nowhere")
+      assert(uci_status("83,NO SUCH DIRECTORY"), "chdir to a missing directory failed")
+    }
+
+    test("dos-open-and-read", "a file opens and its first bytes read back") {
+      uci($01, $11, "/Usb0/data")
+      assert(uci_status("00,OK"), "chdir succeeded")
+
+      uci($01, $02, $01, "hello.txt")
+      assert(uci_status("00,OK"), "OPEN_FILE succeeded")
+
+      uci($01, $04, $0f, $00)
+      assert(uci_data(0) == $48, "first byte is 'H'")
+      assert(uci_data(1) == $45, "second byte is 'E'")
+
+      uci($01, $03)
+      assert(uci_status("00,OK"), "CLOSE_FILE succeeded")
+    }
+
+    test("dos-open-missing", "opening a missing file is reported") {
+      uci($01, $02, $01, "no-such-file.prg")
+      assert(uci_status("82,FILE NOT FOUND"), "OPEN_FILE on a missing file failed")
+    }
+
+    test("dos-echo", "ECHO returns the command it was given") {
+      uci($01, $f0, $de, $ad)
+      assert(uci_status("00,OK"), "ECHO succeeded")
+      assert(uci_data(0) == $01, "echo includes the target byte")
+      assert(uci_data(1) == $f0, "echo includes the command byte")
+      assert(uci_data(2) == $de, "echo includes the payload")
+    }
+
+    test("control-identify", "the control target answers on $04") {
+      uci($04, $01)
+      assert(uci_status("00,OK"), "control IDENTIFY succeeded")
+      assert(uci_data(0) == $43, "response starts with 'C'")
+    }
+
+    test("control-reu-absent", "REU commands report the REU is not enabled") {
+      uci($04, $08, "image.reu")
+      assert(uci_status("84,REU NOT ENABLED"), "LOAD_REU reports no REU")
+    }
+
+    test("unknown-target", "an unpopulated target identifies as NO TARGET") {
+      uci($07, $01)
+      assert(uci_status("00,OK"), "IDENTIFY on an empty target still answers")
+      assert(uci_data(0) == $4e, "response starts with 'N' for NO TARGET")
+    }
+
+    test("unknown-command", "a nonsense command is rejected") {
+      uci($01, $7e)
+      assert(uci_status("21,UNKNOWN COMMAND"), "unknown DOS command rejected")
+    }
+  }
+}

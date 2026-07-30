@@ -66,4 +66,26 @@ public class IntegrationSuiteParseTests
     [Fact] public void DmaSuite_ParsesWithoutErrors() => AssertParses("dma.6502");
     [Fact] public void FileIoSuite_ParsesWithoutErrors() => AssertParses("fileio.6502");
     [Fact] public void SidSuite_ParsesWithoutErrors() => AssertParses("sid.6502");
+
+    [Fact]
+    public void UltimateSuite_Parses()
+    {
+        var path = Path.Combine("../../../../example", "ultimate.suite");
+        File.Exists(path).Should().BeTrue($"expected the example suite at '{path}'");
+
+        var collector = new ErrorCollector();
+        var source = File.ReadAllText(path);
+        collector.SetSource(source, path);
+
+        var lexer = new sim6502Lexer(new AntlrInputStream(source));
+        lexer.RemoveErrorListeners();
+        lexer.AddErrorListener(new SimErrorListener(collector));
+
+        var parser = new sim6502Parser(new CommonTokenStream(lexer)) { BuildParseTree = true };
+        parser.RemoveErrorListeners();
+        parser.AddErrorListener(new SimErrorListener(collector));
+        parser.suites();
+
+        collector.HasErrors.Should().BeFalse();
+    }
 }
