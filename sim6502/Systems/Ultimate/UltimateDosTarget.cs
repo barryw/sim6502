@@ -115,6 +115,21 @@ public sealed class UltimateDosTarget : ICommandTarget, IDisposable
             CmdWriteData => WriteData(command),
             CmdFileSeek  => Seek(command),
 
+            CmdFileInfo   => OpenFileInfo(),
+            CmdFileStat   => FileStat(ReadString(command, 2)),
+            CmdDeleteFile => Delete(ReadString(command, 2)),
+            CmdRenameFile => RenameOrCopy(command, copy: false),
+            CmdCopyFile   => RenameOrCopy(command, copy: true),
+            CmdOpenDir    => OpenDirectory(),
+            CmdReadDir    => BeginReadDirectory(),
+
+            // Recognised commands deferred to a later milestone. Answering
+            // "not implemented" rather than "unknown command" keeps the gap
+            // visible instead of looking like a malformed request.
+            CmdCopyUiPath or CmdCopyHomePath or CmdLoadReu or CmdSaveReu or
+            CmdMountDisk or CmdUnmountDisk or CmdSwapDisk or CmdGetTime or CmdSetTime
+                => UciReply.Empty(StatusNotImplemented),
+
             _ => UciReply.Empty(UciConstants.StatusUnknownCommand)
         };
     }
@@ -129,6 +144,9 @@ public sealed class UltimateDosTarget : ICommandTarget, IDisposable
 
             case DosState.InFile:
                 return ReadNextChunk();
+
+            case DosState.InDirectory:
+                return NextDirectoryEntry();
 
             default:
                 Logger.Warn($"DOS: unhandled data-mode state {_state}");
@@ -347,6 +365,210 @@ public sealed class UltimateDosTarget : ICommandTarget, IDisposable
 
         var data = transferred == length ? buffer : buffer[..transferred];
         return new UciReply(data, UciConstants.StatusEmpty, lastPart);
+    }
+
+    /// <summary>FAT packed date: year since 1980 in bits 15-9, month 8-5, day 4-0.</summary>
+    internal static ushort FatDate(DateTime when)
+    {
+        if (when.Year < 1980) return 0;
+        return (ushort)(((when.Year - 1980) << 9) | (when.Month << 5) | when.Day);
+    }
+
+    /// <summary>FAT packed time: hour in bits 15-11, minute 10-5, two-second units 4-0.</summary>
+    internal static ushort FatTime(DateTime when)
+        => (ushort)((when.Hour << 11) | (when.Minute << 5) | (when.Second / 2));
+
+    /// <summary>
+    /// Build the t_dos_info reply: size, FAT date and time, space-padded three
+    /// character extension, attribute, then the name with no terminator.
+    /// </summary>
+    private static byte[] BuildInfo(string name, long size, byte attributes, DateTime modified)
+    {
+        var nameBytes = Encoding.ASCII.GetBytes(name);
+        var data = new byte[12 + nameBytes.Length];
+
+        BitConverter.TryWriteBytes(data.AsSpan(0, 4), (uint)Math.Min(size, uint.MaxValue));
+        BitConverter.TryWriteBytes(data.AsSpan(4, 2), FatDate(modified));
+        BitConverter.TryWriteBytes(data.AsSpan(6, 2), FatTime(modified));
+
+        data[8] = data[9] = data[10] = (byte)' ';
+        var extension = Path.GetExtension(name);
+        if (extension.StartsWith('.')) extension = extension[1..];
+        extension = extension.ToUpperInvariant();
+        for (var i = 0; i < Math.Min(3, extension.Length); i++)
+            data[8 + i] = (byte)extension[i];
+
+        data[11] = attributes;
+        Array.Copy(nameBytes, 0, data, 12, nameBytes.Length);
+        return data;
+    }
+
+    private UciReply FileStat(string name)
+    {
+        var host = _fileSystem.ResolveToHostPath(name);
+        if (host == null)
+            return UciReply.Empty(StatusFileNotFound);
+
+        var leaf = Path.GetFileName(host);
+
+        if (Directory.Exists(host))
+        {
+            var info = new DirectoryInfo(host);
+            return UciReply.Ok(BuildInfo(
+                leaf, 0, UltimateFileSystem.AttributeDirectory, info.LastWriteTime));
+        }
+
+        if (File.Exists(host))
+        {
+            var info = new FileInfo(host);
+            return UciReply.Ok(BuildInfo(
+                leaf, info.Length, UltimateFileSystem.AttributeArchive, info.LastWriteTime));
+        }
+
+        return UciReply.Empty(StatusFileNotFound);
+    }
+
+    // Named OpenFileInfo, not FileInfo: a method called FileInfo would shadow the
+    // System.IO.FileInfo type inside this class and break every use of it below.
+    private UciReply OpenFileInfo()
+    {
+        if (_file == null)
+            return UciReply.Empty(StatusNoFileOpen);
+
+        try
+        {
+            var info = new FileInfo(_file.Name);
+            return UciReply.Ok(BuildInfo(
+                info.Name, info.Length, UltimateFileSystem.AttributeArchive, info.LastWriteTime));
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn($"DOS: could not stat the open file: {ex.Message}");
+            return UciReply.Empty(StatusFileNotFound);
+        }
+    }
+
+    private UciReply Delete(string name)
+    {
+        var host = _fileSystem.ResolveToHostPath(name);
+        if (host == null)
+            return UciReply.Empty(StatusFileNotFound);
+
+        try
+        {
+            if (File.Exists(host))
+            {
+                File.Delete(host);
+                return UciReply.Empty(UciConstants.StatusOk);
+            }
+
+            if (Directory.Exists(host))
+            {
+                // Non-recursive, matching f_unlink: a populated directory fails.
+                Directory.Delete(host, recursive: false);
+                return UciReply.Empty(UciConstants.StatusOk);
+            }
+
+            return UciReply.Empty(StatusFileNotFound);
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn($"DOS: could not delete '{name}': {ex.Message}");
+            return UciReply.Empty(StatusInternalError);
+        }
+    }
+
+    /// <summary>
+    /// RENAME_FILE and COPY_FILE share a wire format: the source name at byte 2,
+    /// a NUL, then the destination name.
+    /// </summary>
+    private UciReply RenameOrCopy(byte[] command, bool copy)
+    {
+        var source = ReadString(command, 2);
+        var separator = 2 + source.Length;
+
+        if (separator >= command.Length)
+        {
+            Logger.Warn("DOS: rename/copy command carries no destination name");
+            return UciReply.Empty(StatusInternalError);
+        }
+
+        var destination = ReadString(command, separator + 1);
+        if (destination.Length == 0)
+            return UciReply.Empty(StatusInternalError);
+
+        var sourceHost = _fileSystem.ResolveToHostPath(source);
+        if (sourceHost == null || (!File.Exists(sourceHost) && !Directory.Exists(sourceHost)))
+            return UciReply.Empty(StatusFileNotFound);
+
+        var destinationHost = _fileSystem.ResolveToHostPath(destination);
+        if (destinationHost == null)
+        {
+            Logger.Warn($"DOS: rename/copy destination '{destination}' is outside the mount");
+            return UciReply.Empty(StatusInternalError);
+        }
+
+        if (File.Exists(destinationHost) || Directory.Exists(destinationHost))
+            return UciReply.Empty(StatusInternalError);
+
+        try
+        {
+            if (copy) File.Copy(sourceHost, destinationHost);
+            else if (Directory.Exists(sourceHost)) Directory.Move(sourceHost, destinationHost);
+            else File.Move(sourceHost, destinationHost);
+
+            return UciReply.Empty(UciConstants.StatusOk);
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn($"DOS: {(copy ? "copy" : "rename")} of '{source}' failed: {ex.Message}");
+            return UciReply.Empty(StatusInternalError);
+        }
+    }
+
+    private UciReply OpenDirectory()
+    {
+        _directory = _fileSystem.ListCurrentDirectory();
+        _directoryIndex = 0;
+
+        return UciReply.Empty(_directory.Count == 0
+            ? StatusDirectoryEmpty
+            : UciConstants.StatusOk);
+    }
+
+    private UciReply BeginReadDirectory()
+    {
+        if (_directory.Count == 0)
+        {
+            Logger.Debug("DOS: READ_DIR without a preceding OPEN_DIR");
+            return UciReply.Empty(StatusCannotReadDir);
+        }
+
+        _directoryIndex = 0;
+        _state = DosState.InDirectory;
+        return GetMoreData();
+    }
+
+    private UciReply NextDirectoryEntry()
+    {
+        if (_directoryIndex >= _directory.Count)
+        {
+            _state = DosState.Idle;
+            return UciReply.Empty(StatusInternalError);
+        }
+
+        var entry = _directory[_directoryIndex++];
+        var nameBytes = Encoding.ASCII.GetBytes(entry.Name);
+
+        var data = new byte[1 + nameBytes.Length];
+        data[0] = entry.Attributes;
+        Array.Copy(nameBytes, 0, data, 1, nameBytes.Length);
+
+        var lastPart = _directoryIndex >= _directory.Count;
+        if (lastPart)
+            _state = DosState.Idle;
+
+        return new UciReply(data, lastPart ? UciConstants.StatusOk : UciConstants.StatusEmpty, lastPart);
     }
 
     /// <summary>
