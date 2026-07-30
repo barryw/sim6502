@@ -196,7 +196,7 @@ public class NovaVmListenerTests
           suite("Basic Test") {
             test("basic-cmd", "sends text") {
               basic("10 PRINT X")
-              ; Need a run() to satisfy _didJsr
+              ; Need a run() to satisfy the executed-something guard
               run()
             }
           }
