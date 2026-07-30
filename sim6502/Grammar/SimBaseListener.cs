@@ -145,8 +145,9 @@ namespace sim6502.Grammar
 
         public int TotalSuitesFailed { get; set; } = 0;
 
-        // Make sure we do a JSR during test
-        private bool _didJsr;
+        // A test must actually execute something. Set by jsr(), basic(), run() and
+        // uci() — not just by jsr(), despite what the old name suggested.
+        private bool _didExecute;
 
         // Store the setup block context for execution before each test
         private sim6502Parser.SetupBlockContext _currentSetupBlock;
@@ -196,7 +197,7 @@ namespace sim6502.Grammar
         private void ResetTest()
         {
             _testFailureMessages.Clear();
-            _didJsr = false;
+            _didExecute = false;
             _currentTestSkipped = false;
             _currentTestExplicitlySkipped = false;
             _currentTestTraceEnabled = false;
@@ -1057,10 +1058,13 @@ namespace sim6502.Grammar
                 return;
             }
 
-            // Check for JSR only if test was not skipped
-            if (!_didJsr)
+            // A test that executes nothing asserts nothing meaningful. Only checked
+            // when the test was not skipped.
+            if (!_didExecute)
             {
-                FailAssertion("No JSR encountered. Make sure you call the jsr function in this test!");
+                FailAssertion(
+                    "This test never executed anything. Call jsr(), or one of basic(), " +
+                    "run() or uci(), depending on your backend.");
             }
 
             if (TestPassed)
@@ -1180,7 +1184,7 @@ namespace sim6502.Grammar
                 FailAssertion($"JSR call to {address.ToString()} returned an error.");
             }
 
-            _didJsr = true;
+            _didExecute = true;
         }
 
         public override void ExitStopOn(sim6502Parser.StopOnContext context)
@@ -1360,7 +1364,7 @@ namespace sim6502.Grammar
             // screen, so error checking there catches both program failures
             // and immediate-mode failures by the time RUN completes.)
 
-            _didJsr = true;
+            _didExecute = true;
         }
 
         public override void ExitRunFunction(sim6502Parser.RunFunctionContext context)
@@ -1399,7 +1403,7 @@ namespace sim6502.Grammar
             // ("X Error in line N") and immediate-mode failures ("X Error").
             CheckScreenForBasicErrors(lastScreen, "run()");
 
-            _didJsr = true;
+            _didExecute = true;
         }
 
         public override void ExitWaitReadyFunction(sim6502Parser.WaitReadyFunctionContext context)
@@ -1601,6 +1605,12 @@ namespace sim6502.Grammar
             _lastUciStatus = status;
             _lastUciData = data;
             _uciCalled = true;
+
+            // A uci() call is the test doing real work, so it satisfies the
+            // "test executed something" guard the same way jsr() and run() do.
+            // Without this, a suite that drives the Ultimate purely from the host
+            // — which is the whole point of uci() — fails every test.
+            _didExecute = true;
         }
 
         public override void ExitUciStatusCheck(sim6502Parser.UciStatusCheckContext context)
