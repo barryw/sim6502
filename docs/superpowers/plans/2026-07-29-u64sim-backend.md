@@ -1944,10 +1944,35 @@ public class UltimateFileSystemTests : IDisposable
         using var fs = NewFs();
         var host = fs.ResolveToHostPath(attempt);
 
-        // Either rejected outright, or clamped to somewhere inside the working root.
-        if (host != null)
-            host.Should().StartWith(fs.WorkingRoot);
-        host.Should().NotContain("etc" + Path.DirectorySeparatorChar + "passwd");
+        // The security property is "cannot name anything outside the root", not
+        // "cannot echo the caller's leaf names". A `..` at the root is absorbed and
+        // the rest resolves normally, so this lands on WorkingRoot/etc/passwd —
+        // inside the sandbox, non-existent, so an open of it fails cleanly. That is
+        // the correct outcome. Asserting the absence of a substring like
+        // "etc/passwd" would be blacklist thinking, and it would reject this safe
+        // result while doing nothing to stop a real escape.
+        if (host == null) return;   // rejected outright is also fine
+
+        var canonical = Path.GetFullPath(host);
+        var rootWithSeparator = fs.WorkingRoot.EndsWith(Path.DirectorySeparatorChar)
+            ? fs.WorkingRoot
+            : fs.WorkingRoot + Path.DirectorySeparatorChar;
+
+        (canonical == fs.WorkingRoot || canonical.StartsWith(rootWithSeparator, StringComparison.Ordinal))
+            .Should().BeTrue($"'{attempt}' resolved to '{canonical}', which is outside the mount");
+    }
+
+    [Fact]
+    public void ResolveToHostPath_DotDotAtRoot_StillResolvesTheRestOfThePath()
+    {
+        // Regression guard. An earlier attempt satisfied the old substring assertion
+        // by discarding every segment after a `..` that underflowed at the root,
+        // which made this return the root instead of the file.
+        using var fs = NewFs();
+        var host = fs.ResolveToHostPath("../data/bytes.bin");
+
+        host.Should().NotBeNull();
+        File.ReadAllBytes(host!).Should().Equal(1, 2, 3, 4);
     }
 
     [Fact]
