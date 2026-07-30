@@ -19,6 +19,19 @@ steps:
     commands:
       - dotnet run --project sim6502 -c Release --no-build -- --suitefile example/ultimate.suite --backend u64sim
 
+  - name: grammar-sync
+    image: eclipse-temurin:21-jdk
+    commands:
+      - apt-get update -qq && apt-get install -y -qq make git > /dev/null
+      - git config --global --add safe.directory "$CI_WORKSPACE"
+      - make grammar
+      - |
+        if ! git diff --exit-code sim6502/Grammar/Generated/; then
+          echo "ERROR: sim6502/Grammar/Generated/ is out of sync with sim6502/Grammar/sim6502.g4"
+          echo "Run 'make grammar' locally and commit the regenerated files."
+          exit 1
+        fi
+
   - name: release
     image: alpine
     when:
@@ -57,7 +70,7 @@ steps:
         fi
         gh release create "$VERSION" --title "$VERSION" --notes "$NOTES"
         echo "$${VERSION#v}" > "$CI_WORKSPACE/VERSION"
-    depends_on: [build-and-test, example-suite]
+    depends_on: [build-and-test, example-suite, grammar-sync]
 
   - name: build-binaries
     image: mcr.microsoft.com/dotnet/sdk:10.0
