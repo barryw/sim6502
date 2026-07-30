@@ -1,9 +1,13 @@
 .PHONY: grammar build test clean publish publish-all publish-clean
 
+# -visitor is required: sim6502-lsp/Server/DiagnosticsProvider.cs derives from
+# sim6502BaseVisitor, and without the flag ANTLR does not emit it.
+# No -package: the namespace comes from the @header block in sim6502.g4, and
+# passing both emits it twice, which does not compile.
 grammar:
 	cd sim6502/Grammar && \
-	java -jar ../../dependencies/antlr-4.13.1-complete.jar -Dlanguage=CSharp -listener \
-		-o Generated -package sim6502.Grammar.Generated sim6502.g4 && \
+	java -jar ../../dependencies/antlr-4.13.1-complete.jar -Dlanguage=CSharp -listener -visitor \
+		-o Generated sim6502.g4 && \
 	cd ../..
 
 build: grammar

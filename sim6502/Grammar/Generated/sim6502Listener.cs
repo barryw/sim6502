@@ -19,6 +19,7 @@
 // Ambiguous reference in cref attribute
 #pragma warning disable 419
 
+
 namespace sim6502.Grammar.Generated;
 
 using Antlr4.Runtime.Misc;
