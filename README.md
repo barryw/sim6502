@@ -1747,9 +1747,37 @@ dotnet run --project sim6502 -- --suitefile example/ultimate.suite --backend u64
 | `uci_status("00,OK")` | True when the last `uci()` call's status matches. Failure reports the actual status. |
 | `uci_data(n)` | Byte `n` of the last `uci()` call's response data. |
 
-Your own 6502 code drives `$DF1C-$DF1F` directly and needs no DSL support — the
-backend answers as the Ultimate would, and you assert on memory and registers as
-usual.
+**Walkthrough: reading a file through Ultimate DOS.** `sim6502tests/Fixtures/usb0/`
+is a real fixture directory containing `data/hello.txt`. The suite below changes
+into that directory, opens the file, reads its first bytes, and closes it —
+`chdir` → `open` → `read` → `close`, the same sequence real Ultimate DOS client
+code follows:
+
+```
+test("dos-open-and-read", "a file opens and its first bytes read back") {
+  uci($01, $11, "/Usb0/data")             ; CHANGE_DIR
+  assert(uci_status("00,OK"), "chdir succeeded")
+
+  uci($01, $02, $01, "hello.txt")         ; OPEN_FILE, attribute $01 = read
+  assert(uci_status("00,OK"), "OPEN_FILE succeeded")
+
+  uci($01, $04, $0f, $00)                 ; READ_DATA, length $000f little-endian
+  assert(uci_data(0) == $48, "first byte is 'H'")
+  assert(uci_data(1) == $45, "second byte is 'E'")
+
+  uci($01, $03)                           ; CLOSE_FILE
+  assert(uci_status("00,OK"), "CLOSE_FILE succeeded")
+}
+```
+
+This test is one of the ten in `example/ultimate.suite`, run with the same
+command as above — `dotnet run --project sim6502 -- --suitefile
+example/ultimate.suite --backend u64sim`. The full suite also covers a missing
+directory, a missing file, `ECHO`, the control target, and an unrecognised
+command, all against the `sim6502tests/Fixtures/usb0` fixture.
+
+For driving `$DF1C-$DF1F` from your own 6502 code instead of the DSL, see
+"Writing your own 6502 UCI client" below.
 
 | Flag | Default | Meaning |
 |---|---|---|
@@ -1763,12 +1791,137 @@ would pass here and fail on hardware — the simulator would hide the exact clas
 bug it exists to catch. Set it to `0` only when a test is deliberately not about
 timing.
 
-Not yet implemented, and next on the list: the REU (`$DF00-$DF0A`), the UCI network
-target `$03`, drive emulation and disk mounting, and a `u64` backend that drives
-real hardware over the network. Ultimate DOS commands in that group answer
-`99,FUNCTION NOT IMPLEMENTED`, and the control target's REU commands answer
-`84,REU NOT ENABLED` — the same status hardware gives with no REU configured — so
-your code takes the hardware path today.
+##### UCI target and command reference
+
+| Target | What's there |
+|---|---|
+| `$01` | Ultimate DOS #1 — its own current directory and open file |
+| `$02` | Ultimate DOS #2 — independent of `$01`; the two never share state |
+| `$04` | Control target |
+
+Ultimate DOS commands (targets `$01` and `$02`), from
+`sim6502/Systems/Ultimate/UltimateDosTarget.cs`:
+
+| Command | Code | Args | Notes |
+|---|---|---|---|
+| IDENTIFY | `$01` | none | Returns the DOS version string, e.g. `ULTIMATE-II DOS V1.2` |
+| OPEN_FILE | `$02` | attribute byte, filename | Attribute controls read/write/create — see flags below |
+| CLOSE_FILE | `$03` | none | Closes the open file |
+| READ_DATA | `$04` | 2-byte length, little-endian | Delivered in 512-byte chunks; `uci()` from the DSL walks all of them for you |
+| WRITE_DATA | `$05` | 2 dummy bytes, then payload | Payload is appended to the open file |
+| FILE_SEEK | `$06` | 4-byte position, little-endian | Clamped to end-of-file on a read-only file, matching FatFs |
+| FILE_INFO | `$07` | none | Size, FAT date/time and attribute for the currently open file |
+| FILE_STAT | `$08` | filename | Same info as FILE_INFO, for a named path, without opening it |
+| DELETE | `$09` | filename | Deletes a file, or an empty directory |
+| RENAME | `$0A` | source name, NUL, destination name | |
+| COPY | `$0B` | source name, NUL, destination name | Same wire format as RENAME |
+| CHANGE_DIR | `$11` | path | Current directory is per-target |
+| GET_PATH | `$12` | none | Returns the current path as ASCII |
+| OPEN_DIR | `$13` | none | Prepares the current directory's entries for READ_DIR |
+| READ_DIR | `$14` | none | One entry (attribute byte + name) per call; must follow OPEN_DIR |
+| CREATE_DIR | `$16` | name | |
+| ECHO | `$F0` | anything | Returns the exact command bytes sent (target byte, command byte, payload), status `00,OK` |
+
+File attribute flags for OPEN_FILE (combine with OR):
+
+| Flag | Value | Meaning |
+|---|---|---|
+| `FileAttributeRead` | `$01` | Open for reading |
+| `FileAttributeWrite` | `$02` | Open for writing |
+| `FileAttributeCreateNew` | `$04` | Create; fails if the file already exists |
+| `FileAttributeCreateAlways` | `$08` | Create, truncating if the file already exists |
+
+Control target commands (`$04`), from `sim6502/Systems/Ultimate/ControlTarget.cs`:
+
+| Command | Code | Notes |
+|---|---|---|
+| IDENTIFY | `$01` | Returns `CONTROL TARGET V1.1` |
+| REBOOT | `$06` | Resets both DOS targets — closes any open file, leaves data mode |
+| GET_HW_INFO | `$28` | Returns the model name, `Ultimate 64` |
+| LOAD_REU | `$08` | Answers `84,REU NOT ENABLED` — no REU is modelled |
+| SAVE_REU | `$09` | Answers `84,REU NOT ENABLED` — no REU is modelled |
+
+**Recognised but deferred.** These commands are parsed but not yet implemented;
+each answers `99,FUNCTION NOT IMPLEMENTED` rather than being rejected as unknown,
+so the gap stays visible: on the DOS targets, COPY_UI_PATH (`$15`), COPY_HOME_PATH
+(`$17`), LOAD_REU (`$21`), SAVE_REU (`$22`), MOUNT_DISK (`$23`), UNMOUNT_DISK
+(`$24`), SWAP_DISK (`$25`), GET_TIME (`$26`) and SET_TIME (`$27`); on the control
+target, FINISH_CAPTURE (`$03`), FREEZE (`$05`) and SAVE_MEMORY (`$0F`).
+
+Status strings a test will commonly assert on with `uci_status(...)`:
+
+| Status | Meaning |
+|---|---|
+| `00,OK` | Success |
+| `01,DIRECTORY EMPTY` | OPEN_DIR succeeded but the directory has no entries |
+| `21,UNKNOWN COMMAND` | Command byte not recognised by the target |
+| `81,NOT IN DATA MODE` | A data-continuation request with nothing open |
+| `82,FILE NOT FOUND` | OPEN_FILE, FILE_STAT, DELETE, RENAME or COPY on a missing path |
+| `83,NO SUCH DIRECTORY` | CHANGE_DIR, CREATE_DIR or OPEN_FILE against a missing directory |
+| `84,NO FILE TO CLOSE` | CLOSE_FILE with nothing open (DOS target only — `$04` reuses code 84 for REU NOT ENABLED) |
+| `85,NO FILE OPEN` | READ_DATA, WRITE_DATA, FILE_SEEK or FILE_INFO with nothing open |
+| `86,CAN'T READ DIRECTORY` | READ_DIR without a preceding OPEN_DIR |
+| `87,INTERNAL ERROR` | Malformed command or a host filesystem failure |
+| `99,FUNCTION NOT IMPLEMENTED` | One of the deferred commands above |
+
+##### Writing your own 6502 UCI client
+
+Your own 6502 code can drive `$DF1C-$DF1F` directly and needs no DSL support —
+the backend answers as the Ultimate would, and you assert on memory and registers
+as usual.
+
+| Address | C64 access | Meaning |
+|---|---|---|
+| `$DF1B` | read | Bus ID |
+| `$DF1C` | read / write | Read: status byte (state, Busy/available bits). Write: control byte (`PUSH_CMD`, `DATA_ACC`, ...) |
+| `$DF1D` | read / write | Read: always `$C9` — a presence check for "is a UCI here?". Write: command bytes, one per write |
+| `$DF1E` | read | Response data, one byte per read |
+| `$DF1F` | read | Status data (the ASCII status string), one byte per read |
+
+The handshake a client follows, matching
+`sim6502tests/Systems/Ultimate/UciClientProgramTests.cs` (a fully commented,
+hand-assembled 61-byte IDENTIFY client that this test file drives end to end):
+
+1. Write the command bytes — target/command byte first, then any arguments — to
+   `$DF1D`, one byte per write.
+2. Write `PUSH_CMD` (`$01`) to `$DF1C`.
+3. Poll `$DF1C`, masking with `$30`, until the state is no longer Busy (`$10`).
+   **You must poll** — see below.
+4. While bit 7 of `$DF1C` is set, read response bytes from `$DF1E`.
+5. Read the status string from `$DF1F` the same way, keyed off bit 6.
+6. Write `DATA_ACC` (`$02`) to `$DF1C` to acknowledge, then poll `$DF1C` until
+   bit 1 clears, leaving the UCI ready for the next command.
+
+Two behaviours are easy to get wrong, both deliberate:
+
+- **You must poll, not assume.** The Busy state is held for
+  `--u64sim-uci-latency` cycles (default `64`) before the reply appears — see
+  "Why the latency default is not zero" above. A client that skips the busy-wait
+  loop reads a response that is not there yet.
+- **A full response queue never signals "done" by clearing.** The response
+  buffer is 896 bytes. A reply that exactly fills it leaves the availability bit
+  permanently set — the read pointer saturates on the last byte instead of
+  advancing past it, so re-reading `$DF1E` returns that same byte forever (the
+  256-byte status queue saturates the same way). This is the real Ultimate's
+  hardware behaviour, reproduced here deliberately rather than "fixed" — a
+  client must track how many bytes it expects (e.g. from the length it passed to
+  READ_DATA) rather than looping until the bit clears.
+
+##### Not yet implemented
+
+| Area | Status |
+|---|---|
+| REU (`$DF00-$DF0A`) | Not implemented. The control target's LOAD_REU/SAVE_REU answer `84,REU NOT ENABLED` — the same status real hardware gives with no REU configured, so your code takes the hardware path today |
+| UCI network target `$03` | Not implemented — unpopulated, like any target outside `$01`, `$02` and `$04` |
+| Drive mounting / disk images | Not implemented. MOUNT_DISK, UNMOUNT_DISK and SWAP_DISK answer `99,FUNCTION NOT IMPLEMENTED` |
+
+**A `u64` backend that drives real Ultimate 64 hardware over the network is
+planned but does not exist yet.** There is no `u64` backend today — `u64sim` is
+a full software simulation, and `--backend u64` is not one of the options (see
+the backend table at the top of this document). When it lands, it is expected to
+take the target machine's IP address as a parameter — the intended flag is
+`--u64-host <ip>` — and to drive the hardware over the Ultimate's REST API and
+socket API.
 
 #### License
 
