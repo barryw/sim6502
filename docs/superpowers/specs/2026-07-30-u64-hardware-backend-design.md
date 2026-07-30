@@ -134,18 +134,59 @@ EXIST"`, and upstream agrees with hardware:
 
 Hardware falsified that judgement. Fixing it is in scope (below).
 
-### 2. `LOAD_REU` wedges the real UCI
+### 2. `LOAD_REU` wedges the real UCI — an upstream firmware bug
 
 `uci($04, $08, "image.reu")` never completes on fw 3.14d. Status sticks at `$11`
-(Busy | NewCommandSet) and remains wedged at `$15` afterwards. Reproduced twice, the
-second time with a 30 s BUSY-aware budget, so this is not a client timeout artefact —
-the command genuinely does not return.
+(Busy | NewCommandSet) and remains wedged at `$15` afterwards. This is not a client
+timeout artefact — it was reproduced under four conditions, each with a 30 s
+BUSY-aware budget:
+
+| REU setting | image file | filename offset | Result |
+|---|---|---|---|
+| Enabled, 16 MB | absent | 2 | hangs |
+| Disabled | absent | 2 | hangs |
+| Enabled, 16 MB | present | 2 | hangs |
+| Enabled, 16 MB | present | 4 (correct framing) | hangs |
 
 `Abort` + `ClearError` + `DataAccept` + strobes-low clears the error bit (`$1D` →
-`$15`) but never releases Busy. **Only a power cycle recovers it.**
+`$15`) but never releases Busy. **Only a power cycle recovers it**, and the wedge
+takes down the whole command interface for every target, not just the control target.
 
-Consequences: `control-reu-absent` is excluded from the hardware differential run,
-and this is worth reporting upstream.
+Root cause, in `control_target.cc:296-325` (identical in every clone checked, at
+`APPL_VERSION_NUMBER` 3.14e):
+
+```c
+retVal = reu_preloader->LoadREU((char *)data_message.message + 4);
+```
+
+The filename is read from `data_message` — the *reply* buffer, allocated separately
+at `control_target.cc:42` — not from `command->message`. `parse_command()` has no
+prologue copying the command into it, so `LoadREU()` receives uninitialised heap on
+the first control-target command after boot, or the previous command's leftover
+reply thereafter. The same file uses the correct idiom elsewhere
+(`control_target.cc:466`: `fn = (const char *)command->message + 2;`).
+
+Reported upstream as
+[GideonZ/1541ultimate#740](https://github.com/GideonZ/1541ultimate/issues/740).
+
+Consequences:
+
+- `control-reu-absent` is excluded from the hardware differential run. It cannot be
+  verified on silicon at all, because the firmware path that would produce
+  `"84,REU NOT ENABLED"` is unreachable — even with the REU explicitly disabled.
+- **`u64sim` is more correct than the shipped firmware here.** It returns
+  `"84,REU NOT ENABLED"` promptly, which is what upstream's own status table
+  specifies. Keep that behaviour; this is a firmware defect, not a `u64sim` one.
+- The forthcoming REU milestone must treat `LOAD_REU`/`SAVE_REU` status strings as
+  verified against source only, with no path to silicon confirmation until the
+  firmware is fixed.
+
+Note for that milestone: `SOCKET_CMD_REUWRITE` (`$FF07`) on TCP port 64 writes
+directly into `REU_MEMORY_BASE` (24-bit LE offset, then payload), bypassing the UCI
+entirely. It is a viable way to load REU contents for testing, but it produces no UCI
+status and so cannot substitute for the `LOAD_REU` path in a differential check. The
+socket requires `SOCKET_CMD_AUTHENTICATE` (`$FF1F`) first; authentication succeeds
+trivially when no network password is configured.
 
 ## Architecture
 
