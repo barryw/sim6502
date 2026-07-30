@@ -90,8 +90,13 @@ public sealed class UciRegisters : IIOHandler
     /// </summary>
     public bool ServiceEnabled { get; set; }
 
-    /// <summary>Value returned when the C64 reads $DF1B.</summary>
-    public byte BusId { get; set; }
+    /// <summary>
+    /// Value returned from $DF1B. This is the SoftIEC bus ID, a user-configured
+    /// setting on real hardware -- an Ultimate 64 Elite on fw 3.14d reports 0x0B
+    /// (device 11), which is the firmware default. Valid IEC device numbers are
+    /// 8-30; 0 is not a value real hardware reports.
+    /// </summary>
+    public byte BusId { get; set; } = 11;
 
     /// <summary>Bytes written to the command register since the last reset.</summary>
     public int CommandLength => _commandPointer - UciConstants.CommandBufferStart;

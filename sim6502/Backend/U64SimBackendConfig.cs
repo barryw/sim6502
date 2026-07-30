@@ -24,4 +24,9 @@ public class U64SimBackendConfig
 
     /// <summary>String the control target returns for GET_HWINFO.</summary>
     public string ModelName { get; set; } = "Ultimate 64";
+
+    /// <summary>
+    /// SoftIEC bus ID reported at $DF1B. Real hardware reports 11 by default.
+    /// </summary>
+    public byte BusId { get; set; } = 11;
 }

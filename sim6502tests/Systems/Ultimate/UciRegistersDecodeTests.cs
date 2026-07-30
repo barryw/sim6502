@@ -139,6 +139,22 @@ public class UciRegistersDecodeTests
     /// service loop is suppressed. Used only so RegisterTarget has something to
     /// store; see UciRegistersDispatchTests for real dispatch coverage.
     /// </summary>
+    [Fact]
+    public void BusId_DefaultsToEleven()
+    {
+        // Real hardware reports 0x0B at $DF1B -- the SoftIEC "Soft Drive Bus ID".
+        // 0 is not a value any real Ultimate reports.
+        var uci = new UciRegisters();
+        uci.Read(UciConstants.BusIdAddress).Should().Be(0x0B);
+    }
+
+    [Fact]
+    public void BusId_IsConfigurable()
+    {
+        var uci = new UciRegisters { BusId = 9 };
+        uci.Read(UciConstants.BusIdAddress).Should().Be(9);
+    }
+
     private sealed class NeverAnsweringTarget : ICommandTarget
     {
         public UciReply ParseCommand(byte[] command) => UciReply.Empty(UciConstants.StatusOk);

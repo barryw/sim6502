@@ -47,7 +47,8 @@ public class U64SimBackend : IExecutionBackend
             // Busy is held relative to the processor's own cycle count, so a
             // polling loop in 6502 code really does advance it.
             CycleCounter = () => _sim.Processor.CycleCount,
-            ServiceEnabled = true
+            ServiceEnabled = true,
+            BusId = config.BusId
         };
 
         Uci.RegisterTarget(1, _dosOne);
