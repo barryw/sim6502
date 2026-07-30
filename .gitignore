@@ -9,3 +9,5 @@ release-assets/
 *.log
 *.out
 *.toc
+# Subagent-driven-development scratch
+.superpowers/
