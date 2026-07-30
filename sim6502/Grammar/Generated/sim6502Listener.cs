@@ -19,7 +19,6 @@
 // Ambiguous reference in cref attribute
 #pragma warning disable 419
 
-
 namespace sim6502.Grammar.Generated;
 
 using Antlr4.Runtime.Misc;
@@ -133,6 +132,56 @@ public interface Isim6502Listener : IParseTreeListener {
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	void ExitRomFilename([NotNull] sim6502Parser.RomFilenameContext context);
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.ultimateDeclaration"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterUltimateDeclaration([NotNull] sim6502Parser.UltimateDeclarationContext context);
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.ultimateDeclaration"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitUltimateDeclaration([NotNull] sim6502Parser.UltimateDeclarationContext context);
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.uciFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterUciFunction([NotNull] sim6502Parser.UciFunctionContext context);
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.uciFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitUciFunction([NotNull] sim6502Parser.UciFunctionContext context);
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.uciArg"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterUciArg([NotNull] sim6502Parser.UciArgContext context);
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.uciArg"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitUciArg([NotNull] sim6502Parser.UciArgContext context);
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.uciStatusFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterUciStatusFunction([NotNull] sim6502Parser.UciStatusFunctionContext context);
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.uciStatusFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitUciStatusFunction([NotNull] sim6502Parser.UciStatusFunctionContext context);
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.uciDataFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterUciDataFunction([NotNull] sim6502Parser.UciDataFunctionContext context);
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.uciDataFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitUciDataFunction([NotNull] sim6502Parser.UciDataFunctionContext context);
 	/// <summary>
 	/// Enter a parse tree produced by the <c>registerAssignment</c>
 	/// labeled alternative in <see cref="sim6502Parser.assignment"/>.
@@ -367,6 +416,18 @@ public interface Isim6502Listener : IParseTreeListener {
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	void ExitScreenLineCheck([NotNull] sim6502Parser.ScreenLineCheckContext context);
+	/// <summary>
+	/// Enter a parse tree produced by the <c>uciStatusCheck</c>
+	/// labeled alternative in <see cref="sim6502Parser.comparison"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterUciStatusCheck([NotNull] sim6502Parser.UciStatusCheckContext context);
+	/// <summary>
+	/// Exit a parse tree produced by the <c>uciStatusCheck</c>
+	/// labeled alternative in <see cref="sim6502Parser.comparison"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitUciStatusCheck([NotNull] sim6502Parser.UciStatusCheckContext context);
 	/// <summary>
 	/// Enter a parse tree produced by the <c>registerCompare</c>
 	/// labeled alternative in <see cref="sim6502Parser.compareLHS"/>.
@@ -1082,6 +1143,18 @@ public interface Isim6502Listener : IParseTreeListener {
 	/// <param name="context">The parse tree.</param>
 	void ExitPeekWordFunctionValue([NotNull] sim6502Parser.PeekWordFunctionValueContext context);
 	/// <summary>
+	/// Enter a parse tree produced by the <c>uciDataFunctionValue</c>
+	/// labeled alternative in <see cref="sim6502Parser.intFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterUciDataFunctionValue([NotNull] sim6502Parser.UciDataFunctionValueContext context);
+	/// <summary>
+	/// Exit a parse tree produced by the <c>uciDataFunctionValue</c>
+	/// labeled alternative in <see cref="sim6502Parser.intFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitUciDataFunctionValue([NotNull] sim6502Parser.UciDataFunctionValueContext context);
+	/// <summary>
 	/// Enter a parse tree produced by the <c>memoryChkFunctionValue</c>
 	/// labeled alternative in <see cref="sim6502Parser.boolFunction"/>.
 	/// </summary>
@@ -1129,6 +1202,18 @@ public interface Isim6502Listener : IParseTreeListener {
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	void ExitScreenLineFunctionValue([NotNull] sim6502Parser.ScreenLineFunctionValueContext context);
+	/// <summary>
+	/// Enter a parse tree produced by the <c>uciStatusFunctionValue</c>
+	/// labeled alternative in <see cref="sim6502Parser.boolFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterUciStatusFunctionValue([NotNull] sim6502Parser.UciStatusFunctionValueContext context);
+	/// <summary>
+	/// Exit a parse tree produced by the <c>uciStatusFunctionValue</c>
+	/// labeled alternative in <see cref="sim6502Parser.boolFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitUciStatusFunctionValue([NotNull] sim6502Parser.UciStatusFunctionValueContext context);
 	/// <summary>
 	/// Enter a parse tree produced by <see cref="sim6502Parser.symbolRef"/>.
 	/// </summary>

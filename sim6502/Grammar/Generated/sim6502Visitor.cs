@@ -19,7 +19,6 @@
 // Ambiguous reference in cref attribute
 #pragma warning disable 419
 
-
 namespace sim6502.Grammar.Generated;
 
 using Antlr4.Runtime.Misc;
@@ -94,6 +93,36 @@ public interface Isim6502Visitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitRomFilename([NotNull] sim6502Parser.RomFilenameContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="sim6502Parser.ultimateDeclaration"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitUltimateDeclaration([NotNull] sim6502Parser.UltimateDeclarationContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="sim6502Parser.uciFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitUciFunction([NotNull] sim6502Parser.UciFunctionContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="sim6502Parser.uciArg"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitUciArg([NotNull] sim6502Parser.UciArgContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="sim6502Parser.uciStatusFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitUciStatusFunction([NotNull] sim6502Parser.UciStatusFunctionContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="sim6502Parser.uciDataFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitUciDataFunction([NotNull] sim6502Parser.UciDataFunctionContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>registerAssignment</c>
 	/// labeled alternative in <see cref="sim6502Parser.assignment"/>.
@@ -231,6 +260,13 @@ public interface Isim6502Visitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitScreenLineCheck([NotNull] sim6502Parser.ScreenLineCheckContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>uciStatusCheck</c>
+	/// labeled alternative in <see cref="sim6502Parser.comparison"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitUciStatusCheck([NotNull] sim6502Parser.UciStatusCheckContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>registerCompare</c>
 	/// labeled alternative in <see cref="sim6502Parser.compareLHS"/>.
@@ -655,6 +691,13 @@ public interface Isim6502Visitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitPeekWordFunctionValue([NotNull] sim6502Parser.PeekWordFunctionValueContext context);
 	/// <summary>
+	/// Visit a parse tree produced by the <c>uciDataFunctionValue</c>
+	/// labeled alternative in <see cref="sim6502Parser.intFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitUciDataFunctionValue([NotNull] sim6502Parser.UciDataFunctionValueContext context);
+	/// <summary>
 	/// Visit a parse tree produced by the <c>memoryChkFunctionValue</c>
 	/// labeled alternative in <see cref="sim6502Parser.boolFunction"/>.
 	/// </summary>
@@ -682,6 +725,13 @@ public interface Isim6502Visitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitScreenLineFunctionValue([NotNull] sim6502Parser.ScreenLineFunctionValueContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>uciStatusFunctionValue</c>
+	/// labeled alternative in <see cref="sim6502Parser.boolFunction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitUciStatusFunctionValue([NotNull] sim6502Parser.UciStatusFunctionValueContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="sim6502Parser.symbolRef"/>.
 	/// </summary>

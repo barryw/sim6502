@@ -35,6 +35,7 @@ suites
 suite
     : Suite LParen suiteName RParen LBrace
         (systemDeclaration | processorDeclaration)?
+        ultimateDeclaration?
         (testFunction | symbolsFunction | loadFunction | romDeclaration | setupBlock)+
       RBrace
     ;
@@ -77,6 +78,29 @@ romFilename
     : StringLiteral
     ;
 
+// ── Ultimate 64 (u64sim backend) ──
+
+ultimateDeclaration
+    : Ultimate LParen FsRoot Assign StringLiteral RParen
+    ;
+
+uciFunction
+    : Uci LParen expression Comma expression (Comma uciArg)* RParen
+    ;
+
+uciArg
+    : expression
+    | StringLiteral
+    ;
+
+uciStatusFunction
+    : UciStatus LParen StringLiteral RParen
+    ;
+
+uciDataFunction
+    : UciData LParen expression RParen
+    ;
+
 // Assignment rule - order matters: most specific first, general expression last
 assignment
     : Register Assign expression        # registerAssignment
@@ -117,6 +141,7 @@ comparison
     | memoryCmpFunction                         # memoryCmp
     | screenContainsFunction                    # screenContains
     | screenLineFunction                        # screenLineCheck
+    | uciStatusFunction                         # uciStatusCheck
     ;
     
 compareLHS
@@ -206,6 +231,7 @@ testContents
     | coldStartFunction
     | pauseFunction
     | resumeFunction
+    | uciFunction
     ;
 
 // Setup contents - similar to test contents but without assertions
@@ -215,6 +241,7 @@ setupContents
     | memFillFunction
     | memDumpFunction
     | coldStartFunction
+    | uciFunction
     ;
 
 peekByteFunction
@@ -344,13 +371,15 @@ byteWord
 intFunction
     : peekByteFunction  # peekByteFunctionValue
     | peekWordFunction  # peekWordFunctionValue
+    | uciDataFunction   # uciDataFunctionValue
     ;
-   
+
 boolFunction
     : memoryChkFunction      # memoryChkFunctionValue
     | memoryCmpFunction      # memoryCmpFunctionValue
     | screenContainsFunction # screenContainsFunctionValue
     | screenLineFunction     # screenLineFunctionValue
+    | uciStatusFunction      # uciStatusFunctionValue
     ;
     
 symbolRef
@@ -505,6 +534,13 @@ PauseCycles:    'cycles_count';
 PauseScreen:    'screen';
 PauseWatch:     'watch';
 PauseValue:     'value';
+
+// Ultimate 64 keywords
+Ultimate:       'ultimate';
+FsRoot:         'fs_root';
+UciStatus:      'uci_status';
+UciData:        'uci_data';
+Uci:            'uci';
 
 LoByte: '.l' | '.L' ;
 HiByte: '.h' | '.H' ;

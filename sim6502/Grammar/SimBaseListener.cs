@@ -179,6 +179,11 @@ namespace sim6502.Grammar
         public NovaVmBackendConfig? NovaVmConfig { get; set; }
         public U64SimBackendConfig? U64SimConfig { get; set; }
 
+        // Result of the most recent uci() call, read by uci_status() and uci_data().
+        private string _lastUciStatus = "";
+        private byte[] _lastUciData = Array.Empty<byte>();
+        private bool _uciCalled;
+
         // Error collector for semantic errors
         public ErrorCollector Errors { get; set; } = new();
 
@@ -385,6 +390,16 @@ namespace sim6502.Grammar
                     var (memMap, _) = MemoryMapFactory.CreateForProcessor(ProcessorType.MOS6502);
                     _currentMemoryMap = memMap;
                 }
+            }
+
+            // A suite-level ultimate() declaration overrides --u64sim-fs-root.
+            var ultimateDecl = context.ultimateDeclaration();
+            if (ultimateDecl != null)
+            {
+                var fsRoot = StripQuotes(ultimateDecl.StringLiteral().GetText());
+                U64SimConfig ??= new U64SimBackendConfig();
+                U64SimConfig.FsRoot = fsRoot;
+                Logger.Info($"Ultimate filesystem root set to: {fsRoot}");
             }
 
             // Create processor with memory map (skip if backend already injected for testing)
@@ -924,6 +939,10 @@ namespace sim6502.Grammar
             }
 
             ResetTest();
+
+            _lastUciStatus = "";
+            _lastUciData = Array.Empty<byte>();
+            _uciCalled = false;
 
             // Parse test options if present
             var options = context.testOptions();
@@ -1538,6 +1557,121 @@ namespace sim6502.Grammar
             var actual = hlb.ReadLine(row);
             var found = actual.Contains(expected, StringComparison.OrdinalIgnoreCase);
             SetBoolValue(context, found);
+        }
+
+        #endregion
+
+        #region Ultimate 64 commands
+
+        private U64SimBackend RequireU64SimBackend(string command)
+        {
+            if (Backend is U64SimBackend u64)
+                return u64;
+
+            throw new InvalidOperationException(
+                $"'{command}' requires the u64sim backend. Current backend: {BackendType}");
+        }
+
+        public override void ExitUciFunction(sim6502Parser.UciFunctionContext context)
+        {
+            if (_inSetupBlockDefinition || _currentTestSkipped)
+                return;
+
+            var backend = RequireU64SimBackend("uci()");
+
+            var bytes = new List<byte>
+            {
+                (byte)(GetIntValue(context.expression(0)) & 0xFF),   // target
+                (byte)(GetIntValue(context.expression(1)) & 0xFF)    // command
+            };
+
+            foreach (var arg in context.uciArg())
+            {
+                var literal = arg.StringLiteral();
+                if (literal != null)
+                    bytes.AddRange(System.Text.Encoding.ASCII.GetBytes(StripQuotes(literal.GetText())));
+                else
+                    bytes.Add((byte)(GetIntValue(arg.expression()) & 0xFF));
+            }
+
+            var command = bytes.ToArray();
+            Logger.Debug($"uci(${command[0]:X2}, ${command[1]:X2}) — {command.Length} bytes");
+
+            var (status, data) = backend.IssueUciCommand(command);
+            _lastUciStatus = status;
+            _lastUciData = data;
+            _uciCalled = true;
+        }
+
+        public override void ExitUciStatusCheck(sim6502Parser.UciStatusCheckContext context)
+        {
+            if (_currentTestSkipped)
+                return;
+
+            var expected = StripQuotes(context.uciStatusFunction().StringLiteral().GetText());
+            var matched = CheckUciStatus(expected, out var actual);
+            SetBoolValue(context, matched);
+
+            if (!matched)
+                FailAssertion($"uci_status(\"{expected}\") failed — actual status was \"{actual}\"");
+        }
+
+        public override void ExitUciStatusFunctionValue(
+            sim6502Parser.UciStatusFunctionValueContext context)
+        {
+            if (_currentTestSkipped)
+                return;
+
+            var expected = StripQuotes(context.uciStatusFunction().StringLiteral().GetText());
+            SetBoolValue(context, CheckUciStatus(expected, out _));
+        }
+
+        private bool CheckUciStatus(string expected, out string actual)
+        {
+            actual = _lastUciStatus;
+
+            if (!_uciCalled)
+            {
+                FailAssertion("uci_status() called before any uci() command in this test");
+                return false;
+            }
+
+            return string.Equals(actual, expected, StringComparison.Ordinal);
+        }
+
+        public override void ExitUciDataFunction(sim6502Parser.UciDataFunctionContext context)
+        {
+            SetIntValue(context, ReadUciData(context));
+        }
+
+        public override void ExitUciDataFunctionValue(
+            sim6502Parser.UciDataFunctionValueContext context)
+        {
+            SetIntValue(context, GetIntValue(context.uciDataFunction()));
+        }
+
+        private int ReadUciData(sim6502Parser.UciDataFunctionContext context)
+        {
+            if (_currentTestSkipped)
+                return 0;
+
+            if (!_uciCalled)
+            {
+                FailAssertion("uci_data() called before any uci() command in this test");
+                return 0;
+            }
+
+            var index = GetIntValue(context.expression());
+
+            if (index < 0 || index >= _lastUciData.Length)
+            {
+                FailAssertion(
+                    $"uci_data({index}) is out of range — the last response was " +
+                    $"{_lastUciData.Length} bytes");
+                return 0;
+            }
+
+            return _lastUciData[index];
         }
 
         #endregion

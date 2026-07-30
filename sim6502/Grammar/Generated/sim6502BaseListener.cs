@@ -19,7 +19,6 @@
 // Ambiguous reference in cref attribute
 #pragma warning disable 419
 
-
 namespace sim6502.Grammar.Generated;
 
 
@@ -158,6 +157,66 @@ public partial class sim6502BaseListener : Isim6502Listener {
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitRomFilename([NotNull] sim6502Parser.RomFilenameContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.ultimateDeclaration"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterUltimateDeclaration([NotNull] sim6502Parser.UltimateDeclarationContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.ultimateDeclaration"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitUltimateDeclaration([NotNull] sim6502Parser.UltimateDeclarationContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.uciFunction"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterUciFunction([NotNull] sim6502Parser.UciFunctionContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.uciFunction"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitUciFunction([NotNull] sim6502Parser.UciFunctionContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.uciArg"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterUciArg([NotNull] sim6502Parser.UciArgContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.uciArg"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitUciArg([NotNull] sim6502Parser.UciArgContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.uciStatusFunction"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterUciStatusFunction([NotNull] sim6502Parser.UciStatusFunctionContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.uciStatusFunction"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitUciStatusFunction([NotNull] sim6502Parser.UciStatusFunctionContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="sim6502Parser.uciDataFunction"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterUciDataFunction([NotNull] sim6502Parser.UciDataFunctionContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="sim6502Parser.uciDataFunction"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitUciDataFunction([NotNull] sim6502Parser.UciDataFunctionContext context) { }
 	/// <summary>
 	/// Enter a parse tree produced by the <c>registerAssignment</c>
 	/// labeled alternative in <see cref="sim6502Parser.assignment"/>.
@@ -432,6 +491,20 @@ public partial class sim6502BaseListener : Isim6502Listener {
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitScreenLineCheck([NotNull] sim6502Parser.ScreenLineCheckContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by the <c>uciStatusCheck</c>
+	/// labeled alternative in <see cref="sim6502Parser.comparison"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterUciStatusCheck([NotNull] sim6502Parser.UciStatusCheckContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by the <c>uciStatusCheck</c>
+	/// labeled alternative in <see cref="sim6502Parser.comparison"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitUciStatusCheck([NotNull] sim6502Parser.UciStatusCheckContext context) { }
 	/// <summary>
 	/// Enter a parse tree produced by the <c>registerCompare</c>
 	/// labeled alternative in <see cref="sim6502Parser.compareLHS"/>.
@@ -1279,6 +1352,20 @@ public partial class sim6502BaseListener : Isim6502Listener {
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitPeekWordFunctionValue([NotNull] sim6502Parser.PeekWordFunctionValueContext context) { }
 	/// <summary>
+	/// Enter a parse tree produced by the <c>uciDataFunctionValue</c>
+	/// labeled alternative in <see cref="sim6502Parser.intFunction"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterUciDataFunctionValue([NotNull] sim6502Parser.UciDataFunctionValueContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by the <c>uciDataFunctionValue</c>
+	/// labeled alternative in <see cref="sim6502Parser.intFunction"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitUciDataFunctionValue([NotNull] sim6502Parser.UciDataFunctionValueContext context) { }
+	/// <summary>
 	/// Enter a parse tree produced by the <c>memoryChkFunctionValue</c>
 	/// labeled alternative in <see cref="sim6502Parser.boolFunction"/>.
 	/// <para>The default implementation does nothing.</para>
@@ -1334,6 +1421,20 @@ public partial class sim6502BaseListener : Isim6502Listener {
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitScreenLineFunctionValue([NotNull] sim6502Parser.ScreenLineFunctionValueContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by the <c>uciStatusFunctionValue</c>
+	/// labeled alternative in <see cref="sim6502Parser.boolFunction"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterUciStatusFunctionValue([NotNull] sim6502Parser.UciStatusFunctionValueContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by the <c>uciStatusFunctionValue</c>
+	/// labeled alternative in <see cref="sim6502Parser.boolFunction"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitUciStatusFunctionValue([NotNull] sim6502Parser.UciStatusFunctionValueContext context) { }
 	/// <summary>
 	/// Enter a parse tree produced by <see cref="sim6502Parser.symbolRef"/>.
 	/// <para>The default implementation does nothing.</para>
