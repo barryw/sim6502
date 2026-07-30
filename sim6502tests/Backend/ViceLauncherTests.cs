@@ -22,4 +22,39 @@ public class ViceLauncherTests
         var args = ViceLauncher.BuildArguments(7000);
         args.Should().Contain("7000");
     }
+
+    // ── Construction / Dispose (never launched) ──
+    // NOTE: We never call Launch() anywhere in this file — it spawns a real VICE
+    // process, which is explicitly out of bounds for hermetic tests.
+
+    [Fact]
+    public void Constructor_DefaultPort_DoesNotThrow()
+    {
+        var act = () => new ViceLauncher();
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void Constructor_CustomPort_DoesNotThrow()
+    {
+        var act = () => new ViceLauncher(7777);
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void Dispose_NeverLaunched_DoesNotThrow()
+    {
+        var launcher = new ViceLauncher();
+        var act = () => launcher.Dispose();
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void Dispose_CalledTwice_IsIdempotent()
+    {
+        var launcher = new ViceLauncher();
+        launcher.Dispose();
+        var act = () => launcher.Dispose();
+        act.Should().NotThrow();
+    }
 }

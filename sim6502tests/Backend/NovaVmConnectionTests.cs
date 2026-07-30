@@ -1,3 +1,6 @@
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
 using System.Text.Json;
 using FluentAssertions;
 using sim6502.Backend;
@@ -7,6 +10,19 @@ namespace sim6502tests.Backend;
 
 public class NovaVmConnectionTests
 {
+    /// <summary>
+    /// Starts a TCP listener on an ephemeral loopback port. Callers must
+    /// dispose/stop it in a finally block — this is a real socket, not a
+    /// fake, but it is entirely local and never touches an external service.
+    /// </summary>
+    private static (TcpListener Listener, int Port) StartLoopbackListener()
+    {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        return (listener, port);
+    }
+
     // ── BuildRequestJson ──
 
     [Fact]
@@ -177,5 +193,226 @@ public class NovaVmConnectionTests
     {
         var conn = new NovaVmConnection();
         conn.IsConnected.Should().BeFalse();
+    }
+
+    // ── Connect / Send / Ping / Dispose over a real loopback socket ──
+
+    [Fact]
+    public void Connect_NoListener_ThrowsSocketException()
+    {
+        var (listener, port) = StartLoopbackListener();
+        listener.Stop(); // free the port immediately; nothing is listening now
+
+        using var conn = new NovaVmConnection("127.0.0.1", port, 500);
+        var act = () => conn.Connect();
+
+        act.Should().Throw<SocketException>();
+    }
+
+    [Fact]
+    public void Connect_ValidServer_SetsIsConnectedTrue()
+    {
+        var (listener, port) = StartLoopbackListener();
+        try
+        {
+            var serverTask = Task.Run(() =>
+            {
+                using var client = listener.AcceptTcpClient();
+            });
+
+            using var conn = new NovaVmConnection("127.0.0.1", port, 5000);
+            conn.Connect();
+
+            conn.IsConnected.Should().BeTrue();
+            serverTask.Wait(TimeSpan.FromSeconds(5)).Should().BeTrue();
+        }
+        finally
+        {
+            listener.Stop();
+        }
+    }
+
+    [Fact]
+    public void Send_RoundTrip_SendsRequestLineAndParsesResponse()
+    {
+        var (listener, port) = StartLoopbackListener();
+        try
+        {
+            string? receivedLine = null;
+            var serverTask = Task.Run(() =>
+            {
+                using var client = listener.AcceptTcpClient();
+                using var stream = client.GetStream();
+                using var reader = new StreamReader(stream, Encoding.UTF8);
+                using var writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
+
+                receivedLine = reader.ReadLine();
+                writer.WriteLine("""{"ok":true,"value":42}""");
+            });
+
+            using var conn = new NovaVmConnection("127.0.0.1", port, 5000);
+            conn.Connect();
+
+            var result = conn.Send("peek", new Dictionary<string, object> { { "address", 0x1000 } });
+
+            serverTask.Wait(TimeSpan.FromSeconds(5)).Should().BeTrue();
+            result.GetProperty("value").GetInt32().Should().Be(42);
+
+            var sentDoc = JsonDocument.Parse(receivedLine!);
+            sentDoc.RootElement.GetProperty("command").GetString().Should().Be("peek");
+            sentDoc.RootElement.GetProperty("address").GetInt32().Should().Be(0x1000);
+        }
+        finally
+        {
+            listener.Stop();
+        }
+    }
+
+    [Fact]
+    public void Send_ServerReturnsError_ThrowsInvalidOperationException()
+    {
+        var (listener, port) = StartLoopbackListener();
+        try
+        {
+            var serverTask = Task.Run(() =>
+            {
+                using var client = listener.AcceptTcpClient();
+                using var stream = client.GetStream();
+                using var reader = new StreamReader(stream, Encoding.UTF8);
+                using var writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
+
+                reader.ReadLine();
+                writer.WriteLine("""{"ok":false,"error":"bad address"}""");
+            });
+
+            using var conn = new NovaVmConnection("127.0.0.1", port, 5000);
+            conn.Connect();
+
+            var act = () => conn.Send("peek");
+
+            act.Should().Throw<InvalidOperationException>()
+                .WithMessage("*peek*")
+                .WithMessage("*bad address*");
+            serverTask.Wait(TimeSpan.FromSeconds(5)).Should().BeTrue();
+        }
+        finally
+        {
+            listener.Stop();
+        }
+    }
+
+    [Fact]
+    public void Send_ServerClosesWithoutResponding_ThrowsConnectionClosed()
+    {
+        var (listener, port) = StartLoopbackListener();
+        try
+        {
+            var serverTask = Task.Run(() =>
+            {
+                using var client = listener.AcceptTcpClient();
+                using var stream = client.GetStream();
+                using var reader = new StreamReader(stream, Encoding.UTF8);
+                // Drain the request so the client's write always succeeds, then
+                // close without responding — only the read side should fail.
+                reader.ReadLine();
+            });
+
+            using var conn = new NovaVmConnection("127.0.0.1", port, 5000);
+            conn.Connect();
+
+            var act = () => conn.Send("peek");
+
+            act.Should().Throw<InvalidOperationException>().WithMessage("*Connection closed*");
+            serverTask.Wait(TimeSpan.FromSeconds(5)).Should().BeTrue();
+        }
+        finally
+        {
+            listener.Stop();
+        }
+    }
+
+    [Fact]
+    public void Ping_ServerRespondsOk_ReturnsTrue()
+    {
+        var (listener, port) = StartLoopbackListener();
+        try
+        {
+            var serverTask = Task.Run(() =>
+            {
+                using var client = listener.AcceptTcpClient();
+                using var stream = client.GetStream();
+                using var reader = new StreamReader(stream, Encoding.UTF8);
+                using var writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
+
+                reader.ReadLine();
+                writer.WriteLine("""{"ok":true,"value":0}""");
+            });
+
+            using var conn = new NovaVmConnection("127.0.0.1", port, 5000);
+            conn.Connect();
+
+            conn.Ping().Should().BeTrue();
+            serverTask.Wait(TimeSpan.FromSeconds(5)).Should().BeTrue();
+        }
+        finally
+        {
+            listener.Stop();
+        }
+    }
+
+    [Fact]
+    public void Ping_SendThrows_ReturnsFalseInsteadOfPropagating()
+    {
+        var (listener, port) = StartLoopbackListener();
+        try
+        {
+            var serverTask = Task.Run(() =>
+            {
+                using var client = listener.AcceptTcpClient();
+                // Close without responding — Send() throws, Ping() must swallow it.
+            });
+
+            using var conn = new NovaVmConnection("127.0.0.1", port, 5000);
+            conn.Connect();
+            serverTask.Wait(TimeSpan.FromSeconds(5)).Should().BeTrue();
+
+            conn.Ping().Should().BeFalse();
+        }
+        finally
+        {
+            listener.Stop();
+        }
+    }
+
+    [Fact]
+    public void Dispose_AfterConnect_DoesNotThrow()
+    {
+        var (listener, port) = StartLoopbackListener();
+        try
+        {
+            var serverTask = Task.Run(() =>
+            {
+                using var client = listener.AcceptTcpClient();
+            });
+
+            var conn = new NovaVmConnection("127.0.0.1", port, 5000);
+            conn.Connect();
+            serverTask.Wait(TimeSpan.FromSeconds(5)).Should().BeTrue();
+
+            var act = () => conn.Dispose();
+            act.Should().NotThrow();
+        }
+        finally
+        {
+            listener.Stop();
+        }
+    }
+
+    [Fact]
+    public void Dispose_WithoutConnect_DoesNotThrow()
+    {
+        var conn = new NovaVmConnection();
+        var act = () => conn.Dispose();
+        act.Should().NotThrow();
     }
 }

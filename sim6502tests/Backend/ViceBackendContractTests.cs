@@ -11,6 +11,8 @@ namespace sim6502tests.Backend;
 internal class MockViceConnection : IViceConnection
 {
     public List<(string ToolName, Dictionary<string, object>? Args)> Calls { get; } = new();
+    public bool PingResult { get; set; } = true;
+    public bool Disposed { get; private set; }
 
     private readonly Dictionary<string, Queue<McpResponse>> _responses = new();
     private McpResponse _defaultResponse = new() { IsSuccess = true, Content = "{}" };
@@ -39,9 +41,9 @@ internal class MockViceConnection : IViceConnection
         return Task.FromResult(CallTool(toolName, arguments));
     }
 
-    public bool Ping() => true;
+    public bool Ping() => PingResult;
 
-    public void Dispose() { }
+    public void Dispose() { Disposed = true; }
 
     public List<(string ToolName, Dictionary<string, object>? Args)> GetCallsForTool(string toolName)
     {
@@ -283,7 +285,55 @@ public class ViceBackendContractTests
         mock.WasToolCalled("vice.registers.get").Should().BeFalse();
     }
 
+    // ── Flag error paths ──
+
+    [Fact]
+    public void GetFlag_Failure_Throws()
+    {
+        var mock = new MockViceConnection();
+        mock.SetResponse("vice.registers.get", new McpResponse { IsSuccess = false, ErrorMessage = "no flags" });
+        var backend = new ViceBackend(DefaultConfig, mock);
+
+        var act = () => backend.GetFlag("C");
+
+        act.Should().Throw<InvalidOperationException>().WithMessage("*no flags*");
+    }
+
+    [Fact]
+    public void GetFlag_UnknownFlag_ThrowsArgumentException()
+    {
+        var mock = new MockViceConnection();
+        mock.SetResponse("vice.registers.get", SuccessResponse("{\"C\": true}"));
+        var backend = new ViceBackend(DefaultConfig, mock);
+
+        var act = () => backend.GetFlag("Q");
+
+        act.Should().Throw<ArgumentException>().WithMessage("*Unknown flag*");
+    }
+
+    [Fact]
+    public void SetFlag_Failure_Throws()
+    {
+        var mock = new MockViceConnection();
+        mock.SetResponse("vice.registers.set", new McpResponse { IsSuccess = false, ErrorMessage = "bad flag" });
+        var backend = new ViceBackend(DefaultConfig, mock);
+
+        var act = () => backend.SetFlag("C", true);
+
+        act.Should().Throw<InvalidOperationException>().WithMessage("*bad flag*");
+    }
+
     // ── Cycle contracts ──
+
+    [Fact]
+    public void GetCycles_MissingCyclesProperty_ReturnsZero()
+    {
+        var mock = new MockViceConnection();
+        mock.SetResponse("vice.cycles.stopwatch", SuccessResponse("{}"));
+        var backend = new ViceBackend(DefaultConfig, mock);
+
+        backend.GetCycles().Should().Be(0);
+    }
 
     [Fact]
     public void GetCycles_UsesStopwatchTool()
@@ -361,5 +411,362 @@ public class ViceBackendContractTests
         var resources = call.Args!["resources"] as Dictionary<string, object>;
         resources.Should().NotBeNull();
         resources!["WarpMode"].Should().Be(0);
+    }
+
+    // ── Connect contracts ──
+
+    [Fact]
+    public void Connect_PingSucceeds_PausesExecution()
+    {
+        var mock = new MockViceConnection();
+        var backend = new ViceBackend(DefaultConfig, mock); // WarpMode false
+
+        backend.Connect();
+
+        mock.WasToolCalled("vice.execution.pause").Should().BeTrue();
+        mock.WasToolCalled("vice.machine.config.set").Should().BeFalse();
+    }
+
+    [Fact]
+    public void Connect_WarpModeEnabled_AlsoSetsWarpMode()
+    {
+        var mock = new MockViceConnection();
+        var config = new ViceBackendConfig { Host = "127.0.0.1", Port = 6510, TimeoutMs = 5000, WarpMode = true };
+        var backend = new ViceBackend(config, mock);
+
+        backend.Connect();
+
+        mock.WasToolCalled("vice.machine.config.set").Should().BeTrue();
+    }
+
+    [Fact]
+    public void Connect_PingFails_ThrowsAndNeverPauses()
+    {
+        var mock = new MockViceConnection { PingResult = false };
+        var backend = new ViceBackend(DefaultConfig, mock);
+
+        var act = () => backend.Connect();
+
+        act.Should().Throw<InvalidOperationException>().WithMessage("*Could not connect*");
+        mock.WasToolCalled("vice.execution.pause").Should().BeFalse();
+    }
+
+    // ── Word / multi-byte memory contracts ──
+
+    [Fact]
+    public void WriteWord_WritesLowThenHighByte()
+    {
+        var mock = new MockViceConnection();
+        var backend = new ViceBackend(DefaultConfig, mock);
+
+        backend.WriteWord(0x2000, 0xABCD);
+
+        var calls = mock.GetCallsForTool("vice.memory.write");
+        calls.Should().HaveCount(2);
+        calls[0].Args!["address"].Should().Be(0x2000);
+        ((int[])calls[0].Args!["data"]).Should().Equal(0xCD);
+        calls[1].Args!["address"].Should().Be(0x2001);
+        ((int[])calls[1].Args!["data"]).Should().Equal(0xAB);
+    }
+
+    [Fact]
+    public void WriteMemoryValue_ByteRange_WritesSingleByte()
+    {
+        var mock = new MockViceConnection();
+        var backend = new ViceBackend(DefaultConfig, mock);
+
+        backend.WriteMemoryValue(0x1000, 0x42);
+
+        mock.GetCallsForTool("vice.memory.write").Should().HaveCount(1);
+    }
+
+    [Fact]
+    public void WriteMemoryValue_WordRange_WritesTwoBytes()
+    {
+        var mock = new MockViceConnection();
+        var backend = new ViceBackend(DefaultConfig, mock);
+
+        backend.WriteMemoryValue(0x1000, 0x1234);
+
+        mock.GetCallsForTool("vice.memory.write").Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void ReadWord_CombinesLoAndHiBytes()
+    {
+        var mock = new MockViceConnection();
+        mock.SetResponse("vice.memory.read", SuccessResponse("{\"data\": [\"CD\"]}"));
+        mock.SetResponse("vice.memory.read", SuccessResponse("{\"data\": [\"AB\"]}"));
+        var backend = new ViceBackend(DefaultConfig, mock);
+
+        backend.ReadWord(0x2000).Should().Be(0xABCD);
+    }
+
+    [Fact]
+    public void ReadByte_Failure_Throws()
+    {
+        var mock = new MockViceConnection();
+        mock.SetResponse("vice.memory.read", new McpResponse { IsSuccess = false, ErrorMessage = "bad addr" });
+        var backend = new ViceBackend(DefaultConfig, mock);
+
+        var act = () => backend.ReadByte(0x9999);
+
+        act.Should().Throw<InvalidOperationException>().WithMessage("*bad addr*");
+    }
+
+    [Fact]
+    public void LoadBinary_Failure_Throws()
+    {
+        var mock = new MockViceConnection();
+        mock.SetResponse("vice.memory.write", new McpResponse { IsSuccess = false, ErrorMessage = "write failed" });
+        var backend = new ViceBackend(DefaultConfig, mock);
+
+        var act = () => backend.LoadBinary(new byte[] { 1 }, 0xC000);
+
+        act.Should().Throw<InvalidOperationException>().WithMessage("*write failed*");
+    }
+
+    // ── Register contracts ──
+
+    [Fact]
+    public void GetRegister_ReturnsParsedValue()
+    {
+        var mock = new MockViceConnection();
+        mock.SetResponse("vice.registers.get", SuccessResponse("{\"A\": 66}"));
+        var backend = new ViceBackend(DefaultConfig, mock);
+
+        backend.GetRegister("a").Should().Be(66);
+    }
+
+    [Fact]
+    public void GetRegister_Failure_Throws()
+    {
+        var mock = new MockViceConnection();
+        mock.SetResponse("vice.registers.get", new McpResponse { IsSuccess = false, ErrorMessage = "no regs" });
+        var backend = new ViceBackend(DefaultConfig, mock);
+
+        var act = () => backend.GetRegister("a");
+
+        act.Should().Throw<InvalidOperationException>().WithMessage("*no regs*");
+    }
+
+    [Fact]
+    public void SetRegister_SendsUppercaseNameAndValue()
+    {
+        var mock = new MockViceConnection();
+        var backend = new ViceBackend(DefaultConfig, mock);
+
+        backend.SetRegister("pc", 0xC000);
+
+        var calls = mock.GetCallsForTool("vice.registers.set");
+        calls[0].Args!["register"].Should().Be("PC");
+        calls[0].Args!["value"].Should().Be(0xC000);
+    }
+
+    [Fact]
+    public void SetRegister_Failure_Throws()
+    {
+        var mock = new MockViceConnection();
+        mock.SetResponse("vice.registers.set", new McpResponse { IsSuccess = false, ErrorMessage = "bad reg" });
+        var backend = new ViceBackend(DefaultConfig, mock);
+
+        var act = () => backend.SetRegister("q", 1);
+
+        act.Should().Throw<InvalidOperationException>().WithMessage("*bad reg*");
+    }
+
+    // ── Snapshot / symbol contracts ──
+
+    [Fact]
+    public void SaveSnapshot_Success_SendsName()
+    {
+        var mock = new MockViceConnection();
+        var backend = new ViceBackend(DefaultConfig, mock);
+
+        backend.SaveSnapshot("mysave");
+
+        mock.GetCallsForTool("vice.snapshot.save")[0].Args!["name"].Should().Be("mysave");
+    }
+
+    [Fact]
+    public void SaveSnapshot_Failure_Throws()
+    {
+        var mock = new MockViceConnection();
+        mock.SetResponse("vice.snapshot.save", new McpResponse { IsSuccess = false, ErrorMessage = "disk full" });
+        var backend = new ViceBackend(DefaultConfig, mock);
+
+        var act = () => backend.SaveSnapshot("mysave");
+
+        act.Should().Throw<InvalidOperationException>().WithMessage("*disk full*");
+    }
+
+    [Fact]
+    public void RestoreSnapshot_Success_SendsName()
+    {
+        var mock = new MockViceConnection();
+        var backend = new ViceBackend(DefaultConfig, mock);
+
+        backend.RestoreSnapshot("mysave");
+
+        mock.GetCallsForTool("vice.snapshot.load")[0].Args!["name"].Should().Be("mysave");
+    }
+
+    [Fact]
+    public void RestoreSnapshot_Failure_Throws()
+    {
+        var mock = new MockViceConnection();
+        mock.SetResponse("vice.snapshot.load", new McpResponse { IsSuccess = false, ErrorMessage = "not found" });
+        var backend = new ViceBackend(DefaultConfig, mock);
+
+        var act = () => backend.RestoreSnapshot("missing");
+
+        act.Should().Throw<InvalidOperationException>().WithMessage("*not found*");
+    }
+
+    [Fact]
+    public void LoadSymbols_Success_SendsPath()
+    {
+        var mock = new MockViceConnection();
+        var backend = new ViceBackend(DefaultConfig, mock);
+
+        var act = () => backend.LoadSymbols("/tmp/prog.sym");
+
+        act.Should().NotThrow();
+        mock.GetCallsForTool("vice.symbols.load")[0].Args!["path"].Should().Be("/tmp/prog.sym");
+    }
+
+    [Fact]
+    public void LoadSymbols_Failure_LogsWarningInsteadOfThrowing()
+    {
+        var mock = new MockViceConnection();
+        mock.SetResponse("vice.symbols.load", new McpResponse { IsSuccess = false, ErrorMessage = "bad symbols" });
+        var backend = new ViceBackend(DefaultConfig, mock);
+
+        var act = () => backend.LoadSymbols("/bad.sym");
+
+        act.Should().NotThrow();
+    }
+
+    // ── Trace / Dispose contracts ──
+
+    [Fact]
+    public void TraceEnabled_CanBeSetAndRead()
+    {
+        var mock = new MockViceConnection();
+        var backend = new ViceBackend(DefaultConfig, mock);
+
+        backend.TraceEnabled = true;
+
+        backend.TraceEnabled.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ClearTraceBuffer_DoesNotThrow()
+    {
+        var mock = new MockViceConnection();
+        var backend = new ViceBackend(DefaultConfig, mock);
+
+        var act = () => backend.ClearTraceBuffer();
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void GetTraceBuffer_ReturnsEmptyList()
+    {
+        var mock = new MockViceConnection();
+        var backend = new ViceBackend(DefaultConfig, mock);
+
+        backend.GetTraceBuffer().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Dispose_DisposesUnderlyingConnection()
+    {
+        var mock = new MockViceConnection();
+        var backend = new ViceBackend(DefaultConfig, mock);
+
+        backend.Dispose();
+
+        mock.Disposed.Should().BeTrue();
+    }
+
+    // ── ExecuteJsr edge cases ──
+
+    [Fact]
+    public void ExecuteJsr_StopOnAddressReached_ReturnsStopAddressReason()
+    {
+        var mock = new MockViceConnection();
+        mock.SetResponse("vice.registers.get",
+            SuccessResponse("{\"SP\": 253, \"PC\": 0, \"A\": 0, \"X\": 0, \"Y\": 0}"));
+        mock.SetResponse("vice.registers.set", SuccessEmpty);
+        mock.SetResponse("vice.registers.set", SuccessEmpty);
+        // Two checkpoints: one for RTS, one for the stop address.
+        mock.SetResponse("vice.checkpoint.add", SuccessResponse("{\"checkpoint_num\": 1}"));
+        mock.SetResponse("vice.checkpoint.add", SuccessResponse("{\"checkpoint_num\": 2}"));
+        mock.SetResponse("vice.registers.get",
+            SuccessResponse("{\"SP\": 253, \"PC\": 8192, \"A\": 0, \"X\": 0, \"Y\": 0}"));
+        mock.SetResponse("vice.memory.read", SuccessResponse("{\"data\": [\"EA\"]}")); // NOP, not BRK
+        mock.SetResponse("vice.checkpoint.delete", SuccessEmpty);
+        mock.SetResponse("vice.checkpoint.delete", SuccessEmpty);
+        mock.SetResponse("vice.cycles.stopwatch", SuccessResponse("{\"cycles\": 99}"));
+
+        var backend = new ViceBackend(DefaultConfig, mock);
+        var result = backend.ExecuteJsr(0x1000, 0x2000, true, false);
+
+        result.Reason.Should().Be(StopReason.StopAddress);
+        result.ProgramCounter.Should().Be(0x2000);
+        result.ExitedCleanly.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ExecuteJsr_TrapTimesOut_ReturnsTimeoutReasonAndForcesPause()
+    {
+        var mock = new MockViceConnection();
+        mock.SetResponse("vice.registers.get",
+            SuccessResponse("{\"SP\": 253, \"PC\": 0, \"A\": 0, \"X\": 0, \"Y\": 0}"));
+        mock.SetResponse("vice.registers.set", SuccessEmpty);
+        mock.SetResponse("vice.registers.set", SuccessEmpty);
+        mock.SetResponse("vice.checkpoint.add", SuccessResponse("{\"checkpoint_num\": 1}"));
+        // Final registers.get fails (trap timed out) but still carries a parsable PC.
+        mock.SetResponse("vice.registers.get", new McpResponse
+        {
+            IsSuccess = false,
+            Content = "{\"SP\": 253, \"PC\": 4096, \"A\": 0, \"X\": 0, \"Y\": 0}",
+            ErrorMessage = "trap timeout"
+        });
+        mock.SetResponse("vice.execution.pause", SuccessEmpty);
+        mock.SetResponse("vice.memory.read", SuccessResponse("{\"data\": [\"60\"]}"));
+        mock.SetResponse("vice.checkpoint.delete", SuccessEmpty);
+        mock.SetResponse("vice.cycles.stopwatch", SuccessResponse("{\"cycles\": 5}"));
+
+        var backend = new ViceBackend(DefaultConfig, mock);
+        var result = backend.ExecuteJsr(0x1000, 0, true, false);
+
+        result.Reason.Should().Be(StopReason.Timeout);
+        result.ExitedCleanly.Should().BeFalse();
+        mock.WasToolCalled("vice.execution.pause").Should().BeTrue();
+    }
+
+    [Fact]
+    public void ExecuteJsr_HitsBrkWithFailOnBrk_ReturnsBrkReasonAndDirtyExit()
+    {
+        var mock = new MockViceConnection();
+        mock.SetResponse("vice.registers.get",
+            SuccessResponse("{\"SP\": 253, \"PC\": 0, \"A\": 0, \"X\": 0, \"Y\": 0}"));
+        mock.SetResponse("vice.registers.set", SuccessEmpty);
+        mock.SetResponse("vice.registers.set", SuccessEmpty);
+        mock.SetResponse("vice.checkpoint.add", SuccessResponse("{\"checkpoint_num\": 1}"));
+        mock.SetResponse("vice.registers.get",
+            SuccessResponse("{\"SP\": 253, \"PC\": 1024, \"A\": 0, \"X\": 0, \"Y\": 0}"));
+        mock.SetResponse("vice.memory.read", SuccessResponse("{\"data\": [\"00\"]}")); // BRK opcode
+        mock.SetResponse("vice.checkpoint.delete", SuccessEmpty);
+        mock.SetResponse("vice.cycles.stopwatch", SuccessResponse("{\"cycles\": 7}"));
+
+        var backend = new ViceBackend(DefaultConfig, mock);
+        var result = backend.ExecuteJsr(0x1000, 0, true, true);
+
+        result.Reason.Should().Be(StopReason.Brk);
+        result.ExitedCleanly.Should().BeFalse();
     }
 }
