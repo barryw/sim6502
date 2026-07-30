@@ -45,7 +45,7 @@ public class UciRegistersDecodeTests
         for (var i = 0; i < UciConstants.CommandBufferSize + 32; i++)
             uci.Write(UciConstants.CommandAddress, 0xAA);
 
-        uci.CommandLength.Should().Be(UciConstants.CommandBufferEnd);
+        uci.CommandLength.Should().Be(UciConstants.CommandBufferEnd - UciConstants.CommandBufferStart);
     }
 
     [Fact]
@@ -115,6 +115,23 @@ public class UciRegistersDecodeTests
     public void UnknownAddressInRange_ReadsAsFF()
     {
         NewUci().Read(0xDF1A).Should().Be(0xFF);
+    }
+
+    /// <summary>
+    /// Regression test for a 1-byte command (target byte only, no command byte)
+    /// reaching dispatch: the trace log used to index command[1] unconditionally
+    /// and threw IndexOutOfRangeException regardless of log level. This is a
+    /// minimal guard, not full dispatch coverage — see UciRegistersDispatchTests
+    /// (Task 5) for that.
+    /// </summary>
+    [Fact]
+    public void OneByteCommand_ReachingDispatch_DoesNotThrow()
+    {
+        var uci = NewUci();
+        uci.ServiceEnabled = true;
+        uci.RegisterTarget(1, new NeverAnsweringTarget());
+        uci.Write(UciConstants.CommandAddress, 0x01); // target byte only, length == 1
+        uci.Write(UciConstants.ControlAddress, UciConstants.ControlPushCommand);
     }
 
     /// <summary>

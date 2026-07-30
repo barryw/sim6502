@@ -16,6 +16,15 @@ namespace sim6502.Systems.Ultimate;
 /// the state is Busy. Answering instantly would let a client with a broken or
 /// missing busy-wait loop pass here and fail on hardware, so the Busy state is
 /// held for <see cref="LatencyCycles"/> CPU cycles before the response appears.
+///
+/// Not modelled: IRQ delivery (upstream's <c>slot_resp.irq &lt;= state(1) and
+/// cmd_irq_en</c> and the <c>io_irq</c> output), DMA, and the freeze latch
+/// (<c>write_ff00 and trigger -&gt; freeze_i</c>). Also not modelled: upstream
+/// returns 0x49 instead of 0xC9 from $DF1D while an IRQ is pending
+/// (<c>irq_n &amp; "1001001"</c>); this port always returns 0xC9.
+/// <see cref="_freeze"/>, <see cref="_trigger"/> and
+/// <see cref="_commandIrqEnabled"/> exist only to track that state faithfully —
+/// nothing consumes them yet.
 /// </summary>
 public sealed class UciRegisters : IIOHandler
 {
@@ -221,15 +230,24 @@ public sealed class UciRegisters : IIOHandler
     }
 
     // Mirrors CommandInterface::run_task, command_intf.cc lines 116-171.
+    //
+    // Upstream latches status_byte from its queue once and tests that copy in
+    // all three branches. Testing the live fields instead would skip the later
+    // branches whenever the abort branch's HANDSHAKE_RESET clears their flags —
+    // observable from a single write of DATA_ACCEPT|ABORT.
     private void ServiceUltimate()
     {
-        if (_abort)
+        var abort = _abort;
+        var dataAccepted = _dataAccepted;
+        var newCommand = _newCommand;
+
+        if (abort)
         {
             _activeTarget?.Abort(_responsePointer - UciConstants.ResponseBufferStart);
             HandshakeOut(UciConstants.HandshakeReset);
         }
 
-        if (_dataAccepted)
+        if (dataAccepted)
         {
             if (_activeTarget != null)
             {
@@ -242,7 +260,7 @@ public sealed class UciRegisters : IIOHandler
             HandshakeOut(UciConstants.HandshakeAcceptNextData);
         }
 
-        if (_newCommand)
+        if (newCommand)
         {
             var length = CommandLength;
             if (length > 0)
@@ -254,7 +272,9 @@ public sealed class UciRegisters : IIOHandler
                 var command = new byte[length];
                 Array.Copy(_ram, UciConstants.CommandBufferStart, command, 0, length);
 
-                Logger.Trace($"UCI: target ${targetId:X2} command ${command[1]:X2} ({length} bytes)");
+                if (Logger.IsTraceEnabled)
+                    Logger.Trace($"UCI: target ${targetId:X2} command " +
+                                 $"${(length > 1 ? command[1] : 0):X2} ({length} bytes)");
                 var reply = _activeTarget.ParseCommand(command);
 
                 HandshakeOut(UciConstants.HandshakeAcceptCommand);
@@ -276,7 +296,10 @@ public sealed class UciRegisters : IIOHandler
     // Mirrors CommandInterface::copy_result, command_intf.cc lines 173-191.
     private void CopyResult(UciReply reply)
     {
-        var data = reply.Data;
+        // A misbehaving ICommandTarget can return default(UciReply); Data and
+        // Status are null on a default record struct. Don't trust the target.
+        var data = reply.Data ?? Array.Empty<byte>();
+        var statusText = reply.Status ?? string.Empty;
         if (data.Length > UciConstants.ResponseBufferSize)
         {
             Logger.Warn($"UCI: reply of {data.Length} bytes exceeds the " +
@@ -284,7 +307,7 @@ public sealed class UciRegisters : IIOHandler
             data = data[..UciConstants.ResponseBufferSize];
         }
 
-        var status = System.Text.Encoding.ASCII.GetBytes(reply.Status);
+        var status = System.Text.Encoding.ASCII.GetBytes(statusText);
         if (status.Length > UciConstants.StatusBufferSize)
         {
             Logger.Warn($"UCI: status of {status.Length} bytes exceeds the " +
