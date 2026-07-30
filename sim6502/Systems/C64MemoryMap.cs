@@ -36,6 +36,30 @@ public class C64MemoryMap : IMemoryMap
     // I/O region stub storage (VIC, SID, CIA, etc.)
     private byte[] _ioRegisters = new byte[0x1000];
 
+    // Registered I/O handlers, checked before the flat _ioRegisters array.
+    private readonly List<(int Start, int End, IIOHandler Handler)> _ioHandlers = new();
+
+    public void RegisterIoHandler(int startAddress, int endAddress, IIOHandler handler)
+    {
+        if (endAddress < startAddress)
+            throw new ArgumentException(
+                $"End address ${endAddress:X4} is below start address ${startAddress:X4}");
+        if (startAddress < 0xD000 || endAddress > 0xDFFF)
+            throw new ArgumentException(
+                $"I/O handler range ${startAddress:X4}-${endAddress:X4} must lie within $D000-$DFFF");
+
+        _ioHandlers.Add((startAddress, endAddress, handler));
+        Logger.Debug($"Registered I/O handler for ${startAddress:X4}-${endAddress:X4}");
+    }
+
+    private IIOHandler? FindHandler(int address)
+    {
+        foreach (var (start, end, handler) in _ioHandlers)
+            if (address >= start && address <= end)
+                return handler;
+        return null;
+    }
+
     public Action IncrementCycleCount { get; set; } = () => { };
 
     // Banking bits from $01
@@ -88,7 +112,12 @@ public class C64MemoryMap : IMemoryMap
                 return _ram[address]; // All RAM mode
 
             if (Charen)
+            {
+                var handler = FindHandler(address);
+                if (handler != null)
+                    return handler.Read(address);
                 return _ioRegisters[address - 0xD000]; // I/O visible
+            }
 
             return _charRom[address - 0xD000]; // CHAR ROM visible
         }
@@ -125,7 +154,11 @@ public class C64MemoryMap : IMemoryMap
         {
             if ((LoRam || HiRam) && Charen)
             {
-                _ioRegisters[address - 0xD000] = value;
+                var handler = FindHandler(address);
+                if (handler != null)
+                    handler.Write(address, value);
+                else
+                    _ioRegisters[address - 0xD000] = value;
                 // Fall through to also write to RAM!
             }
         }
@@ -184,6 +217,7 @@ public class C64MemoryMap : IMemoryMap
     {
         _ram = new byte[0x10000];
         _ioRegisters = new byte[0x1000];
+        _ioHandlers.Clear();
         _dataDirection = 0x2F;
         _dataPort = 0x37; // Default banking
         // Keep ROMs loaded

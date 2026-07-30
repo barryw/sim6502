@@ -58,4 +58,13 @@ public interface IMemoryMap
     /// Action to increment cycle count (delegated from processor).
     /// </summary>
     Action IncrementCycleCount { get; set; }
+
+    /// <summary>
+    /// Register a handler for an inclusive I/O address range. Systems that model
+    /// I/O as a flat byte array do not support this.
+    /// </summary>
+    void RegisterIoHandler(int startAddress, int endAddress, IIOHandler handler)
+        => throw new NotSupportedException(
+            $"{GetType().Name} does not support I/O handlers. " +
+            "Backends that need them require system(c64).");
 }
