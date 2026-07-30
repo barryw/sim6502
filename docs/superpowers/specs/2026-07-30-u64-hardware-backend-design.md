@@ -224,7 +224,7 @@ MCP server exposes them. The U64 REST API exposes none of that, so:
 
 | Member | Behaviour |
 |---|---|
-| `ReadByte`, `ReadWord`, `WriteByte`, `WriteWord`, `WriteMemoryValue` | Real, via DMA `readmem`/`writemem` |
+| `ReadByte`, `ReadWord`, `WriteByte`, `WriteWord`, `WriteMemoryValue` | Real, via DMA `readmem`/`writemem` — **but see the banking caveat below** |
 | `LoadBinary` | Real, via `POST machine:writemem` (bulk) |
 | `Reset` | Real, via `PUT machine:reset` |
 | `IssueUciCommand` | Real — the point of the backend |
@@ -236,6 +236,30 @@ MCP server exposes them. The U64 REST API exposes none of that, so:
 
 Every `NotSupportedException` names the reason and the alternative (`uci()`, or the
 resident-stub milestone), rather than failing blankly.
+
+### Memory access is not equivalent to `sim` — banking caveat
+
+`readmem`/`writemem` perform DMA **through the PLA**, so they see whatever the C64's
+current banking exposes, not raw RAM:
+
+- `$D000-$DFFF` reaches **I/O**, not the RAM underneath. This is precisely why DMA
+  writes to `$DF1D` drive the UCI at all, so the backend depends on it — but it also
+  means a suite asserting RAM under I/O would silently read chip registers.
+- `$A000-$BFFF` and `$E000-$FFFF` return **ROM** when banked in. Verified: reading
+  `$E000` returns `85 56 20 0F BC …`, which is KERNAL ROM.
+
+Upstream issue
+[#674](https://github.com/GideonZ/1541ultimate/issues/674) added a `ramonly`
+parameter to bypass this via the firmware's existing `C64_DMA_MEMONLY` register. It
+is **closed as completed but not present in fw 3.14d** — the machine answers
+`"Function readmem does not have parameter ramonly"` — and `route_machine.cc` in the
+3.14e source does not expose it either.
+
+Consequences for this milestone: none, because the acceptance suite performs no
+memory assertions. But the divergence is real and must be documented on the backend,
+and any future milestone that adds memory assertions against `u64` has to either
+require a firmware with `ramonly` or restrict assertions to `$0000-$9FFF` /
+`$C000-$CFFF`.
 
 ## Files
 
