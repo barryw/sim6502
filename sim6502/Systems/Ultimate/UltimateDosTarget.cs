@@ -109,6 +109,11 @@ public sealed class UltimateDosTarget : ICommandTarget, IDisposable
             CmdGetPath   => UciReply.Ok(Encoding.ASCII.GetBytes(_fileSystem.CurrentPath)),
             CmdCreateDir => CreateDirectory(ReadString(command, 2)),
             CmdEcho      => new UciReply(command, UciConstants.StatusOk, true),
+            CmdOpenFile  => OpenFile(command),
+            CmdCloseFile => CloseFile(),
+            CmdReadData  => BeginRead(command),
+            CmdWriteData => WriteData(command),
+            CmdFileSeek  => Seek(command),
 
             _ => UciReply.Empty(UciConstants.StatusUnknownCommand)
         };
@@ -121,6 +126,9 @@ public sealed class UltimateDosTarget : ICommandTarget, IDisposable
             case DosState.Idle:
                 Logger.Debug("DOS: more data requested while idle");
                 return UciReply.Empty(StatusNotInDataMode);
+
+            case DosState.InFile:
+                return ReadNextChunk();
 
             default:
                 Logger.Warn($"DOS: unhandled data-mode state {_state}");
@@ -177,6 +185,168 @@ public sealed class UltimateDosTarget : ICommandTarget, IDisposable
             Logger.Warn($"DOS: could not create directory '{name}': {ex.Message}");
             return UciReply.Empty(StatusInternalError);
         }
+    }
+
+    private UciReply OpenFile(byte[] command)
+    {
+        if (command.Length < 3)
+            return UciReply.Empty(StatusInternalError);
+
+        var attributes = command[2];
+        var name = ReadString(command, 3);
+
+        var host = _fileSystem.ResolveToHostPath(name);
+        if (host == null)
+        {
+            Logger.Warn($"DOS: open rejected for out-of-mount path '{name}'");
+            return UciReply.Empty(StatusFileNotFound);
+        }
+
+        // FatFs flag semantics: CREATE_ALWAYS truncates, CREATE_NEW must not exist,
+        // otherwise the file must already be there.
+        var mode = (attributes & FileAttributeCreateAlways) != 0 ? FileMode.Create
+                 : (attributes & FileAttributeCreateNew) != 0    ? FileMode.CreateNew
+                 : FileMode.Open;
+
+        var wantsWrite = (attributes & FileAttributeWrite) != 0;
+        var wantsRead  = (attributes & FileAttributeRead) != 0 || !wantsWrite;
+
+        var access = wantsRead && wantsWrite ? FileAccess.ReadWrite
+                   : wantsWrite              ? FileAccess.Write
+                   : FileAccess.Read;
+
+        // .NET forbids creating a file opened read-only; widen so the flag
+        // combination the C64 asked for still works.
+        if (mode != FileMode.Open && access == FileAccess.Read)
+            access = FileAccess.ReadWrite;
+
+        _file?.Dispose();
+        _file = null;
+        _state = DosState.Idle;
+
+        try
+        {
+            _file = new FileStream(host, mode, access);
+            return UciReply.Empty(UciConstants.StatusOk);
+        }
+        catch (FileNotFoundException)
+        {
+            return UciReply.Empty(StatusFileNotFound);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return UciReply.Empty(StatusNoSuchDirectory);
+        }
+        catch (Exception ex)
+        {
+            // Upstream surfaces FatFs error text here. Porting that table buys no
+            // test value, so failures map onto the documented DOS statuses.
+            Logger.Warn($"DOS: could not open '{name}': {ex.Message}");
+            return UciReply.Empty(StatusInternalError);
+        }
+    }
+
+    private UciReply CloseFile()
+    {
+        if (_file == null)
+            return UciReply.Empty(StatusNoFileToClose);
+
+        _file.Dispose();
+        _file = null;
+        _state = DosState.Idle;
+        return UciReply.Empty(UciConstants.StatusOk);
+    }
+
+    private UciReply BeginRead(byte[] command)
+    {
+        if (_file == null)
+            return UciReply.Empty(StatusNoFileOpen);
+
+        if (command.Length < 4)
+            return UciReply.Empty(StatusInternalError);
+
+        _remaining = (command[3] << 8) | command[2];
+        _state = DosState.InFile;
+        return GetMoreData();
+    }
+
+    private UciReply WriteData(byte[] command)
+    {
+        if (_file == null)
+            return UciReply.Empty(StatusNoFileOpen);
+
+        // Bytes 2 and 3 are dummies; the payload starts at byte 4.
+        var offset = 4;
+        var count = Math.Max(0, command.Length - offset);
+
+        try
+        {
+            if (count > 0)
+                _file.Write(command, offset, count);
+            _file.Flush();
+            return UciReply.Empty(UciConstants.StatusOk);
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn($"DOS: write of {count} bytes failed: {ex.Message}");
+            return UciReply.Empty(StatusInternalError);
+        }
+    }
+
+    private UciReply Seek(byte[] command)
+    {
+        if (_file == null)
+            return UciReply.Empty(StatusNoFileOpen);
+
+        if (command.Length < 6)
+            return UciReply.Empty(StatusInternalError);
+
+        var position = (long)command[2]
+                     | ((long)command[3] << 8)
+                     | ((long)command[4] << 16)
+                     | ((long)command[5] << 24);
+
+        try
+        {
+            // FatFs clamps a seek past the end on a read-only file rather than
+            // failing, so clamp here too.
+            _file.Position = Math.Min(position, _file.Length);
+            return UciReply.Empty(UciConstants.StatusOk);
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn($"DOS: seek to {position} failed: {ex.Message}");
+            return UciReply.Empty(StatusInternalError);
+        }
+    }
+
+    private UciReply ReadNextChunk()
+    {
+        var length = Math.Min(_remaining, ReadChunkSize);
+        var buffer = new byte[length];
+        int transferred;
+
+        try
+        {
+            transferred = length == 0 ? 0 : _file!.Read(buffer, 0, length);
+        }
+        catch (Exception ex)
+        {
+            // dos.cc leaves *status unassigned on this path — an upstream defect.
+            // Assign the error status explicitly instead.
+            Logger.Warn($"DOS: read failed: {ex.Message}");
+            _state = DosState.Idle;
+            return UciReply.Empty(StatusInternalError);
+        }
+
+        _remaining -= transferred;
+
+        var lastPart = transferred != length || _remaining == 0;
+        if (lastPart)
+            _state = DosState.Idle;
+
+        var data = transferred == length ? buffer : buffer[..transferred];
+        return new UciReply(data, UciConstants.StatusEmpty, lastPart);
     }
 
     /// <summary>
