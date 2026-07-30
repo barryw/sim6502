@@ -14,6 +14,11 @@ steps:
       - dotnet build -c Release
       - dotnet test -c Release --no-build
 
+  - name: example-suite
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    commands:
+      - dotnet run --project sim6502 -c Release --no-build -- --suitefile example/ultimate.suite --backend u64sim
+
   - name: release
     image: alpine
     when:
@@ -52,7 +57,7 @@ steps:
         fi
         gh release create "$VERSION" --title "$VERSION" --notes "$NOTES"
         echo "$${VERSION#v}" > "$CI_WORKSPACE/VERSION"
-    depends_on: [build-and-test]
+    depends_on: [build-and-test, example-suite]
 
   - name: build-binaries
     image: mcr.microsoft.com/dotnet/sdk:10.0
