@@ -136,10 +136,43 @@ public class UltimateFileSystemTests : IDisposable
         using var fs = NewFs();
         var host = fs.ResolveToHostPath(attempt);
 
-        // Either rejected outright, or clamped to somewhere inside the working root.
-        if (host != null)
-            host.Should().StartWith(fs.WorkingRoot);
-        host.Should().NotContain("etc" + Path.DirectorySeparatorChar + "passwd");
+        // The security property is that the result never escapes the working
+        // root — not that it avoids echoing the caller's leaf names. Under plain
+        // chroot semantics a leading ".." at the root is absorbed as a no-op, so
+        // "../../../../etc/passwd" resolves to WorkingRoot/etc/passwd: a path
+        // that is safely *inside* the sandbox and simply does not exist there.
+        // That is the correct, safe outcome — a DOS open of it returns FILE NOT
+        // FOUND — and asserting on leaf names such as "etc/passwd" would be
+        // substring-blacklist thinking: rejecting a safe path because of what
+        // it is named rather than where it actually resolves.
+        //
+        // So the only things worth asserting are: either rejected outright, or
+        // canonically inside the working root.
+        if (host == null) return;
+
+        var canonical = Path.GetFullPath(host);
+        var rootWithSeparator = fs.WorkingRoot.EndsWith(Path.DirectorySeparatorChar)
+            ? fs.WorkingRoot
+            : fs.WorkingRoot + Path.DirectorySeparatorChar;
+        (canonical == fs.WorkingRoot || canonical.StartsWith(rootWithSeparator, StringComparison.Ordinal))
+            .Should().BeTrue($"'{canonical}' must not escape the working root '{fs.WorkingRoot}'");
+    }
+
+    [Fact]
+    public void ResolveToHostPath_DotDotAtRoot_ThenRelativePath_ResolvesNormally()
+    {
+        // Pins the legitimate case a prior (reverted) fix broke: a ".." that
+        // underflows at the root must be absorbed as a no-op, with the rest of
+        // the path still resolving normally afterwards. That fix set a
+        // "climbed above root" flag on underflow and discarded every segment
+        // that followed, so "../data/bytes.bin" resolved to WorkingRoot instead
+        // of WorkingRoot/data/bytes.bin — a legitimate relative path silently
+        // landing in the wrong place.
+        using var fs = NewFs();
+        var host = fs.ResolveToHostPath("../data/bytes.bin");
+        host.Should().NotBeNull();
+        host.Should().Be(Path.Combine(fs.WorkingRoot, "data", "bytes.bin"));
+        File.ReadAllBytes(host!).Should().Equal(1, 2, 3, 4);
     }
 
     [Fact]

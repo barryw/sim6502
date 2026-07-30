@@ -133,10 +133,10 @@ public sealed class UltimateFileSystem : IDisposable
     /// Split an Ultimate path into normalised segments relative to the mount root.
     /// Returns false for malformed input or a mount name we do not serve.
     /// <c>..</c> at the root is absorbed rather than treated as an escape, matching
-    /// the upstream Path behaviour. Once a <c>..</c> underflows the root, the rest
-    /// of the path is discarded and the result clamps to the root, rather than
-    /// resuming normal appends — so the result never echoes the names an escape
-    /// attempt used.
+    /// the upstream Path behaviour (plain chroot semantics): the segment is simply
+    /// dropped and normal appends resume with whatever follows. The actual boundary
+    /// is enforced afterwards by <see cref="ToHostPath"/>, which canonicalises the
+    /// result and prefix-checks it against <see cref="WorkingRoot"/>.
     /// </summary>
     private bool TryNormalise(string path, out List<string> segments)
     {
@@ -165,7 +165,6 @@ public sealed class UltimateFileSystem : IDisposable
             segments.AddRange(_current);
         }
 
-        var climbedAboveRoot = false;
         foreach (var segment in body.Split('/', StringSplitOptions.RemoveEmptyEntries))
         {
             if (segment == ".") continue;
@@ -174,18 +173,10 @@ public sealed class UltimateFileSystem : IDisposable
             {
                 if (segments.Count > 0)
                     segments.RemoveAt(segments.Count - 1);
-                else
-                    climbedAboveRoot = true; // underflow: tried to climb above the root
                 continue; // at the root this is a no-op, not an escape
             }
 
             if (segment.Contains('\0')) { segments.Clear(); return false; }
-
-            // Once a path has proven it wants to climb above the root, nothing that
-            // follows it is trustworthy either — clamp to the root rather than
-            // resuming normal appends, so the result never echoes the segment names
-            // the caller used to try to escape.
-            if (climbedAboveRoot) continue;
 
             segments.Add(segment);
         }
