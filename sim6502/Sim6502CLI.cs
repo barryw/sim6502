@@ -178,6 +178,7 @@ namespace sim6502
         private static int RunTests(Options opts)
         {
             ViceLauncher? viceLauncher = null;
+            SimBaseListener? sbl = null;
             try
             {
                 if (opts.LaunchVice && opts.Backend == "vice")
@@ -214,7 +215,7 @@ namespace sim6502
 
                 // Walk tree, collecting semantic/runtime errors
                 var walker = new ParseTreeWalker();
-                var sbl = new SimBaseListener
+                sbl = new SimBaseListener
                 {
                     FilterPattern = opts.FilterPattern,
                     SingleTest = opts.SingleTest,
@@ -262,6 +263,13 @@ namespace sim6502
             }
             finally
             {
+                // If an exception escaped walker.Walk (e.g. run() on the wrong
+                // backend), ExitSuite never ran for the in-flight suite, so the
+                // backend the listener constructed was never disposed. This call
+                // is a no-op if every suite already exited normally (ExitSuite
+                // got there first) and a no-op if the listener was never even
+                // constructed (parsing failed before the walk started).
+                sbl?.DisposeBackendIfOwned();
                 viceLauncher?.Dispose();
             }
         }

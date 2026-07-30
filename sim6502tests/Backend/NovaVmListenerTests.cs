@@ -337,7 +337,7 @@ public class NovaVmListenerTests
 
         new ParseTreeWalker().Walk(sbl, tree);
 
-        // Test should pass (not fail with "No JSR encountered")
+        // Test should pass (not fail the executed-something guard)
         sbl.TotalSuitesFailed.Should().Be(0, "test suite should pass");
     }
 

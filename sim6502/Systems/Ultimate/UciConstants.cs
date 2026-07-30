@@ -78,6 +78,7 @@ public static class UciConstants
     // ── Status strings shared across targets (command_intf.cc lines 223-226) ──
     public const string StatusOk             = "00,OK";
     public const string StatusUnknownCommand = "21,UNKNOWN COMMAND";
+    public const string StatusNotImplemented = "99,FUNCTION NOT IMPLEMENTED";
     public const string MessageNoTarget      = "NO TARGET";
     public const string StatusEmpty          = "";
 }

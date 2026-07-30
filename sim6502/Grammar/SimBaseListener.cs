@@ -192,6 +192,21 @@ namespace sim6502.Grammar
         public Processor? Proc => (Backend as SimulatorBackend)?.Processor;
         public SymbolFile Symbols { get; set; }
 
+        // Whether the object currently in Backend was constructed by EnterSuite,
+        // as opposed to a caller (tests) injecting one directly. An injected
+        // backend is never disposed or replaced by the listener.
+        private bool _backendOwnedByListener;
+
+        // Whether DisposeBackendIfOwned() has already disposed the current
+        // listener-owned Backend. Backend itself is deliberately left non-null
+        // after disposal — SimulatorBackend.Dispose() is a no-op, and code that
+        // inspects state via Proc after the walk (existing tests do this) still
+        // needs it to resolve. This flag is what tells the next EnterSuite that
+        // the object Backend points to is stale and must be replaced, and what
+        // lets DisposeBackendIfOwned() be called a second time (from the CLI's
+        // outer finally block) without disposing twice.
+        private bool _backendDisposed;
+
         private string CurrentSuite { get; set; }
         
         private void ResetTest()
@@ -403,10 +418,19 @@ namespace sim6502.Grammar
                 Logger.Info($"Ultimate filesystem root set to: {fsRoot}");
             }
 
-            // Create processor with memory map (skip if backend already injected for testing)
-            if (Backend == null)
+            // Create a fresh backend unless one is already usable: either a caller
+            // injected one directly (Backend != null, never disposed by us), or
+            // there simply isn't one yet. _backendDisposed catches the case an
+            // injected backend can't hit — a listener-owned backend from a
+            // previous suite in this same file, already disposed by that suite's
+            // ExitSuite but left assigned so Proc etc. kept working meanwhile.
+            if (Backend == null || _backendDisposed)
+            {
                 Backend = BackendFactory.Create(BackendType, _currentProcessorType,
                     _currentMemoryMap!, ViceConfig, NovaVmConfig, U64SimConfig);
+                _backendOwnedByListener = true;
+                _backendDisposed = false;
+            }
 
             _suiteBaselineSaved = false;
             _suiteSnapshotName = $"sim6502_suite_{_suiteIndex++}";
@@ -419,8 +443,29 @@ namespace sim6502.Grammar
         {
             // Clear the setup block context when exiting the suite
             _currentSetupBlock = null;
-            Backend?.Dispose();
+            DisposeBackendIfOwned();
             ResetSuite();
+        }
+
+        /// <summary>
+        /// Dispose the current Backend only if the listener itself constructed
+        /// it, and only if that hasn't already happened. A no-op for an injected
+        /// backend (its owner is responsible for disposing it) and a no-op the
+        /// second time it's called for the same backend — which is exactly what
+        /// happens on a normal run, since ExitSuite already calls this and the
+        /// CLI's outer finally block calls it again to catch the case where an
+        /// exception skipped ExitSuite entirely. Guarding on _backendDisposed
+        /// rather than relying on every backend's Dispose() being idempotent is
+        /// deliberate: U64SimBackend's is, but nothing here should depend on that
+        /// being true of every backend forever.
+        /// </summary>
+        public void DisposeBackendIfOwned()
+        {
+            if (!_backendOwnedByListener || _backendDisposed)
+                return;
+
+            Backend?.Dispose();
+            _backendDisposed = true;
         }
 
         public override void ExitRomDeclaration(sim6502Parser.RomDeclarationContext context)

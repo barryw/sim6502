@@ -396,8 +396,12 @@ public sealed class UciRegisters : IIOHandler
         var parts = 0;
         while (true)
         {
-            data.AddRange(reply.Data);
-            if (reply.Status.Length > 0) status = reply.Status;
+            // A misbehaving ICommandTarget can return default(UciReply); Data and
+            // Status are null on a default record struct. Don't trust the target
+            // — same defence as CopyResult, for the same reason.
+            data.AddRange(reply.Data ?? Array.Empty<byte>());
+            var replyStatus = reply.Status ?? string.Empty;
+            if (replyStatus.Length > 0) status = replyStatus;
             if (reply.LastPart) break;
 
             if (++parts > MaxContinuationParts)

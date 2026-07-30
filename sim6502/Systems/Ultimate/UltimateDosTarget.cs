@@ -54,7 +54,6 @@ public sealed class UltimateDosTarget : ICommandTarget, IDisposable
     // ── Status strings, byte-exact from dos.cc lines 15-30 ──
     public const string StatusDirectoryEmpty   = "01,DIRECTORY EMPTY";
     public const string StatusTruncated        = "02,REQUEST TRUNCATED";
-    public const string StatusNotImplemented   = "99,FUNCTION NOT IMPLEMENTED";
     public const string StatusNotInDataMode    = "81,NOT IN DATA MODE";
     public const string StatusFileNotFound     = "82,FILE NOT FOUND";
     public const string StatusNoSuchDirectory  = "83,NO SUCH DIRECTORY";
@@ -128,7 +127,7 @@ public sealed class UltimateDosTarget : ICommandTarget, IDisposable
             // visible instead of looking like a malformed request.
             CmdCopyUiPath or CmdCopyHomePath or CmdLoadReu or CmdSaveReu or
             CmdMountDisk or CmdUnmountDisk or CmdSwapDisk or CmdGetTime or CmdSetTime
-                => UciReply.Empty(StatusNotImplemented),
+                => UciReply.Empty(UciConstants.StatusNotImplemented),
 
             _ => UciReply.Empty(UciConstants.StatusUnknownCommand)
         };

@@ -29,7 +29,6 @@ public sealed class ControlTarget : ICommandTarget
     public const byte CmdGetHwInfo     = 0x28;
 
     public const string StatusReuNotEnabled = "84,REU NOT ENABLED";
-    public const string StatusNotImplemented = "99,FUNCTION NOT IMPLEMENTED";
 
     private readonly UltimateDosTarget[] _dosTargets;
     private readonly string _modelName;
@@ -68,7 +67,7 @@ public sealed class ControlTarget : ICommandTarget
             CmdLoadReu or CmdSaveReu => UciReply.Empty(StatusReuNotEnabled),
 
             CmdFinishCapture or CmdFreeze or CmdSaveMemory
-                => UciReply.Empty(StatusNotImplemented),
+                => UciReply.Empty(UciConstants.StatusNotImplemented),
 
             _ => UciReply.Empty(UciConstants.StatusUnknownCommand)
         };

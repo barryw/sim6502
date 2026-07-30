@@ -41,6 +41,7 @@ public class C64MemoryMap : IMemoryMap
 
     public void RegisterIoHandler(int startAddress, int endAddress, IIOHandler handler)
     {
+        ArgumentNullException.ThrowIfNull(handler);
         if (endAddress < startAddress)
             throw new ArgumentException(
                 $"End address ${endAddress:X4} is below start address ${startAddress:X4}");

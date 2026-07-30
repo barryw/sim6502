@@ -16,8 +16,6 @@ public class U64SimBackend : IExecutionBackend
     private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
 
     private readonly SimulatorBackend _sim;
-    private readonly UltimateFileSystem _dosFileSystemOne;
-    private readonly UltimateFileSystem _dosFileSystemTwo;
     private readonly UltimateDosTarget _dosOne;
     private readonly UltimateDosTarget _dosTwo;
     private readonly ControlTarget _control;
@@ -36,10 +34,12 @@ public class U64SimBackend : IExecutionBackend
         _sim = new SimulatorBackend(ProcessorType.MOS6510, memoryMap);
 
         // Targets $01 and $02 keep independent state, so each gets its own view.
-        _dosFileSystemOne = new UltimateFileSystem(config.FsRoot);
-        _dosFileSystemTwo = new UltimateFileSystem(config.FsRoot);
-        _dosOne = new UltimateDosTarget(_dosFileSystemOne, config.DosVersion);
-        _dosTwo = new UltimateDosTarget(_dosFileSystemTwo, config.DosVersion);
+        // The DOS target owns the filesystem it's handed (and disposes it), so
+        // there's no need to hold a field here beyond construction.
+        var dosFileSystemOne = new UltimateFileSystem(config.FsRoot);
+        var dosFileSystemTwo = new UltimateFileSystem(config.FsRoot);
+        _dosOne = new UltimateDosTarget(dosFileSystemOne, config.DosVersion);
+        _dosTwo = new UltimateDosTarget(dosFileSystemTwo, config.DosVersion);
         _control = new ControlTarget(new[] { _dosOne, _dosTwo }, config.ModelName);
 
         Uci = new UciRegisters(config.UciLatencyCycles)
