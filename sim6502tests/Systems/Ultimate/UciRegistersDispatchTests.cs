@@ -162,7 +162,7 @@ public class UciRegistersDispatchTests
     }
 
     [Fact]
-    public void AfterDataAccept_CommandPointerIsReset()
+    public void AfterDispatch_CommandPointerIsReset()
     {
         var uci = NewUci(new SinglePartTarget());
         SendCommand(uci, 0x01, 0x01, 0x02, 0x03);
@@ -275,6 +275,11 @@ public class UciRegistersDispatchTests
     // deliberately, not a bug — do not "fix" it by loosening the pointer
     // guard back to <=. A real client must track how many bytes it expects
     // rather than reading until the bit clears.
+    //
+    // OversizedTarget's reply size is load-bearing for the truncation half of
+    // this test (see its own comment): it must be large enough that an
+    // untruncated Array.Copy would run off the end of the backing store and
+    // throw, or removing CopyResult's truncation guard would not fail here.
     [Fact]
     public void OversizedReply_TruncatesToBufferAndLeavesAvailabilityBitStuck()
     {
@@ -297,9 +302,20 @@ public class UciRegistersDispatchTests
 
     private sealed class OversizedTarget : ICommandTarget
     {
+        // Must exceed the space between the response buffer's start and the end of
+        // the backing store (BackingStoreSize - ResponseBufferStart == 1152 bytes),
+        // not just ResponseBufferSize. If it only exceeded ResponseBufferSize, an
+        // untruncated Array.Copy at offset ResponseBufferStart would still land
+        // entirely inside the backing store and succeed silently, so deleting
+        // CopyResult's truncation guard would not make this test fail. This size
+        // (1408 bytes) copied untruncated at offset 896 would run to 2304, past the
+        // 2048-byte backing store, so an untruncated copy throws instead.
+        private const int ReplySize =
+            UciConstants.BackingStoreSize - UciConstants.ResponseBufferStart + 256;
+
         public UciReply ParseCommand(byte[] command)
         {
-            var data = new byte[UciConstants.ResponseBufferSize + 100];
+            var data = new byte[ReplySize];
             for (var i = 0; i < data.Length; i++)
                 data[i] = (byte)(i & 0xFF);
             return UciReply.Ok(data);

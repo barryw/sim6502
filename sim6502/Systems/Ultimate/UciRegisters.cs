@@ -31,8 +31,10 @@ namespace sim6502.Systems.Ultimate;
 /// slot (upstream's <c>/=</c>, i.e. !=, saturation guard) while the validity
 /// test <c>(pointer - start) &lt; length</c> stays true for that slot forever,
 /// so the C64 would re-read the last byte indefinitely. This is upstream's
-/// behaviour (command_protocol.vhd lines 131-135, 176-180), reproduced here
-/// deliberately rather than "fixed" — a real client must track how many bytes
+/// behaviour (command_protocol.vhd lines 131-140 for the response/status
+/// validity guards, 176-185 for the response/status pointer saturation guards
+/// — the status guard itself is at line 183), reproduced here deliberately
+/// rather than "fixed" — a real client must track how many bytes
 /// it expects rather than reading until the availability bit clears.
 /// </summary>
 public sealed class UciRegisters : IIOHandler
