@@ -137,7 +137,15 @@ public sealed class UciRegisters : IIOHandler
             {
                 var value = ResponseValid ? _ram[_responsePointer] : (byte)0x00;
                 _commandIrqEnabled = false;
-                if (_responsePointer != UciConstants.ResponseBufferEnd)
+                // <= (not !=): the pointer must be able to reach one slot past
+                // ResponseBufferEnd so a reply that exactly fills the buffer can
+                // still make ResponseValid false. Saturating at ResponseBufferEnd
+                // itself would freeze the pointer at offset (Size-1) forever,
+                // where (pointer - start) < length is permanently true for a
+                // full-size reply, so StatusResponseAvailable never clears.
+                // That one-past address is never dereferenced: the array read
+                // above is always guarded by ResponseValid first.
+                if (_responsePointer <= UciConstants.ResponseBufferEnd)
                     _responsePointer++;
                 return value;
             }
@@ -146,7 +154,7 @@ public sealed class UciRegisters : IIOHandler
             {
                 var value = StatusValid ? _ram[_statusPointer] : (byte)0x00;
                 _commandIrqEnabled = false;
-                if (_statusPointer != UciConstants.StatusBufferEnd)
+                if (_statusPointer <= UciConstants.StatusBufferEnd)
                     _statusPointer++;
                 return value;
             }
