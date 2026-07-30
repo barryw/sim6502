@@ -61,7 +61,11 @@ namespace sim6502
         private static ILogger Logger => LazyLogger.Value;
 
         // ReSharper disable once ClassNeverInstantiated.Local
-        private class Options
+        // internal (was private): sim6502tests constructs this directly via
+        // InternalsVisibleTo, rather than going through CommandLine.Parser, to
+        // exercise RunCli/RunTests/BuildBackendConfigs without spawning the CLI
+        // as a subprocess.
+        internal class Options
         {
             [Option('t', "trace", SetName = "trace", Required = false, Default = false,
                 HelpText = "Enable or disable trace mode")]
@@ -157,7 +161,8 @@ namespace sim6502
                     errs => 1);
         }
 
-        private static int RunCli(Options opts)
+        // internal (was private): see comment on Options above.
+        internal static int RunCli(Options opts)
         {
             SetLogLevel(opts);
 
@@ -175,7 +180,8 @@ namespace sim6502
             }
         }
 
-        private static int RunTests(Options opts)
+        // internal (was private): see comment on Options above.
+        internal static int RunTests(Options opts)
         {
             ViceLauncher? viceLauncher = null;
             SimBaseListener? sbl = null;
@@ -215,6 +221,7 @@ namespace sim6502
 
                 // Walk tree, collecting semantic/runtime errors
                 var walker = new ParseTreeWalker();
+                var backendConfigs = BuildBackendConfigs(opts);
                 sbl = new SimBaseListener
                 {
                     FilterPattern = opts.FilterPattern,
@@ -224,24 +231,9 @@ namespace sim6502
                     ListOnly = opts.ListOnly,
                     Errors = collector,
                     BackendType = opts.Backend,
-                    ViceConfig = opts.Backend == "vice" ? new ViceBackendConfig
-                    {
-                        Host = opts.ViceHost,
-                        Port = opts.VicePort,
-                        TimeoutMs = opts.ViceTimeout,
-                        WarpMode = opts.ViceWarp
-                    } : null,
-                    NovaVmConfig = opts.Backend == "novavm" ? new NovaVmBackendConfig
-                    {
-                        Host = opts.NovaVmHost,
-                        Port = opts.NovaVmPort,
-                        TimeoutMs = opts.NovaVmTimeout
-                    } : null,
-                    U64SimConfig = opts.Backend == "u64sim" ? new U64SimBackendConfig
-                    {
-                        FsRoot = opts.U64SimFsRoot ?? "",
-                        UciLatencyCycles = opts.U64SimUciLatency
-                    } : null
+                    ViceConfig = backendConfigs.Vice,
+                    NovaVmConfig = backendConfigs.NovaVm,
+                    U64SimConfig = backendConfigs.U64Sim
                 };
 
                 walker.Walk(sbl, tree);
@@ -272,6 +264,36 @@ namespace sim6502
                 sbl?.DisposeBackendIfOwned();
                 viceLauncher?.Dispose();
             }
+        }
+
+        // Pure mapping from CLI options to the one backend config the chosen
+        // backend actually uses (the others are null). Extracted out of RunTests
+        // and widened to internal so this selection logic is testable without
+        // constructing a real backend (which for vice/novavm would attempt a
+        // live connection, and for u64sim would need a filesystem root).
+        internal static (ViceBackendConfig? Vice, NovaVmBackendConfig? NovaVm, U64SimBackendConfig? U64Sim)
+            BuildBackendConfigs(Options opts)
+        {
+            return (
+                opts.Backend == "vice" ? new ViceBackendConfig
+                {
+                    Host = opts.ViceHost,
+                    Port = opts.VicePort,
+                    TimeoutMs = opts.ViceTimeout,
+                    WarpMode = opts.ViceWarp
+                } : null,
+                opts.Backend == "novavm" ? new NovaVmBackendConfig
+                {
+                    Host = opts.NovaVmHost,
+                    Port = opts.NovaVmPort,
+                    TimeoutMs = opts.NovaVmTimeout
+                } : null,
+                opts.Backend == "u64sim" ? new U64SimBackendConfig
+                {
+                    FsRoot = opts.U64SimFsRoot ?? "",
+                    UciLatencyCycles = opts.U64SimUciLatency
+                } : null
+            );
         }
 
         private static int ReportErrorsAndExit(ErrorCollector collector, int exitCode)
