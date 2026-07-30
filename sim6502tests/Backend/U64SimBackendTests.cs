@@ -17,7 +17,15 @@ public class U64SimBackendTests : IDisposable
         _fixture = Path.Combine(Path.GetTempPath(), "u64sim-backend-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(_fixture, "data"));
         File.WriteAllText(Path.Combine(_fixture, "data", "hi.txt"), "hi");
+
+        // Deliberately larger than UltimateDosTarget.ReadChunkSize (512), so a read
+        // of it genuinely spans continuation parts rather than completing in one.
+        File.WriteAllBytes(Path.Combine(_fixture, "data", "big.bin"), BigPayload);
     }
+
+    /// <summary>1300 bytes — three 512-byte chunks, the last one partial.</summary>
+    private static readonly byte[] BigPayload =
+        Enumerable.Range(0, 1300).Select(i => (byte)(i & 0xFF)).ToArray();
 
     public void Dispose()
     {
@@ -107,13 +115,20 @@ public class U64SimBackendTests : IDisposable
         backend.IssueUciCommand(BuildChangeDir(0x01, "data")).Status.Should().Be("00,OK");
 
         var open = new List<byte> { 0x01, UltimateDosTarget.CmdOpenFile, UltimateDosTarget.FileAttributeRead };
-        open.AddRange(Encoding.ASCII.GetBytes("hi.txt"));
+        open.AddRange(Encoding.ASCII.GetBytes("big.bin"));
         backend.IssueUciCommand(open.ToArray()).Status.Should().Be("00,OK");
 
-        var read = backend.IssueUciCommand(
-            new byte[] { 0x01, UltimateDosTarget.CmdReadData, 0x02, 0x00 });
+        // 1300 bytes at a 512-byte chunk size means IssueHostCommand must walk two
+        // continuations to assemble the reply. A fixture under the chunk size would
+        // complete on the first part and never reach GetMoreData at all.
+        var length = BigPayload.Length;
+        var read = backend.IssueUciCommand(new byte[]
+        {
+            0x01, UltimateDosTarget.CmdReadData, (byte)(length & 0xFF), (byte)((length >> 8) & 0xFF)
+        });
 
-        Encoding.ASCII.GetString(read.Data).Should().Be("hi");
+        read.Data.Should().HaveCount(length, "the reply must be reassembled from every part");
+        read.Data.Should().Equal(BigPayload);
     }
 
     [Fact]
