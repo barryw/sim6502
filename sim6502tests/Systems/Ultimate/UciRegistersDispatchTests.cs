@@ -68,19 +68,41 @@ public class UciRegistersDispatchTests
         uci.Write(UciConstants.ControlAddress, UciConstants.ControlPushCommand);
     }
 
+    // Bounded, not unbounded: a stuck availability bit is expected upstream
+    // behaviour for an exactly-full queue (see UciRegisters class doc). Without
+    // a cap, a regression that gets a bit stuck on a *non*-full queue would
+    // hang the test run instead of failing it.
     private static string ReadResponse(UciRegisters uci)
     {
         var sb = new StringBuilder();
+        var count = 0;
         while ((uci.Read(UciConstants.ControlAddress) & UciConstants.StatusResponseAvailable) != 0)
+        {
             sb.Append((char)uci.Read(UciConstants.ResponseAddress));
+            if (++count > UciConstants.ResponseBufferSize + 16)
+                throw new InvalidOperationException(
+                    $"ReadResponse read more than {UciConstants.ResponseBufferSize + 16} bytes without " +
+                    "the response-available bit clearing. Likely cause: the response queue filled " +
+                    "exactly to ResponseBufferSize, which leaves the bit stuck by upstream design " +
+                    "(see UciRegisters class doc) — use a bounded read for that case instead.");
+        }
         return sb.ToString();
     }
 
     private static string ReadStatus(UciRegisters uci)
     {
         var sb = new StringBuilder();
+        var count = 0;
         while ((uci.Read(UciConstants.ControlAddress) & UciConstants.StatusStatusAvailable) != 0)
+        {
             sb.Append((char)uci.Read(UciConstants.StatusAddress));
+            if (++count > UciConstants.StatusBufferSize + 16)
+                throw new InvalidOperationException(
+                    $"ReadStatus read more than {UciConstants.StatusBufferSize + 16} bytes without " +
+                    "the status-available bit clearing. Likely cause: the status queue filled " +
+                    "exactly to StatusBufferSize, which leaves the bit stuck by upstream design " +
+                    "(see UciRegisters class doc) — use a bounded read for that case instead.");
+        }
         return sb.ToString();
     }
 
@@ -243,27 +265,46 @@ public class UciRegistersDispatchTests
             .Should().Be(UciConstants.StateDataLast, "latency has elapsed");
     }
 
+    // Upstream (command_protocol.vhd lines 131-135, 176-180): the response
+    // pointer saturates at ResponseBufferEnd — the last valid slot — via a
+    // `/=` (i.e. !=) guard, and response_valid stays true as long as
+    // (pointer - start) < length. When a reply exactly fills the buffer, the
+    // pointer parks on the last slot and that comparison is permanently true,
+    // so the availability bit never clears and the C64 would re-read the
+    // final byte forever. This is genuine hardware behaviour, reproduced here
+    // deliberately, not a bug — do not "fix" it by loosening the pointer
+    // guard back to <=. A real client must track how many bytes it expects
+    // rather than reading until the bit clears.
     [Fact]
-    public void OversizedReply_IsTruncatedToTheResponseBuffer()
+    public void OversizedReply_TruncatesToBufferAndLeavesAvailabilityBitStuck()
     {
         var uci = NewUci(new OversizedTarget());
         SendCommand(uci, 0x01, 0x01);
 
-        var count = 0;
-        while ((uci.Read(UciConstants.ControlAddress) & UciConstants.StatusResponseAvailable) != 0)
+        for (var i = 0; i < UciConstants.ResponseBufferSize; i++)
         {
-            uci.Read(UciConstants.ResponseAddress);
-            count++;
-            if (count > UciConstants.ResponseBufferSize + 16) break;
+            (uci.Read(UciConstants.ControlAddress) & UciConstants.StatusResponseAvailable)
+                .Should().NotBe(0, $"byte {i} of {UciConstants.ResponseBufferSize} should still be available");
+            uci.Read(UciConstants.ResponseAddress).Should().Be((byte)(i & 0xFF),
+                "CopyResult must truncate the oversized reply to the first ResponseBufferSize bytes");
         }
 
-        count.Should().Be(UciConstants.ResponseBufferSize);
+        // The buffer is now exactly full: the availability bit stays stuck set
+        // instead of clearing, per upstream's saturation behaviour above.
+        (uci.Read(UciConstants.ControlAddress) & UciConstants.StatusResponseAvailable)
+            .Should().NotBe(0, "an exactly-full response buffer leaves the bit stuck, per upstream");
     }
 
     private sealed class OversizedTarget : ICommandTarget
     {
-        public UciReply ParseCommand(byte[] command) =>
-            UciReply.Ok(new byte[UciConstants.ResponseBufferSize + 100]);
+        public UciReply ParseCommand(byte[] command)
+        {
+            var data = new byte[UciConstants.ResponseBufferSize + 100];
+            for (var i = 0; i < data.Length; i++)
+                data[i] = (byte)(i & 0xFF);
+            return UciReply.Ok(data);
+        }
+
         public UciReply GetMoreData() => UciReply.Empty("00,OK");
         public void Abort(int bytesConsumed) { }
     }

@@ -25,6 +25,15 @@ namespace sim6502.Systems.Ultimate;
 /// <see cref="_freeze"/>, <see cref="_trigger"/> and
 /// <see cref="_commandIrqEnabled"/> exist only to track that state faithfully —
 /// nothing consumes them yet.
+///
+/// A reply or status that exactly fills its queue leaves the corresponding
+/// availability bit permanently set: the pointer saturates at the last valid
+/// slot (upstream's <c>/=</c>, i.e. !=, saturation guard) while the validity
+/// test <c>(pointer - start) &lt; length</c> stays true for that slot forever,
+/// so the C64 would re-read the last byte indefinitely. This is upstream's
+/// behaviour (command_protocol.vhd lines 131-135, 176-180), reproduced here
+/// deliberately rather than "fixed" — a real client must track how many bytes
+/// it expects rather than reading until the availability bit clears.
 /// </summary>
 public sealed class UciRegisters : IIOHandler
 {
@@ -137,15 +146,7 @@ public sealed class UciRegisters : IIOHandler
             {
                 var value = ResponseValid ? _ram[_responsePointer] : (byte)0x00;
                 _commandIrqEnabled = false;
-                // <= (not !=): the pointer must be able to reach one slot past
-                // ResponseBufferEnd so a reply that exactly fills the buffer can
-                // still make ResponseValid false. Saturating at ResponseBufferEnd
-                // itself would freeze the pointer at offset (Size-1) forever,
-                // where (pointer - start) < length is permanently true for a
-                // full-size reply, so StatusResponseAvailable never clears.
-                // That one-past address is never dereferenced: the array read
-                // above is always guarded by ResponseValid first.
-                if (_responsePointer <= UciConstants.ResponseBufferEnd)
+                if (_responsePointer != UciConstants.ResponseBufferEnd)
                     _responsePointer++;
                 return value;
             }
@@ -154,7 +155,7 @@ public sealed class UciRegisters : IIOHandler
             {
                 var value = StatusValid ? _ram[_statusPointer] : (byte)0x00;
                 _commandIrqEnabled = false;
-                if (_statusPointer <= UciConstants.StatusBufferEnd)
+                if (_statusPointer != UciConstants.StatusBufferEnd)
                     _statusPointer++;
                 return value;
             }
