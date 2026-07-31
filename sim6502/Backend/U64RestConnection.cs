@@ -94,6 +94,16 @@ public sealed class U64RestConnection : IU64Connection
         }
     }
 
+    public void ResetMachine()
+    {
+        lock (_gate)
+        {
+            var url = $"{_base}/machine:reset";
+            using var req = new HttpRequestMessage(HttpMethod.Put, url);
+            using var resp = Send(req, url);
+        }
+    }
+
     private HttpResponseMessage Send(HttpRequestMessage request, string url)
     {
         HttpResponseMessage response;

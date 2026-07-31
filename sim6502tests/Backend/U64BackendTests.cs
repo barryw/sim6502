@@ -265,6 +265,7 @@ public class U64BackendTests : IDisposable
         public void WriteByte(int address, byte value) { }
         public byte[] ReadBytes(int address, int length) => new byte[length];
         public void WriteBytes(int address, byte[] data) { }
+        public void ResetMachine() { }
         public void Dispose() { }
     }
 
@@ -310,6 +311,7 @@ public class U64BackendTests : IDisposable
         public void WriteByte(int address, byte value) { }
         public byte[] ReadBytes(int address, int length) => new byte[length];
         public void WriteBytes(int address, byte[] data) { }
+        public void ResetMachine() { }
         public void Dispose() { }
     }
 
@@ -335,6 +337,7 @@ public class U64BackendTests : IDisposable
         public void WriteByte(int address, byte value) { }
         public byte[] ReadBytes(int address, int length) => new byte[length];
         public void WriteBytes(int address, byte[] data) { }
+        public void ResetMachine() { }
         public void Dispose() { }
     }
 
@@ -368,6 +371,7 @@ public class U64BackendTests : IDisposable
 
         public byte[] ReadBytes(int address, int length) => _inner.ReadBytes(address, length);
         public void WriteBytes(int address, byte[] data) => _inner.WriteBytes(address, data);
+        public void ResetMachine() => _inner.ResetMachine();
         public void Dispose() => _inner.Dispose();
     }
 
@@ -430,6 +434,7 @@ public class U64BackendTests : IDisposable
         public void WriteByte(int address, byte value) => Writes.Add((address, value));
         public byte[] ReadBytes(int address, int length) => new byte[length];
         public void WriteBytes(int address, byte[] data) { }
+        public void ResetMachine() { }
         public void Dispose() { }
     }
 
@@ -473,6 +478,7 @@ public class U64BackendTests : IDisposable
         public void WriteByte(int address, byte value) => Writes.Add((address, value));
         public byte[] ReadBytes(int address, int length) => new byte[length];
         public void WriteBytes(int address, byte[] data) { }
+        public void ResetMachine() { }
         public void Dispose() { }
     }
 
@@ -574,6 +580,71 @@ public class U64BackendTests : IDisposable
 
         status.Should().Be("00,OK");
         Encoding.ASCII.GetString(data).Should().Be("ULTIMATE-II DOS V1.2");
+    }
+
+    [Fact]
+    public void MemoryOperations_GoOverTheWire()
+    {
+        using var backend = Build(out var conn);
+
+        backend.WriteByte(0xC000, 0x42);
+        backend.ReadByte(0xC000).Should().Be(0x42);
+    }
+
+    [Fact]
+    public void WriteWord_IsLittleEndian()
+    {
+        using var backend = Build(out _);
+
+        backend.WriteWord(0xC000, 0x1234);
+
+        backend.ReadByte(0xC000).Should().Be(0x34);
+        backend.ReadByte(0xC001).Should().Be(0x12);
+        backend.ReadWord(0xC000).Should().Be(0x1234);
+    }
+
+    [Theory]
+    [InlineData("GetRegister")]
+    [InlineData("SetRegister")]
+    [InlineData("GetFlag")]
+    [InlineData("SetFlag")]
+    [InlineData("ExecuteJsr")]
+    [InlineData("GetCycles")]
+    [InlineData("ResetCycleCount")]
+    [InlineData("SaveSnapshot")]
+    [InlineData("RestoreSnapshot")]
+    public void UnsupportedMembers_ThrowWithAnActionableMessage(string member)
+    {
+        using var backend = Build(out _);
+
+        Action act = member switch
+        {
+            "GetRegister"     => () => backend.GetRegister("A"),
+            "SetRegister"     => () => backend.SetRegister("A", 1),
+            "GetFlag"         => () => backend.GetFlag("C"),
+            "SetFlag"         => () => backend.SetFlag("C", true),
+            "ExecuteJsr"      => () => backend.ExecuteJsr(0xC000, 0, true, true),
+            "GetCycles"       => () => backend.GetCycles(),
+            "ResetCycleCount" => () => backend.ResetCycleCount(),
+            "SaveSnapshot"    => () => backend.SaveSnapshot("s"),
+            _                 => () => backend.RestoreSnapshot("s")
+        };
+
+        act.Should().Throw<NotSupportedException>()
+            .Which.Message.Should().Contain("u64");
+    }
+
+    [Fact]
+    public void IncidentalMembers_AreNoOpsRatherThanThrows()
+    {
+        // Suites set these without caring; throwing would break otherwise-valid
+        // runs for no benefit.
+        using var backend = Build(out _);
+
+        backend.Invoking(b => b.SetWarpMode(true)).Should().NotThrow();
+        backend.Invoking(b => b.LoadSymbols("x.sym")).Should().NotThrow();
+        backend.TraceEnabled.Should().BeFalse();
+        backend.GetTraceBuffer().Should().BeEmpty();
     }
 
     public void Dispose()

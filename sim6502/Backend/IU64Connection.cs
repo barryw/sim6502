@@ -23,4 +23,7 @@ public interface IU64Connection : IDisposable
 
     /// <summary>Write an ascending span, chunked to the firmware's limit.</summary>
     void WriteBytes(int address, byte[] data);
+
+    /// <summary>Reset the C64. Does not restart the Ultimate's own firmware tasks.</summary>
+    void ResetMachine();
 }

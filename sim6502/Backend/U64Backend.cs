@@ -27,7 +27,7 @@ public sealed class U64UciException : InvalidOperationException
 /// until the bit drops" loop would spin forever in that one case, so each drain
 /// stops at its queue's own capacity instead of trusting the bit to clear.
 /// </summary>
-public sealed class U64Backend : IUltimateBackend, IDisposable
+public sealed class U64Backend : IExecutionBackend, IUltimateBackend
 {
     private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
 
@@ -268,6 +268,121 @@ public sealed class U64Backend : IUltimateBackend, IDisposable
         _connection.WriteByte(UciConstants.ControlAddress, UciConstants.ControlDataAccept);
         _connection.WriteByte(UciConstants.ControlAddress, 0x00);
     }
+
+    // ── Memory: real, by DMA on the cartridge bus ──
+    //
+    // CAVEAT: readmem/writemem go THROUGH THE PLA, so this is not raw RAM.
+    // $D000-$DFFF reaches I/O (which is exactly why UCI traffic works at all),
+    // and $A000-$BFFF / $E000-$FFFF return ROM when banked in. Upstream added a
+    // `ramonly` parameter for this (GideonZ/1541ultimate#674) but it is not
+    // present in fw 3.14d. Assertions about RAM under ROM or I/O will not agree
+    // with the sim backend.
+
+    public byte ReadByte(int address) => _connection.ReadByte(address);
+
+    public void WriteByte(int address, byte value) => _connection.WriteByte(address, value);
+
+    public int ReadWord(int address)
+    {
+        var bytes = _connection.ReadBytes(address, 2);
+        return bytes[0] | (bytes[1] << 8);
+    }
+
+    public void WriteWord(int address, int value)
+    {
+        _connection.WriteBytes(address, new[]
+        {
+            (byte)(value & 0xFF),
+            (byte)((value >> 8) & 0xFF)
+        });
+    }
+
+    public void WriteMemoryValue(int address, int value)
+    {
+        if (value > 0xFF) WriteWord(address, value);
+        else WriteByte(address, (byte)value);
+    }
+
+    public void LoadBinary(byte[] data, int address)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        Logger.Info($"Loading {data.Length} bytes to ${address:X4} over REST");
+        _connection.WriteBytes(address, data);
+    }
+
+    public void Reset()
+    {
+        // PUT machine:reset resets the C64. It does not restart the Ultimate's
+        // own command-interface task, so it will not clear a wedged UCI.
+        _connection.ResetMachine();
+        Logger.Info("C64 reset requested");
+    }
+
+    // ── Not reachable over REST ──
+
+    private static NotSupportedException Unsupported(string member, string alternative) =>
+        new($"'{member}' is not available on the u64 backend: the Ultimate's REST " +
+            $"API exposes no equivalent. {alternative}");
+
+    public int GetRegister(string name) =>
+        throw Unsupported(nameof(GetRegister),
+            "Reading CPU registers would need a resident 6502 stub, which this " +
+            "milestone deliberately omits. Use --backend u64sim for register assertions.");
+
+    public void SetRegister(string name, int value) =>
+        throw Unsupported(nameof(SetRegister),
+            "Use --backend u64sim for register assertions.");
+
+    public bool GetFlag(string name) =>
+        throw Unsupported(nameof(GetFlag),
+            "Use --backend u64sim for flag assertions.");
+
+    public void SetFlag(string name, bool value) =>
+        throw Unsupported(nameof(SetFlag),
+            "Use --backend u64sim for flag assertions.");
+
+    public ExecutionResult ExecuteJsr(int address, int stopOnAddress, bool stopOnRts, bool failOnBrk) =>
+        throw Unsupported(nameof(ExecuteJsr),
+            "There is no breakpoint mechanism in the REST API. Drive the machine " +
+            "with uci(), or use --backend u64sim to run 6502 code.");
+
+    public int GetCycles() =>
+        throw Unsupported(nameof(GetCycles),
+            "Cycle counting would need CIA bracketing around a resident stub.");
+
+    public void ResetCycleCount() =>
+        throw Unsupported(nameof(ResetCycleCount),
+            "Cycle counting would need CIA bracketing around a resident stub.");
+
+    public void SaveSnapshot(string name) =>
+        throw Unsupported(nameof(SaveSnapshot), "Snapshots have no REST equivalent.");
+
+    public void RestoreSnapshot(string name) =>
+        throw Unsupported(nameof(RestoreSnapshot), "Snapshots have no REST equivalent.");
+
+    // ── Accepted and ignored ──
+    //
+    // Suites set these incidentally. Throwing would fail runs that are otherwise
+    // perfectly valid, so they are logged no-ops instead.
+
+    public void SetWarpMode(bool enabled) =>
+        Logger.Debug($"SetWarpMode({enabled}) ignored: real hardware runs at 1MHz");
+
+    public void LoadSymbols(string path) =>
+        Logger.Debug($"LoadSymbols('{path}') ignored: symbols stay host-side on u64");
+
+    public bool TraceEnabled
+    {
+        get => false;
+        set
+        {
+            if (value) Logger.Warn("Tracing is not available on the u64 backend; ignoring");
+        }
+    }
+
+    public void ClearTraceBuffer() { }
+
+    public List<string> GetTraceBuffer() => new();
 
     public void Dispose()
     {

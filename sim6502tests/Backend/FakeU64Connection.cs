@@ -68,5 +68,8 @@ public sealed class FakeU64Connection : IU64Connection
         for (var i = 0; i < data.Length; i++) WriteByte(address + i, data[i]);
     }
 
+    public int ResetCount { get; private set; }
+    public void ResetMachine() => ResetCount++;
+
     public void Dispose() { }
 }
