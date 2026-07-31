@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v4.0.1 - 2026-07-31
+#### Bug Fixes
+- (**deps**) bump brace-expansion to 2.1.4 in the vscode extension - (1efa629) - Barry Walker
+
+- - -
+
 ## v4.0.0 - 2026-07-31
 #### Features
 - (**backend**) IExecutionBackend surface for the u64 backend - (91a7e35) - Barry Walker, *Claude Opus 5 (1M context)*
