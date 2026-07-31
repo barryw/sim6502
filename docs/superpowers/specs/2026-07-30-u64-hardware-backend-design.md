@@ -53,6 +53,17 @@ PUT writemem df1c=02    ControlDataAccept
 readmem  df1c           00 — clean idle
 ```
 
+Note: this trace is a verbatim record of what was actually sent and is left as
+measured. The implementation now writes `$09` (`ControlPushCommand |
+ControlClearError`) rather than the `$01` shown above, so the error latch is
+cleared in the same write that pushes the command — a set error bit on the
+next read then unambiguously means *this* push was rejected, not a stale
+latch from an earlier one. The combined write relies on upstream
+`command_protocol.vhd` evaluating its clear-error clause before its
+push-command clause (verified against upstream master). `$09` has **not**
+been exercised on silicon yet — a hardware smoke test should confirm it
+before relying on it in the field.
+
 The FPGA treats a DMA write into the `$DF1D` command FIFO exactly like a CPU write,
 and a DMA read pops the response and status FIFOs exactly like a CPU read.
 `U64Backend.IssueUciCommand` is therefore a near-mirror of
@@ -290,7 +301,10 @@ IssueUciCommand(cmd):
   (connection serializes internally)
   try:
     foreach b in cmd: WriteByte($DF1D, b)      // one request per byte — FIFO port
-    WriteByte($DF1C, ControlPushCommand)
+    WriteByte($DF1C, ControlPushCommand | ControlClearError)
+      // combined write clears any stale error latch first, so a set error bit
+      // in the very next read unambiguously means *this* push was rejected —
+      // ClearError's clause runs before PushCommand's in command_protocol.vhd
 
     wait:  ReadByte($DF1C) only, never a span
            StateBusy => keep waiting, not a wall-clock race

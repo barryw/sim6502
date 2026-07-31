@@ -164,10 +164,12 @@ public sealed class U64Backend : IUltimateBackend, IDisposable
             // Recovery must run whenever the transaction failed OR the cleanup
             // acknowledge itself failed. A throwing acknowledge on an otherwise
             // successful transaction still leaves the interface parked (e.g. in
-            // DataLast): the next push then hits the ERROR_BUSY branch, and
-            // WaitForReply's StateDataLast check returns immediately on the
-            // stale status, draining nothing -- the next command silently
-            // returns empty status and empty data instead of an error.
+            // DataLast): the next push then hits the ERROR_BUSY branch. Were the
+            // error-latch check above not present, WaitForReply's StateDataLast
+            // check would return immediately on the stale status, draining
+            // nothing -- the next command would silently return empty status
+            // and empty data instead of an error. That check turns this into a
+            // loud U64UciException instead.
             var acknowledged = true;
             try
             {

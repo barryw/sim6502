@@ -503,6 +503,24 @@ public class U64BackendTests : IDisposable
     }
 
     [Fact]
+    public void IssueUciCommand_PushRejectedWhileGenuinelyBusy_Throws()
+    {
+        var conn = new FakeU64Connection(64, (1, _dos));
+        using var backend = new U64Backend(
+            new U64BackendConfig { Host = "fake", CommandBudgetMs = 200 }, conn);
+
+        conn.WriteByte(UciConstants.CommandAddress, 0x01);
+        conn.WriteByte(UciConstants.CommandAddress, 0x01);
+        conn.WriteByte(UciConstants.ControlAddress, UciConstants.ControlPushCommand);
+        (conn.ReadByte(UciConstants.ControlAddress) & UciConstants.StatusStateMask)
+            .Should().Be(UciConstants.StateBusy);
+
+        var act = () => backend.IssueUciCommand(new byte[] { 0x01, 0x01 });
+
+        act.Should().Throw<U64UciException>().WithMessage("*error latch*");
+    }
+
+    [Fact]
     public void IssueUciCommand_StaleErrorLatchButIdle_SucceedsAndReturnsFullReply()
     {
         // Fix pass 4: _errorBusy is a pure latch (UciRegisters.cs:206-215) --
@@ -524,12 +542,28 @@ public class U64BackendTests : IDisposable
         conn.WriteByte(UciConstants.ControlAddress, UciConstants.ControlPushCommand);
 
         // Let push #1 finish servicing, then abort it back to Idle -- ControlAbort
-        // does not clear the latch.
-        while ((conn.ReadByte(UciConstants.ControlAddress) & UciConstants.StatusStateMask)
-               == UciConstants.StateBusy) { }
+        // does not clear the latch. Bounded rather than unbounded: this relies on
+        // FakeU64Connection advancing 8 cycles per access to leave BUSY at all --
+        // if that ever stopped being true, an unbounded loop here would hang the
+        // whole test run with no diagnostic instead of failing an assertion.
+        byte pollStatus = 0;
+        for (var i = 0; i < 64; i++)
+        {
+            pollStatus = conn.ReadByte(UciConstants.ControlAddress);
+            if ((pollStatus & UciConstants.StatusStateMask) != UciConstants.StateBusy) break;
+        }
+        (pollStatus & UciConstants.StatusStateMask).Should().NotBe(UciConstants.StateBusy,
+            "the fake should have left BUSY within 64 accesses");
+
         conn.WriteByte(UciConstants.ControlAddress, UciConstants.ControlAbort);
-        while ((conn.ReadByte(UciConstants.ControlAddress) & UciConstants.StatusStateMask)
-               != UciConstants.StateIdle) { }
+
+        for (var i = 0; i < 64; i++)
+        {
+            pollStatus = conn.ReadByte(UciConstants.ControlAddress);
+            if ((pollStatus & UciConstants.StatusStateMask) == UciConstants.StateIdle) break;
+        }
+        (pollStatus & UciConstants.StatusStateMask).Should().Be(UciConstants.StateIdle,
+            "the fake should have reached Idle within 64 accesses");
 
         // Confirm the setup: Idle, but the error bit is still latched.
         var setup = conn.ReadByte(UciConstants.ControlAddress);
