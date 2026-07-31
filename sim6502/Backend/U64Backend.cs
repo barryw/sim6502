@@ -88,6 +88,19 @@ public sealed class U64Backend : IUltimateBackend, IDisposable
             _connection.WriteByte(UciConstants.ControlAddress,
                 UciConstants.ControlPushCommand);
 
+            // A push rejected by the ERROR_BUSY latch is otherwise invisible: on
+            // the reply path it looks like a full-budget timeout, and on the
+            // no-reply path a non-Idle leftover state fails the settle loop's
+            // `== StateBusy` test on its very first read, reporting an instant,
+            // silent success for a command the Ultimate never accepted. One
+            // check here covers both paths.
+            var pushStatus = _connection.ReadByte(UciConstants.ControlAddress);
+            if ((pushStatus & UciConstants.StatusError) != 0)
+                throw new U64UciException(
+                    $"The Ultimate rejected the command push with an error latch " +
+                    $"(status ${pushStatus:X2}); the interface may still be busy " +
+                    "with a previous command.");
+
             if ((command[0] & UciConstants.NoReplyFlag) != 0)
             {
                 // No reply will ever come, but the Ultimate has not necessarily
@@ -96,10 +109,13 @@ public sealed class U64Backend : IUltimateBackend, IDisposable
                 // pointer. Returning while BUSY leaves the next command's bytes
                 // appended to this one's.
                 var settle = Stopwatch.StartNew();
-                while (settle.ElapsedMilliseconds < _config.CommandBudgetMs &&
-                       (_connection.ReadByte(UciConstants.ControlAddress) &
+                while ((_connection.ReadByte(UciConstants.ControlAddress) &
                         UciConstants.StatusStateMask) == UciConstants.StateBusy)
                 {
+                    if (settle.ElapsedMilliseconds >= _config.CommandBudgetMs)
+                        throw new U64UciException(
+                            $"A no-reply command was not consumed within {_config.CommandBudgetMs}ms; " +
+                            "the interface is still busy and the next command would be appended to it.");
                 }
                 completed = true;
                 return (string.Empty, Array.Empty<byte>());
@@ -136,11 +152,14 @@ public sealed class U64Backend : IUltimateBackend, IDisposable
         }
         finally
         {
-            // The acknowledge and the recovery are independent cleanup steps:
-            // one failing (e.g. a transport error on the write) must not skip
-            // the other, or a failed acknowledge would leave the interface
-            // parked mid-transaction for the next command with no recovery
-            // ever attempted.
+            // Recovery must run whenever the transaction failed OR the cleanup
+            // acknowledge itself failed. A throwing acknowledge on an otherwise
+            // successful transaction still leaves the interface parked (e.g. in
+            // DataLast): the next push then hits the ERROR_BUSY branch, and
+            // WaitForReply's StateDataLast check returns immediately on the
+            // stale status, draining nothing -- the next command silently
+            // returns empty status and empty data instead of an error.
+            var acknowledged = true;
             try
             {
                 _connection.WriteByte(UciConstants.ControlAddress,
@@ -148,10 +167,11 @@ public sealed class U64Backend : IUltimateBackend, IDisposable
             }
             catch (Exception ex)
             {
+                acknowledged = false;
                 Logger.Warn($"UCI cleanup acknowledge failed: {ex.Message}");
             }
 
-            if (!completed)
+            if (!completed || !acknowledged)
             {
                 try
                 {

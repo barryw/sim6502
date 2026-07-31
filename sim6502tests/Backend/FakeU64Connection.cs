@@ -18,9 +18,6 @@ public sealed class FakeU64Connection : IU64Connection
     private readonly UciRegisters _uci;
     private long _cycles;
 
-    public int ReadCount { get; private set; }
-    public int WriteCount { get; private set; }
-
     /// <summary>Every address passed to <see cref="WriteByte"/>, in order.</summary>
     public List<int> WrittenAddresses { get; } = new();
 
@@ -46,7 +43,6 @@ public sealed class FakeU64Connection : IU64Connection
 
     public byte ReadByte(int address)
     {
-        ReadCount++;
         _cycles += 8;
         if (IsUci(address)) return _uci.Read(address);
         return _memory.TryGetValue(address, out var v) ? v : (byte)0;
@@ -54,7 +50,6 @@ public sealed class FakeU64Connection : IU64Connection
 
     public void WriteByte(int address, byte value)
     {
-        WriteCount++;
         WrittenAddresses.Add(address);
         _cycles += 8;
         if (IsUci(address)) _uci.Write(address, value);

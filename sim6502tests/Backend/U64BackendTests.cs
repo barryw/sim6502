@@ -394,6 +394,91 @@ public class U64BackendTests : IDisposable
             (UciConstants.ControlAddress, (byte)0x00));
     }
 
+    [Fact]
+    public void IssueUciCommand_SuccessfulTransactionAcknowledgeFails_StillAttemptsRecovery()
+    {
+        // IMPORTANT-2 (third review round): recovery was gated on `!completed`
+        // alone, so a throwing cleanup acknowledge on an otherwise *successful*
+        // transaction was logged and nothing recovered. That leaves the
+        // interface parked in DataLast: the next push hits ERROR_BUSY,
+        // WaitForReply reads the stale DataLast status and returns immediately,
+        // and the next command silently returns empty status and empty data --
+        // a false mismatch in a differential instrument, not a visible error.
+        // Recovery must run whenever the transaction failed OR the acknowledge
+        // itself failed.
+        var inner = new FakeU64Connection(0, (1, _dos));
+        var recorder = new FailingAckConnection(inner);
+        using var backend = new U64Backend(new U64BackendConfig { Host = "fake" }, recorder);
+
+        var (status, data) = backend.IssueUciCommand(new byte[] { 0x01, 0x01 }); // identify
+
+        status.Should().Be("00,OK");
+        Encoding.ASCII.GetString(data).Should().Be("ULTIMATE-II DOS V1.2");
+        recorder.Writes.Should().Equal(
+            (UciConstants.ControlAddress, UciConstants.ControlAbort),
+            (UciConstants.ControlAddress, UciConstants.ControlClearError),
+            (UciConstants.ControlAddress, UciConstants.ControlDataAccept),
+            (UciConstants.ControlAddress, (byte)0x00));
+    }
+
+    private sealed class AlwaysBusyConnection : IU64Connection
+    {
+        // Never leaves Busy, so the no-reply settle loop can never observe an
+        // exit condition -- this exercises its timeout path deliberately.
+        public byte ReadByte(int address) => UciConstants.StateBusy;
+        public void WriteByte(int address, byte value) { }
+        public byte[] ReadBytes(int address, int length) => new byte[length];
+        public void WriteBytes(int address, byte[] data) { }
+        public void Dispose() { }
+    }
+
+    [Fact]
+    public void IssueUciCommand_NoReplyFlagNeverLeavesBusy_ThrowsInsteadOfReportingSuccess()
+    {
+        // IMPORTANT-1 (third review round): on timeout the settle loop fell
+        // through, set completed = true and returned success, suppressing
+        // Recover() -- while the interface was still Busy with the command
+        // pointer parked past this command's bytes, exactly the state the loop
+        // exists to prevent. It must throw on timeout, like WaitForReply does,
+        // so Recover() gets a chance to run.
+        using var backend = new U64Backend(
+            new U64BackendConfig { Host = "fake", CommandBudgetMs = 50 },
+            new AlwaysBusyConnection());
+
+        var act = () => backend.IssueUciCommand(new byte[] { 0x81, 0x01 }); // no-reply
+
+        act.Should().Throw<U64UciException>();
+    }
+
+    private sealed class ErrorLatchConnection : IU64Connection
+    {
+        // Models a push strobe rejected by the ERROR_BUSY latch: $DF1C reports
+        // StatusError with an otherwise-idle state immediately after the push,
+        // before the caller has had any chance to observe BUSY or wait for a
+        // reply.
+        public byte ReadByte(int address) =>
+            address == UciConstants.ControlAddress ? UciConstants.StatusError : (byte)0x00;
+        public void WriteByte(int address, byte value) { }
+        public byte[] ReadBytes(int address, int length) => new byte[length];
+        public void WriteBytes(int address, byte[] data) { }
+        public void Dispose() { }
+    }
+
+    [Fact]
+    public void IssueUciCommand_ErrorLatchOnPush_ThrowsInsteadOfSilentSuccess()
+    {
+        // MINOR-1: before the fix, nothing inspected StatusError ($08). On the
+        // no-reply path a non-Idle leftover state fails the settle loop's
+        // `== StateBusy` test on its very first read, so a push the Ultimate
+        // rejected was reported as an instant, silent success.
+        using var backend = new U64Backend(
+            new U64BackendConfig { Host = "fake" }, new ErrorLatchConnection());
+
+        var act = () => backend.IssueUciCommand(new byte[] { 0x81, 0x01 }); // no-reply
+
+        act.Should().Throw<U64UciException>().WithMessage("*$08*");
+    }
+
     public void Dispose()
     {
         _dos.Dispose();
