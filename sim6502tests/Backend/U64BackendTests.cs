@@ -638,7 +638,6 @@ public class U64BackendTests : IDisposable
     [InlineData("SetFlag")]
     [InlineData("ExecuteJsr")]
     [InlineData("GetCycles")]
-    [InlineData("ResetCycleCount")]
     [InlineData("SaveSnapshot")]
     [InlineData("RestoreSnapshot")]
     public void UnsupportedMembers_ThrowWithAnActionableMessage(string member)
@@ -653,7 +652,6 @@ public class U64BackendTests : IDisposable
             "SetFlag"         => () => backend.SetFlag("C", true),
             "ExecuteJsr"      => () => backend.ExecuteJsr(0xC000, 0, true, true),
             "GetCycles"       => () => backend.GetCycles(),
-            "ResetCycleCount" => () => backend.ResetCycleCount(),
             "SaveSnapshot"    => () => backend.SaveSnapshot("s"),
             _                 => () => backend.RestoreSnapshot("s")
         };
@@ -671,6 +669,7 @@ public class U64BackendTests : IDisposable
 
         backend.Invoking(b => b.SetWarpMode(true)).Should().NotThrow();
         backend.Invoking(b => b.LoadSymbols("x.sym")).Should().NotThrow();
+        backend.Invoking(b => b.ResetCycleCount()).Should().NotThrow();
         backend.TraceEnabled.Should().BeFalse();
         backend.GetTraceBuffer().Should().BeEmpty();
     }

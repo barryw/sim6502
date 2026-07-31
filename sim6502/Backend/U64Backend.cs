@@ -366,10 +366,6 @@ public sealed class U64Backend : IExecutionBackend, IUltimateBackend
         throw Unsupported(nameof(GetCycles),
             "Cycle counting would need CIA bracketing around a resident stub.");
 
-    public void ResetCycleCount() =>
-        throw Unsupported(nameof(ResetCycleCount),
-            "Cycle counting would need CIA bracketing around a resident stub.");
-
     public void SaveSnapshot(string name) =>
         throw Unsupported(nameof(SaveSnapshot), "Snapshots have no REST equivalent.");
 
@@ -386,6 +382,10 @@ public sealed class U64Backend : IExecutionBackend, IUltimateBackend
 
     public void LoadSymbols(string path) =>
         Logger.Debug($"LoadSymbols('{path}') ignored: symbols stay host-side on u64");
+
+    public void ResetCycleCount() =>
+        Logger.Debug("ResetCycleCount() ignored: no cycle counter is kept on u64. " +
+                      "Use GetCycles() for a real assertion, which still throws.");
 
     public bool TraceEnabled
     {

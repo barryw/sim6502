@@ -36,7 +36,7 @@ if ! IDLE=$(curl -sS -f --max-time 8 \
 fi
 echo "    \$DF1B-\$DF1C = $IDLE"
 case "$IDLE" in
-    ??00) ;;
+    ??00*) ;;
     *) echo "    UCI is not idle (\$DF1C != 00). Power-cycle the machine and retry." >&2
        exit 1 ;;
 esac

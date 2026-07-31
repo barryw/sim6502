@@ -249,12 +249,14 @@ Use `--backend` to choose another target. The suite syntax stays the same, but b
 | `vice` | VICE MCP server | Yes | No |
 | `novavm` | e6502/NovaVM Avalonia emulator | No | Yes |
 | `verilator` | NovaVM FPGA Verilator testbench | No | Yes |
+| `u64sim` | Simulated Ultimate 64 UCI/DOS | No (`uci()` only) | No |
+| `u64` | Real Ultimate 64 over its REST API | No (`uci()` only) | No |
 
 Backend-specific CLI options:
 
 | Option | Default | Backends | Description |
 |--------|---------|----------|-------------|
-| `--backend <type>` | `sim` | all | `sim`, `vice`, `novavm`, or `verilator` |
+| `--backend <type>` | `sim` | all | `sim`, `vice`, `novavm`, `verilator`, `u64sim`, or `u64` |
 | `--vice-host <host>` | `127.0.0.1` | `vice` | VICE MCP server host |
 | `--vice-port <port>` | `6510` | `vice` | VICE MCP server port |
 | `--vice-timeout <ms>` | `5000` | `vice` | Per-test execution timeout |
@@ -263,6 +265,10 @@ Backend-specific CLI options:
 | `--novavm-host <host>` | `127.0.0.1` | `novavm` | NovaVM-compatible TCP server host |
 | `--novavm-port <port>` | `6502` | `novavm` | NovaVM-compatible TCP server port |
 | `--novavm-timeout <ms>` | `10000` | `novavm` | Timeout for NovaVM wait/control operations |
+| `--u64-host <host>` | none | `u64` | Hostname or IP of a real Ultimate 64 |
+| `--u64-port <port>` | `80` | `u64` | HTTP port of the Ultimate's REST API |
+| `--u64-timeout <ms>` | `5000` | `u64` | Timeout for a single REST request to the Ultimate |
+| `--u64-command-budget <ms>` | `30000` | `u64` | Timeout for one UCI command to leave BUSY before recovery runs, applied per continuation part |
 
 The `verilator` backend uses the same NovaVM TCP protocol, but the current CLI does not pass the `--novavm-*` options into that backend. It connects to `127.0.0.1:6503` with the default 10000ms timeout.
 

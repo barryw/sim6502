@@ -1673,6 +1673,14 @@ namespace sim6502.Grammar
             }
             catch (Exception ex)
             {
+                // Clear this test's UCI state so a following uci_status()/uci_data()
+                // check can't spuriously match against the previous, successful
+                // call's leftovers. The test still fails via FailTest() below either
+                // way, but the reported reason must be about this command, not a
+                // stale one.
+                _lastUciStatus = "";
+                _lastUciData = Array.Empty<byte>();
+                _uciCalled = false;
                 _testFailureMessages.Add(
                     $"uci(${command[0]:X2}, ${command[1]:X2}) did not complete: {ex.Message}");
                 FailTest();

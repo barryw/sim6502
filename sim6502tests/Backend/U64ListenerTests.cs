@@ -5,6 +5,7 @@ using sim6502.Backend;
 using sim6502.Errors;
 using sim6502.Grammar;
 using sim6502.Grammar.Generated;
+using sim6502.Systems.Ultimate;
 using Xunit;
 
 namespace sim6502tests.Backend;
@@ -94,5 +95,90 @@ public class U64ListenerTests
         var act = () => new ParseTreeWalker().Walk(sbl, tree);
 
         act.Should().Throw<ArgumentException>().WithMessage("*--u64-host*");
+    }
+
+    // The suite above never calls anything that touches Backend, which is
+    // exactly why it missed the real defect: SimBaseListener.ResetTest() calls
+    // Backend.ResetCycleCount() unconditionally before every test() block, and
+    // U64Backend.ResetCycleCount() used to throw NotSupportedException -- so
+    // --backend u64 died on the first test() in any suite, before any UCI
+    // traffic. Walk a suite that actually contains a test() body to exercise
+    // EnterTestFunction -> ResetTest -> Backend.ResetCycleCount() end to end.
+    private const string TestSource = """
+        suites {
+          suite("u64 wiring") {
+            system(c64)
+
+            test("dos-identify", "the DOS target reports its version") {
+              uci($01, $01)
+              assert(uci_status("00,OK"), "IDENTIFY succeeded")
+            }
+          }
+        }
+        """;
+
+    private static IParseTree ParseTestSuite()
+    {
+        var collector = new ErrorCollector();
+        collector.SetSource(TestSource, "test-input");
+
+        var inputStream = new AntlrInputStream(TestSource);
+        var lexer = new sim6502Lexer(inputStream);
+        lexer.RemoveErrorListeners();
+        lexer.AddErrorListener(new SimErrorListener(collector));
+
+        var tokens = new CommonTokenStream(lexer);
+        var parser = new sim6502Parser(tokens) { BuildParseTree = true };
+        parser.RemoveErrorListeners();
+        parser.AddErrorListener(new SimErrorListener(collector));
+
+        var tree = parser.suites();
+        collector.HasErrors.Should().BeFalse(
+            $"Grammar parse errors: {(collector.HasErrors ? ErrorRenderer.Render(collector) : "")}");
+
+        return tree;
+    }
+
+    [Fact]
+    public void EnterTestFunction_U64Backend_RunsATestBlockToCompletion()
+    {
+        var tree = ParseTestSuite();
+        var fixtureRoot = Path.Combine(Path.GetTempPath(), "u64listener-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(fixtureRoot);
+        try
+        {
+            using var fs = new UltimateFileSystem(fixtureRoot);
+            var dos = new UltimateDosTarget(fs, "ULTIMATE-II DOS V1.2");
+            var connection = new FakeU64Connection(0, (1, dos));
+
+            // SimBaseListener.EnterSuite only constructs a Backend when one
+            // isn't already set, so injecting one here (as U64BackendTests
+            // does) keeps this test off the network entirely --
+            // FakeU64Connection is an in-memory IU64Connection.
+            using var backend = new U64Backend(new U64BackendConfig { Host = "192.0.2.1" }, connection);
+            var sbl = new SimBaseListener
+            {
+                BackendType = "u64",
+                Backend = backend
+            };
+
+            new ParseTreeWalker().Walk(sbl, tree);
+
+            // ExitSuite (which fires before Walk returns, since this file has
+            // one suite) rolls the per-suite TotalTestsPassed/TotalTestsFailed
+            // into TotalSuitesPassed/TotalSuitesFailed and resets the
+            // per-suite counters to zero -- so those, not TotalTestsPassed,
+            // are what survive to be asserted on here. TotalSuitesPassed == 1
+            // with TotalSuitesFailed == 0 only happens when the suite's one
+            // test() block ran and passed, i.e. EnterTestFunction ->
+            // ResetTest -> Backend.ResetCycleCount() did not throw and the
+            // uci()/assert() pair inside actually executed and matched.
+            sbl.TotalSuitesPassed.Should().Be(1);
+            sbl.TotalSuitesFailed.Should().Be(0);
+        }
+        finally
+        {
+            Directory.Delete(fixtureRoot, true);
+        }
     }
 }

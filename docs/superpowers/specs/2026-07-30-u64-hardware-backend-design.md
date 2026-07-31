@@ -240,13 +240,21 @@ MCP server exposes them. The U64 REST API exposes none of that, so:
 | `Reset` | Real, via `PUT machine:reset` |
 | `IssueUciCommand` | Real — the point of the backend |
 | `GetRegister`, `SetRegister`, `GetFlag`, `SetFlag` | `NotSupportedException` |
-| `ExecuteJsr`, `GetCycles`, `ResetCycleCount` | `NotSupportedException` |
+| `ExecuteJsr`, `GetCycles` | `NotSupportedException` |
 | `SaveSnapshot`, `RestoreSnapshot` | `NotSupportedException` |
-| `SetWarpMode`, `LoadSymbols` | Logged no-op — suites set these incidentally |
+| `SetWarpMode`, `LoadSymbols`, `ResetCycleCount` | Logged no-op — suites set these incidentally |
 | `TraceEnabled`, `ClearTraceBuffer`, `GetTraceBuffer` | Trace unsupported; getter false, buffer empty |
 
 Every `NotSupportedException` names the reason and the alternative (`uci()`, or the
 resident-stub milestone), rather than failing blankly.
+
+`ResetCycleCount` is a no-op rather than a throw even though `GetCycles` still
+throws: `SimBaseListener.ResetTest()` calls `ResetCycleCount()` unconditionally
+before *every* test on every non-`vice` backend, so a throw there kills the run
+before a single test executes — the suite never even reaches the `test()` body
+that would call `GetCycles()`. `GetCycles` is only ever reached by a suite that
+deliberately asserts on a cycle count, so it can and should still fail loudly
+and name `--backend u64sim` as the alternative.
 
 ### Memory access is not equivalent to `sim` — banking caveat
 
