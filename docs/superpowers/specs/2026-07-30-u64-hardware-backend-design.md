@@ -60,9 +60,10 @@ cleared in the same write that pushes the command — a set error bit on the
 next read then unambiguously means *this* push was rejected, not a stale
 latch from an earlier one. The combined write relies on upstream
 `command_protocol.vhd` evaluating its clear-error clause before its
-push-command clause (verified against upstream master). `$09` has **not**
-been exercised on silicon yet — a hardware smoke test should confirm it
-before relying on it in the field.
+push-command clause (verified against upstream master). `$09` **has now been confirmed on silicon**: the full differential run below
+executed every command through the combined write against an Ultimate 64
+Elite on fw 3.14d, and the machine returned to clean idle (`0b 00 c9 00 00`)
+afterwards.
 
 The FPGA treats a DMA write into the `$DF1D` command FIFO exactly like a CPU write,
 and a DMA read pops the response and status FIFOs exactly like a CPU read.
@@ -122,6 +123,33 @@ scripted as a `make` target, run once before a hardware differential run. Combin
 with the configurable mount name (correction 3), this lets a single unmodified suite
 file run against both backends: `u64sim` maps its mount to the local fixture
 directory, and the same relative paths exist on the machine's stick.
+
+## Differential result — PASSED on silicon (2026-07-31)
+
+`make differential U64_HOST=<ip>` was run against an Ultimate 64 Elite (fw 3.14d,
+fpga 122, core 1.49) and reported **IDENTICAL**. Verified by hand rather than
+trusting the tool, since the script's own failure mode is a confident false match:
+the hardware side was re-run alone and genuinely passed **9 of 9**, not
+both-sides-failing-alike.
+
+```
+'dos-identify'               : PASSED     'dos-echo'          : PASSED
+'dos-change-directory'       : PASSED     'control-identify'  : PASSED
+'dos-change-directory-missing': PASSED    'unknown-target'    : PASSED
+'dos-open-and-read'          : PASSED     'unknown-command'   : PASSED
+'dos-open-missing'           : PASSED
+1 of 1 suites passed.
+```
+
+`control-reu-absent` is excluded via its `hardware-wedges` tag — see divergence 2.
+
+Two things this confirms beyond the comparison itself:
+
+- **The `OPEN_FILE` correction is right.** `dos-open-missing` asserts
+  `"FILE DOESN'T EXIST"`, the value this milestone changed `u64sim` to return.
+  It passes against silicon, so the Milestone 1 defect really was a defect.
+- **The combined `$DF1C = $09` push works on hardware**, and the machine returned
+  to clean idle afterwards.
 
 ## Divergences found
 
