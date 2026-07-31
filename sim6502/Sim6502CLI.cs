@@ -96,7 +96,7 @@ namespace sim6502
             [Option("backend", Required = false, Default = "sim",
                 HelpText = "Execution backend: 'sim' for internal simulator, 'vice' for VICE MCP, " +
                            "'novavm' for e6502 emulator, 'verilator' for FPGA simulation, " +
-                           "'u64sim' for a simulated Ultimate 64")]
+                           "'u64sim' for a simulated Ultimate 64, 'u64' for a real Ultimate 64")]
             public string Backend { get; set; } = "sim";
 
             [Option("vice-host", Required = false, Default = "127.0.0.1",
@@ -144,6 +144,18 @@ namespace sim6502
                 HelpText = "Ultimate-side mount name for the u64sim filesystem root. " +
                            "Real hardware usually enumerates its stick as USB1")]
             public string U64SimMount { get; set; } = "Usb0";
+
+            [Option("u64-host", Required = false,
+                HelpText = "Hostname or IP of a real Ultimate 64 (u64 backend)")]
+            public string? U64Host { get; set; }
+
+            [Option("u64-port", Required = false, Default = 80,
+                HelpText = "HTTP port of the Ultimate's REST API")]
+            public int U64Port { get; set; } = 80;
+
+            [Option("u64-timeout", Required = false, Default = 5000,
+                HelpText = "Timeout in ms for a single REST request to the Ultimate")]
+            public int U64Timeout { get; set; } = 5000;
         }
 
         private static int Main(string[] args)
@@ -238,7 +250,8 @@ namespace sim6502
                     BackendType = opts.Backend,
                     ViceConfig = backendConfigs.Vice,
                     NovaVmConfig = backendConfigs.NovaVm,
-                    U64SimConfig = backendConfigs.U64Sim
+                    U64SimConfig = backendConfigs.U64Sim,
+                    U64Config = backendConfigs.U64
                 };
 
                 walker.Walk(sbl, tree);
@@ -276,7 +289,8 @@ namespace sim6502
         // and widened to internal so this selection logic is testable without
         // constructing a real backend (which for vice/novavm would attempt a
         // live connection, and for u64sim would need a filesystem root).
-        internal static (ViceBackendConfig? Vice, NovaVmBackendConfig? NovaVm, U64SimBackendConfig? U64Sim)
+        internal static (ViceBackendConfig? Vice, NovaVmBackendConfig? NovaVm,
+                         U64SimBackendConfig? U64Sim, U64BackendConfig? U64)
             BuildBackendConfigs(Options opts)
         {
             return (
@@ -298,6 +312,12 @@ namespace sim6502
                     FsRoot = opts.U64SimFsRoot ?? "",
                     UciLatencyCycles = opts.U64SimUciLatency,
                     MountName = opts.U64SimMount
+                } : null,
+                opts.Backend == "u64" ? new U64BackendConfig
+                {
+                    Host = opts.U64Host ?? "",
+                    Port = opts.U64Port,
+                    HttpTimeoutMs = opts.U64Timeout
                 } : null
             );
         }

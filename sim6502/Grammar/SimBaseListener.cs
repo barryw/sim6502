@@ -179,6 +179,7 @@ namespace sim6502.Grammar
         public ViceBackendConfig? ViceConfig { get; set; }
         public NovaVmBackendConfig? NovaVmConfig { get; set; }
         public U64SimBackendConfig? U64SimConfig { get; set; }
+        public U64BackendConfig? U64Config { get; set; }
 
         // Result of the most recent uci() call, read by uci_status() and uci_data().
         private string _lastUciStatus = "";
@@ -427,7 +428,7 @@ namespace sim6502.Grammar
             if (Backend == null || _backendDisposed)
             {
                 Backend = BackendFactory.Create(BackendType, _currentProcessorType,
-                    _currentMemoryMap!, ViceConfig, NovaVmConfig, U64SimConfig);
+                    _currentMemoryMap!, ViceConfig, NovaVmConfig, U64SimConfig, U64Config);
                 _backendOwnedByListener = true;
                 _backendDisposed = false;
             }

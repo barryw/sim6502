@@ -267,4 +267,31 @@ public class Sim6502CliTests
         configs.NovaVm.Should().BeNull();
         configs.U64Sim.Should().BeNull();
     }
+
+    [Fact]
+    public void BuildBackendConfigs_U64_PopulatesHostAndTimeouts()
+    {
+        var opts = new Sim6502Cli.Options
+        {
+            SuiteFile = "unused.suite",
+            Backend = "u64",
+            U64Host = "192.168.1.62",
+            U64Port = 80,
+            U64Timeout = 7000
+        };
+
+        var configs = Sim6502Cli.BuildBackendConfigs(opts);
+
+        configs.U64.Should().NotBeNull();
+        configs.U64!.Host.Should().Be("192.168.1.62");
+        configs.U64.Port.Should().Be(80);
+        configs.U64.HttpTimeoutMs.Should().Be(7000);
+    }
+
+    [Fact]
+    public void BuildBackendConfigs_NonU64_LeavesU64ConfigNull()
+    {
+        var opts = NewOptions("unused.suite", backend: "sim");
+        Sim6502Cli.BuildBackendConfigs(opts).U64.Should().BeNull();
+    }
 }

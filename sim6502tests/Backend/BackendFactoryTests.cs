@@ -100,6 +100,27 @@ public class BackendFactoryTests
         act.Should().Throw<ArgumentException>().WithMessage("*u64sim*");
     }
 
+    [Fact]
+    public void Create_U64_WithoutHost_ThrowsWithTheFix()
+    {
+        var act = () => BackendFactory.Create(
+            "u64", ProcessorType.MOS6510, new C64MemoryMap(),
+            u64Config: new U64BackendConfig { Host = "" });
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*--u64-host*");
+    }
+
+    [Fact]
+    public void Create_UnknownBackend_ListsU64AmongValidOptions()
+    {
+        var act = () => BackendFactory.Create(
+            "nonsense", ProcessorType.MOS6510, new C64MemoryMap());
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*u64*");
+    }
+
     // The three cases below construct a real backend and immediately call
     // Connect() against a server that is never running in this test suite.
     // They can't cover the success path without a live VICE/NovaVM/Verilator

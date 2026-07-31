@@ -14,7 +14,8 @@ public static class BackendFactory
         IMemoryMap memoryMap,
         ViceBackendConfig? viceConfig = null,
         NovaVmBackendConfig? novaVmConfig = null,
-        U64SimBackendConfig? u64SimConfig = null)
+        U64SimBackendConfig? u64SimConfig = null,
+        U64BackendConfig? u64Config = null)
     {
         switch (backendType.ToLower())
         {
@@ -60,10 +61,21 @@ public static class BackendFactory
 
                 return new U64SimBackend(u64SimConfig, memoryMap);
 
+            case "u64":
+                u64Config ??= new U64BackendConfig();
+
+                if (string.IsNullOrWhiteSpace(u64Config.Host))
+                    throw new ArgumentException(
+                        "The 'u64' backend needs the address of a real Ultimate 64. " +
+                        "Set --u64-host.");
+
+                Logger.Info($"Connecting to Ultimate 64 at {u64Config.Host}:{u64Config.Port}");
+                return new U64Backend(u64Config);
+
             default:
                 throw new ArgumentException(
                     $"Unknown backend type: {backendType}. " +
-                    "Valid options: sim, vice, novavm, verilator, u64sim");
+                    "Valid options: sim, vice, novavm, verilator, u64sim, u64");
         }
     }
 }
