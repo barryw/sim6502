@@ -1,4 +1,4 @@
-.PHONY: grammar build test clean publish publish-all publish-clean
+.PHONY: grammar build test clean publish publish-all publish-clean differential
 
 # -visitor is required: sim6502-lsp/Server/DiagnosticsProvider.cs derives from
 # sim6502BaseVisitor, and without the flag ANTLR does not emit it.
@@ -41,3 +41,8 @@ publish-clean:
 setup-hooks:
 	git config core.hooksPath .githooks
 	@echo "Git hooks configured to use .githooks directory"
+
+# Differential check: example/ultimate.suite against u64sim and real hardware.
+# Requires a physical Ultimate 64. Never run in CI.
+differential:
+	@./scripts/differential.sh

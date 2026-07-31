@@ -12,7 +12,7 @@ This is a tool to help you unit test your 6502 assembly language programs. There
 
 It works by running your assembled programs through an execution backend and then allowing you to make assertions on memory, CPU state, or emulator-visible output. It's very similar to other unit test tools.
 
-sim6502 now has five execution backends:
+sim6502 now has six execution backends:
 
 | Backend | Use it for |
 |---------|------------|
@@ -21,6 +21,7 @@ sim6502 now has five execution backends:
 | `novavm` | BASIC-level integration tests against the e6502/NovaVM Avalonia emulator |
 | `verilator` | BASIC-level integration tests against the NovaVM FPGA Verilator simulation |
 | `u64sim` | Ultimate 64 feature tests against a simulated UCI and Ultimate DOS |
+| `u64` | Differential check of `u64sim` against a real Ultimate 64 over its REST API |
 
 A minimal test suite looks like this:
 
@@ -1915,13 +1916,45 @@ Two behaviours are easy to get wrong, both deliberate:
 | UCI network target `$03` | Not implemented — unpopulated, like any target outside `$01`, `$02` and `$04` |
 | Drive mounting / disk images | Not implemented. MOUNT_DISK, UNMOUNT_DISK and SWAP_DISK answer `99,FUNCTION NOT IMPLEMENTED` |
 
-**A `u64` backend that drives real Ultimate 64 hardware over the network is
-planned but does not exist yet.** There is no `u64` backend today — `u64sim` is
-a full software simulation, and `--backend u64` is not one of the options (see
-the backend table at the top of this document). When it lands, it is expected to
-take the target machine's IP address as a parameter — the intended flag is
-`--u64-host <ip>` — and to drive the hardware over the Ultimate's REST API and
-socket API.
+### `u64` — a real Ultimate 64
+
+Runs UCI traffic against physical hardware over the firmware's REST API.
+
+```bash
+dotnet run --project sim6502 -- --suitefile example/ultimate.suite \
+  --backend u64 --u64-host 192.168.1.62
+```
+
+This backend is a **differential instrument** for `u64sim`, not a general
+execution backend. It carries `uci()` traffic, reads and writes memory by DMA,
+and resets the machine. `jsr()`, register, flag and cycle assertions are not
+available — they have no REST equivalent — and fail with a message naming the
+alternative.
+
+**Memory access is not equivalent to `sim`.** DMA goes through the PLA, so
+`$D000-$DFFF` reads I/O rather than the RAM beneath it, and `$A000-$BFFF` /
+`$E000-$FFFF` return ROM when banked in.
+
+**Provision fixtures over FTP** before a differential run — the REST API has no
+arbitrary file-write endpoint:
+
+```bash
+curl --ftp-create-dirs -T sim6502tests/Fixtures/usb0/data/hello.txt \
+     ftp://192.168.1.62/USB1/data/hello.txt
+```
+
+Then compare both backends:
+
+```bash
+make differential U64_HOST=192.168.1.62
+```
+
+**Known firmware issue:** `uci($04, $08, ...)` (`LOAD_REU`) never returns on
+fw 3.14d and leaves the command interface wedged until a power cycle. Reported
+as [GideonZ/1541ultimate#740](https://github.com/GideonZ/1541ultimate/issues/740).
+`example/ultimate.suite` keeps its `control-reu-absent` test because `u64sim`
+returns the status upstream specifies; that one test is expected to fail against
+current hardware.
 
 #### License
 
