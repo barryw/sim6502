@@ -9,7 +9,6 @@ namespace sim6502.Backend;
 public sealed class U64UciException : InvalidOperationException
 {
     public U64UciException(string message) : base(message) { }
-    public U64UciException(string message, Exception inner) : base(message, inner) { }
 }
 
 /// <summary>
@@ -54,6 +53,25 @@ public sealed class U64Backend : IUltimateBackend, IDisposable
     {
     }
 
+    /// <summary>
+    /// Push a UCI command through the C64-visible registers and collect its
+    /// reply, walking every continuation part.
+    ///
+    /// Diverges from <see cref="UciRegisters.IssueHostCommand"/> on
+    /// <see cref="UciConstants.NoReplyFlag"/>: that method bypasses the
+    /// register block entirely and always returns the target's full reply,
+    /// while this method honours the flag and returns
+    /// <c>(string.Empty, Array.Empty&lt;byte&gt;())</c>, matching real
+    /// hardware -- a real Ultimate never places a reply in the queues for a
+    /// no-reply command. <see cref="U64SimBackend"/> calls
+    /// <c>IssueHostCommand</c> under the same <c>IUltimateBackend</c>
+    /// interface, and the two backends are the differential pair a test
+    /// script runs <c>uci()</c> against (once on u64sim, once on real
+    /// hardware, diffing the recorded status/data): a
+    /// <c>uci($81, ...)</c> call will report a mismatch on that diff. That
+    /// is expected, not a bug in either backend -- this one reflects real
+    /// hardware, and <c>UciRegisters</c> is intentionally left alone here.
+    /// </summary>
     public (string Status, byte[] Data) IssueUciCommand(byte[] command)
     {
         ArgumentNullException.ThrowIfNull(command);
@@ -72,9 +90,17 @@ public sealed class U64Backend : IUltimateBackend, IDisposable
 
             if ((command[0] & UciConstants.NoReplyFlag) != 0)
             {
-                // By definition there is no reply to wait for. Inferring this
-                // from the state register instead (e.g. "idle after push")
-                // would race the Ultimate actually servicing the command.
+                // No reply will ever come, but the Ultimate has not necessarily
+                // consumed the command yet: PUSH_CMD sets BUSY synchronously and
+                // only the firmware's HANDSHAKE_ACCEPT_COMMAND resets the command
+                // pointer. Returning while BUSY leaves the next command's bytes
+                // appended to this one's.
+                var settle = Stopwatch.StartNew();
+                while (settle.ElapsedMilliseconds < _config.CommandBudgetMs &&
+                       (_connection.ReadByte(UciConstants.ControlAddress) &
+                        UciConstants.StatusStateMask) == UciConstants.StateBusy)
+                {
+                }
                 completed = true;
                 return (string.Empty, Array.Empty<byte>());
             }
@@ -110,16 +136,31 @@ public sealed class U64Backend : IUltimateBackend, IDisposable
         }
         finally
         {
+            // The acknowledge and the recovery are independent cleanup steps:
+            // one failing (e.g. a transport error on the write) must not skip
+            // the other, or a failed acknowledge would leave the interface
+            // parked mid-transaction for the next command with no recovery
+            // ever attempted.
             try
             {
                 _connection.WriteByte(UciConstants.ControlAddress,
                     UciConstants.ControlDataAccept);
-                if (!completed) Recover();
             }
             catch (Exception ex)
             {
-                // Never let cleanup mask the original failure.
-                Logger.Warn($"UCI cleanup failed: {ex.Message}");
+                Logger.Warn($"UCI cleanup acknowledge failed: {ex.Message}");
+            }
+
+            if (!completed)
+            {
+                try
+                {
+                    Recover();
+                }
+                catch (Exception ex)
+                {
+                    Logger.Warn($"UCI recovery failed: {ex.Message}");
+                }
             }
         }
     }

@@ -17,6 +17,19 @@ public class U64BackendTests : IDisposable
     private static readonly byte[] BinaryPayload =
         { 0x01, 0x08, 0x00, 0x0C, 0x08, 0x0A, 0x00, 0x99 };
 
+    /// <summary>
+    /// 1300 bytes against UltimateDosTarget.ReadChunkSize (512) walks three
+    /// continuation parts (512 + 512 + 276) in a single read.
+    /// </summary>
+    private static readonly byte[] LargeFilePayload = BuildLargeFilePayload();
+
+    private static byte[] BuildLargeFilePayload()
+    {
+        var data = new byte[1300];
+        for (var i = 0; i < data.Length; i++) data[i] = (byte)i;
+        return data;
+    }
+
     public U64BackendTests()
     {
         _fixture = Path.Combine(Path.GetTempPath(), "u64backend-" + Guid.NewGuid().ToString("N"));
@@ -26,6 +39,7 @@ public class U64BackendTests : IDisposable
         // below), so every fixture file must exist before that call, not inside
         // an individual test method.
         File.WriteAllBytes(Path.Combine(_fixture, "data", "binary.prg"), BinaryPayload);
+        File.WriteAllBytes(Path.Combine(_fixture, "data", "large.bin"), LargeFilePayload);
 
         _fs = new UltimateFileSystem(_fixture);
         _dos = new UltimateDosTarget(_fs, "ULTIMATE-II DOS V1.2");
@@ -55,13 +69,18 @@ public class U64BackendTests : IDisposable
     public void IssueUciCommand_PushesOneRequestPerCommandByte()
     {
         // $DF1D is a FIFO port but writemem addresses an ascending span, so a
-        // multi-byte write would land on $DF1E. One request per byte is required.
+        // multi-byte write (e.g. WriteBytes(CommandAddress, command)) would
+        // land bytes 1+ on $DF1E, $DF1F, etc. instead of $DF1D. Asserting only
+        // a minimum WriteCount can't catch that: FakeU64Connection.WriteBytes
+        // loops over WriteByte too, so the count is identical either way.
+        // Every command byte must land on CommandAddress specifically.
+        var command = new byte[] { 0x01, 0x01 };
         using var backend = Build(out var conn);
 
-        backend.IssueUciCommand(new byte[] { 0x01, 0x01 });
+        backend.IssueUciCommand(command);
 
-        // 2 command bytes + push + at least one data-accept
-        conn.WriteCount.Should().BeGreaterThanOrEqualTo(4);
+        conn.WrittenAddresses.Take(command.Length)
+            .Should().OnlyContain(address => address == UciConstants.CommandAddress);
     }
 
     [Fact]
@@ -79,13 +98,22 @@ public class U64BackendTests : IDisposable
     [Fact]
     public void IssueUciCommand_ReadsAFileAcrossContinuationParts()
     {
+        // large.bin is 1300 bytes against a 512-byte ReadChunkSize, so this
+        // genuinely walks three continuation parts (512 + 512 + 276) inside a
+        // single IssueUciCommand call. (A 15-byte fixture here previously made
+        // this test's name a lie: it never reached a second part.)
         using var backend = Build(out _);
 
         backend.IssueUciCommand(BuildCommand(0x01, 0x11, "/Usb0/data"));
-        backend.IssueUciCommand(BuildCommand(0x01, 0x02, 0x01, "hello.txt"));
-        var (_, data) = backend.IssueUciCommand(new byte[] { 0x01, 0x04, 0x0f, 0x00 });
+        backend.IssueUciCommand(BuildCommand(0x01, 0x02, 0x01, "large.bin"));
+        var (_, data) = backend.IssueUciCommand(new byte[]
+        {
+            0x01, 0x04,
+            (byte)(LargeFilePayload.Length & 0xFF),
+            (byte)(LargeFilePayload.Length >> 8)
+        });
 
-        Encoding.ASCII.GetString(data).Should().Be("HELLO FROM USB0");
+        data.Should().Equal(LargeFilePayload);
     }
 
     [Fact]
@@ -151,6 +179,32 @@ public class U64BackendTests : IDisposable
         data.Should().BeEmpty();
         sw.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(1),
             "a completed zero-length read must not wait out CommandBudgetMs");
+    }
+
+    [Fact]
+    public void IssueUciCommand_NoReplyFlagAtLatency_DoesNotDesyncTheFollowingCommand()
+    {
+        // At latency 0 (the test above) PUSH_CMD's ServicePending call services
+        // the command synchronously inside the same write, so the command
+        // pointer is already reset by the time IssueUciCommand returns -- that
+        // configuration cannot see this bug. At a real latency, PUSH_CMD sets
+        // BUSY synchronously but the command pointer only resets once the
+        // firmware's HANDSHAKE_ACCEPT_COMMAND runs, later. Returning the
+        // instant the strobe is written -- without waiting for BUSY to clear --
+        // left the next command's bytes appended onto this one's still-unread
+        // command buffer, and the concatenated buffer inherited byte 0's
+        // NoReplyFlag, so the *second* command's real reply was discarded and
+        // the client spun for the whole budget before throwing ERROR_BUSY.
+        using var backend = new U64Backend(
+            new U64BackendConfig { Host = "fake", CommandBudgetMs = 500 },
+            new FakeU64Connection(64, (1, _dos)));
+
+        backend.IssueUciCommand(new byte[] { 0x81, 0x01 }); // no-reply, target 1
+
+        var (status, data) = backend.IssueUciCommand(new byte[] { 0x01, 0x01 }); // identify
+
+        status.Should().Be("00,OK");
+        Encoding.ASCII.GetString(data).Should().Be("ULTIMATE-II DOS V1.2");
     }
 
     [Fact]
@@ -268,6 +322,76 @@ public class U64BackendTests : IDisposable
         var (_, data) = backend.IssueUciCommand(new byte[] { 0x01, 0x01 });
 
         data.Length.Should().Be(UciConstants.ResponseBufferSize);
+    }
+
+    private sealed class AlwaysIdleConnection : IU64Connection
+    {
+        // Never sets an availability bit and never leaves Idle, so WaitForReply
+        // has no choice but to spin out CommandBudgetMs and throw -- this
+        // exercises the finally's cleanup path without ever taking the
+        // continuation-loop's own ControlDataAccept write, which would
+        // otherwise be indistinguishable from the cleanup's.
+        public byte ReadByte(int address) => 0x00;
+        public void WriteByte(int address, byte value) { }
+        public byte[] ReadBytes(int address, int length) => new byte[length];
+        public void WriteBytes(int address, byte[] data) { }
+        public void Dispose() { }
+    }
+
+    /// <summary>Records writes, but throws once on the first ControlDataAccept.</summary>
+    private sealed class FailingAckConnection : IU64Connection
+    {
+        private readonly IU64Connection _inner;
+        private bool _thrown;
+
+        public FailingAckConnection(IU64Connection inner) => _inner = inner;
+
+        public List<(int Address, byte Value)> Writes { get; } = new();
+
+        public byte ReadByte(int address) => _inner.ReadByte(address);
+
+        public void WriteByte(int address, byte value)
+        {
+            if (!_thrown && address == UciConstants.ControlAddress &&
+                value == UciConstants.ControlDataAccept)
+            {
+                _thrown = true;
+                throw new InvalidOperationException("simulated transport failure on acknowledge");
+            }
+
+            // Only writes issued after the simulated failure are recorded, so
+            // this proves what ran *during recovery*, not the command push
+            // that preceded it.
+            if (_thrown) Writes.Add((address, value));
+            _inner.WriteByte(address, value);
+        }
+
+        public byte[] ReadBytes(int address, int length) => _inner.ReadBytes(address, length);
+        public void WriteBytes(int address, byte[] data) => _inner.WriteBytes(address, data);
+        public void Dispose() => _inner.Dispose();
+    }
+
+    [Fact]
+    public void IssueUciCommand_CleanupAcknowledgeFails_StillAttemptsRecovery()
+    {
+        // Before the fix, one try/catch wrapped both the finally's
+        // ControlDataAccept acknowledge and the Recover() call. A thrown
+        // acknowledge jumped straight to the catch, so Recover() never ran --
+        // leaving the interface parked mid-transaction for the next command.
+        // The acknowledge and the recovery must be independent: one failing
+        // must not stop the other from being attempted.
+        var recorder = new FailingAckConnection(new AlwaysIdleConnection());
+        using var backend = new U64Backend(
+            new U64BackendConfig { Host = "fake", CommandBudgetMs = 50 }, recorder);
+
+        var act = () => backend.IssueUciCommand(new byte[] { 0x01, 0x01 });
+
+        act.Should().Throw<U64UciException>(); // the real failure: no reply within budget
+        recorder.Writes.Should().Equal(
+            (UciConstants.ControlAddress, UciConstants.ControlAbort),
+            (UciConstants.ControlAddress, UciConstants.ControlClearError),
+            (UciConstants.ControlAddress, UciConstants.ControlDataAccept),
+            (UciConstants.ControlAddress, (byte)0x00));
     }
 
     public void Dispose()

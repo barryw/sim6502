@@ -7,8 +7,11 @@ namespace sim6502tests.Backend;
 /// An IU64Connection backed by u64sim's own UciRegisters.
 ///
 /// This gives a high-fidelity model of the real handshake for free, including
-/// the upstream wart where the availability bit never clears -- the behaviour
-/// that forces every drain loop to be bounded.
+/// the availability bit's saturation quirk: it clears normally once the read
+/// pointer passes the reply's length, but sticks when a reply exactly fills
+/// its queue and the pointer saturates at the last slot instead of advancing
+/// past it -- the behaviour that forces every drain loop to be bounded by its
+/// own queue's capacity rather than trusting the bit to clear.
 /// </summary>
 public sealed class FakeU64Connection : IU64Connection
 {
@@ -17,6 +20,9 @@ public sealed class FakeU64Connection : IU64Connection
 
     public int ReadCount { get; private set; }
     public int WriteCount { get; private set; }
+
+    /// <summary>Every address passed to <see cref="WriteByte"/>, in order.</summary>
+    public List<int> WrittenAddresses { get; } = new();
 
     /// <summary>Addresses outside the UCI block, so plain memory ops work.</summary>
     private readonly Dictionary<int, byte> _memory = new();
@@ -49,6 +55,7 @@ public sealed class FakeU64Connection : IU64Connection
     public void WriteByte(int address, byte value)
     {
         WriteCount++;
+        WrittenAddresses.Add(address);
         _cycles += 8;
         if (IsUci(address)) _uci.Write(address, value);
         else _memory[address] = value;
