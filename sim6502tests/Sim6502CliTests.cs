@@ -276,7 +276,7 @@ public class Sim6502CliTests
             SuiteFile = "unused.suite",
             Backend = "u64",
             U64Host = "192.168.1.62",
-            U64Port = 80,
+            U64Port = 8080,
             U64Timeout = 7000
         };
 
@@ -284,7 +284,9 @@ public class Sim6502CliTests
 
         configs.U64.Should().NotBeNull();
         configs.U64!.Host.Should().Be("192.168.1.62");
-        configs.U64.Port.Should().Be(80);
+        // 8080, not 80 (the --u64-port and U64BackendConfig.Port default):
+        // deleting the `Port = opts.U64Port` mapping would leave this failing.
+        configs.U64.Port.Should().Be(8080);
         configs.U64.HttpTimeoutMs.Should().Be(7000);
     }
 

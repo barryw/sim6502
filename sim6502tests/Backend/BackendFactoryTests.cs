@@ -101,6 +101,16 @@ public class BackendFactoryTests
     }
 
     [Fact]
+    public void Create_U64_ReturnsU64Backend()
+    {
+        using var backend = BackendFactory.Create(
+            "u64", ProcessorType.MOS6510, new C64MemoryMap(),
+            u64Config: new U64BackendConfig { Host = "192.0.2.1" });
+
+        backend.Should().BeOfType<U64Backend>();
+    }
+
+    [Fact]
     public void Create_U64_WithoutHost_ThrowsWithTheFix()
     {
         var act = () => BackendFactory.Create(
