@@ -71,7 +71,7 @@ public class U64BackendTests : IDisposable
         // $DF1D is a FIFO port but writemem addresses an ascending span, so a
         // multi-byte write (e.g. WriteBytes(CommandAddress, command)) would
         // land bytes 1+ on $DF1E, $DF1F, etc. instead of $DF1D. Asserting only
-        // a minimum WriteCount can't catch that: FakeU64Connection.WriteBytes
+        // a bare write count can't catch that: FakeU64Connection.WriteBytes
         // loops over WriteByte too, so the count is identical either way.
         // Every command byte must land on CommandAddress specifically.
         var command = new byte[] { 0x01, 0x01 };
@@ -425,8 +425,9 @@ public class U64BackendTests : IDisposable
     {
         // Never leaves Busy, so the no-reply settle loop can never observe an
         // exit condition -- this exercises its timeout path deliberately.
+        public List<(int Address, byte Value)> Writes { get; } = new();
         public byte ReadByte(int address) => UciConstants.StateBusy;
-        public void WriteByte(int address, byte value) { }
+        public void WriteByte(int address, byte value) => Writes.Add((address, value));
         public byte[] ReadBytes(int address, int length) => new byte[length];
         public void WriteBytes(int address, byte[] data) { }
         public void Dispose() { }
@@ -441,13 +442,23 @@ public class U64BackendTests : IDisposable
         // pointer parked past this command's bytes, exactly the state the loop
         // exists to prevent. It must throw on timeout, like WaitForReply does,
         // so Recover() gets a chance to run.
+        var connection = new AlwaysBusyConnection();
         using var backend = new U64Backend(
-            new U64BackendConfig { Host = "fake", CommandBudgetMs = 50 },
-            new AlwaysBusyConnection());
+            new U64BackendConfig { Host = "fake", CommandBudgetMs = 50 }, connection);
 
         var act = () => backend.IssueUciCommand(new byte[] { 0x81, 0x01 }); // no-reply
 
         act.Should().Throw<U64UciException>();
+        // MINOR-1 (fourth review round): the throw alone doesn't prove
+        // Recover() ran -- it would pass even if the call were deleted. Assert
+        // the four writes Recover() makes actually landed.
+        connection.Writes.Should().EndWith(new (int Address, byte Value)[]
+        {
+            (UciConstants.ControlAddress, UciConstants.ControlAbort),
+            (UciConstants.ControlAddress, UciConstants.ControlClearError),
+            (UciConstants.ControlAddress, UciConstants.ControlDataAccept),
+            (UciConstants.ControlAddress, (byte)0x00),
+        });
     }
 
     private sealed class ErrorLatchConnection : IU64Connection
@@ -456,9 +467,10 @@ public class U64BackendTests : IDisposable
         // StatusError with an otherwise-idle state immediately after the push,
         // before the caller has had any chance to observe BUSY or wait for a
         // reply.
+        public List<(int Address, byte Value)> Writes { get; } = new();
         public byte ReadByte(int address) =>
             address == UciConstants.ControlAddress ? UciConstants.StatusError : (byte)0x00;
-        public void WriteByte(int address, byte value) { }
+        public void WriteByte(int address, byte value) => Writes.Add((address, value));
         public byte[] ReadBytes(int address, int length) => new byte[length];
         public void WriteBytes(int address, byte[] data) { }
         public void Dispose() { }
@@ -471,12 +483,63 @@ public class U64BackendTests : IDisposable
         // no-reply path a non-Idle leftover state fails the settle loop's
         // `== StateBusy` test on its very first read, so a push the Ultimate
         // rejected was reported as an instant, silent success.
+        var connection = new ErrorLatchConnection();
         using var backend = new U64Backend(
-            new U64BackendConfig { Host = "fake" }, new ErrorLatchConnection());
+            new U64BackendConfig { Host = "fake" }, connection);
 
         var act = () => backend.IssueUciCommand(new byte[] { 0x81, 0x01 }); // no-reply
 
         act.Should().Throw<U64UciException>().WithMessage("*$08*");
+        // MINOR-1 (fourth review round): the throw alone doesn't prove
+        // Recover() ran -- it would pass even if the call were deleted. Assert
+        // the four writes Recover() makes actually landed.
+        connection.Writes.Should().EndWith(new (int Address, byte Value)[]
+        {
+            (UciConstants.ControlAddress, UciConstants.ControlAbort),
+            (UciConstants.ControlAddress, UciConstants.ControlClearError),
+            (UciConstants.ControlAddress, UciConstants.ControlDataAccept),
+            (UciConstants.ControlAddress, (byte)0x00),
+        });
+    }
+
+    [Fact]
+    public void IssueUciCommand_StaleErrorLatchButIdle_SucceedsAndReturnsFullReply()
+    {
+        // Fix pass 4: _errorBusy is a pure latch (UciRegisters.cs:206-215) --
+        // set only when a push arrives while the state isn't Idle, and cleared
+        // only by an explicit ControlClearError write. ControlAbort returns the
+        // state to Idle via HandshakeOut(0x87) WITHOUT clearing it, so "Idle
+        // with the latch still set" is a stable, reachable state. Before the
+        // fix, the round-3 StatusError check treated that stale bit as *this*
+        // push having been rejected: it threw away an already-serviced reply
+        // and then fired ControlAbort at a perfectly healthy machine.
+        using var backend = Build(out var conn, latency: 64);
+
+        // Push #1: latency keeps the state Busy until serviced.
+        conn.WriteByte(UciConstants.CommandAddress, 0x01);
+        conn.WriteByte(UciConstants.CommandAddress, 0x01);
+        conn.WriteByte(UciConstants.ControlAddress, UciConstants.ControlPushCommand);
+
+        // Push #2 while genuinely Busy: latches ERROR_BUSY without touching state.
+        conn.WriteByte(UciConstants.ControlAddress, UciConstants.ControlPushCommand);
+
+        // Let push #1 finish servicing, then abort it back to Idle -- ControlAbort
+        // does not clear the latch.
+        while ((conn.ReadByte(UciConstants.ControlAddress) & UciConstants.StatusStateMask)
+               == UciConstants.StateBusy) { }
+        conn.WriteByte(UciConstants.ControlAddress, UciConstants.ControlAbort);
+        while ((conn.ReadByte(UciConstants.ControlAddress) & UciConstants.StatusStateMask)
+               != UciConstants.StateIdle) { }
+
+        // Confirm the setup: Idle, but the error bit is still latched.
+        var setup = conn.ReadByte(UciConstants.ControlAddress);
+        (setup & UciConstants.StatusStateMask).Should().Be(UciConstants.StateIdle);
+        (setup & UciConstants.StatusError).Should().NotBe(0);
+
+        var (status, data) = backend.IssueUciCommand(new byte[] { 0x01, 0x01 }); // identify
+
+        status.Should().Be("00,OK");
+        Encoding.ASCII.GetString(data).Should().Be("ULTIMATE-II DOS V1.2");
     }
 
     public void Dispose()

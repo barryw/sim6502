@@ -85,8 +85,18 @@ public sealed class U64Backend : IUltimateBackend, IDisposable
             foreach (var b in command)
                 _connection.WriteByte(UciConstants.CommandAddress, b);
 
+            // ERROR_BUSY is a pure latch: UciRegisters sets it when a push
+            // arrives while the state isn't Idle, and clears it only on an
+            // explicit ControlClearError write -- ControlAbort returns to Idle
+            // without touching it. So "Idle with the latch still set" is a
+            // stable, reachable state, and a stale bit there must not be
+            // mistaken for this push having been rejected. Folding
+            // ControlClearError into the same write (WriteControl evaluates its
+            // clear-error clause before its push clause, command_protocol.vhd
+            // lines 148-170) clears any stale latch first, so a set bit
+            // afterwards unambiguously means this push was rejected.
             _connection.WriteByte(UciConstants.ControlAddress,
-                UciConstants.ControlPushCommand);
+                (byte)(UciConstants.ControlPushCommand | UciConstants.ControlClearError));
 
             // A push rejected by the ERROR_BUSY latch is otherwise invisible: on
             // the reply path it looks like a full-budget timeout, and on the
@@ -97,9 +107,8 @@ public sealed class U64Backend : IUltimateBackend, IDisposable
             var pushStatus = _connection.ReadByte(UciConstants.ControlAddress);
             if ((pushStatus & UciConstants.StatusError) != 0)
                 throw new U64UciException(
-                    $"The Ultimate rejected the command push with an error latch " +
-                    $"(status ${pushStatus:X2}); the interface may still be busy " +
-                    "with a previous command.");
+                    $"The Ultimate's error latch rejected this command push " +
+                    $"(status ${pushStatus:X2}).");
 
             if ((command[0] & UciConstants.NoReplyFlag) != 0)
             {
