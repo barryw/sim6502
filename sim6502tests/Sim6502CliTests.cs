@@ -277,7 +277,8 @@ public class Sim6502CliTests
             Backend = "u64",
             U64Host = "192.168.1.62",
             U64Port = 8080,
-            U64Timeout = 7000
+            U64Timeout = 7000,
+            U64CommandBudgetMs = 12345
         };
 
         var configs = Sim6502Cli.BuildBackendConfigs(opts);
@@ -288,6 +289,9 @@ public class Sim6502CliTests
         // deleting the `Port = opts.U64Port` mapping would leave this failing.
         configs.U64.Port.Should().Be(8080);
         configs.U64.HttpTimeoutMs.Should().Be(7000);
+        // 12345, not the 30000 default: deleting the `CommandBudgetMs =
+        // opts.U64CommandBudgetMs` mapping would leave this failing.
+        configs.U64.CommandBudgetMs.Should().Be(12345);
     }
 
     [Fact]

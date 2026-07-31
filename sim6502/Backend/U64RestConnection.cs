@@ -21,6 +21,15 @@ public sealed class U64RestConnection : IU64Connection
     /// <summary>Firmware limit for PUT machine:writemem.</summary>
     private const int MaxWriteChunk = 128;
 
+    /// <summary>
+    /// How much of an error response body to fold into the exception message.
+    /// The firmware names the actual problem here (e.g. "Function readmem does
+    /// not have parameter ramonly"), so on first contact with hardware this
+    /// text is the diagnostic -- but it is untrusted server output, so it is
+    /// bounded rather than included verbatim and unbounded.
+    /// </summary>
+    private const int MaxErrorBodyChars = 300;
+
     private readonly HttpClient _http;
     private readonly string _base;
     private readonly object _gate = new();
@@ -120,9 +129,22 @@ public sealed class U64RestConnection : IU64Connection
         if (!response.IsSuccessStatusCode)
         {
             var status = response.StatusCode;
+            string body;
+            try
+            {
+                body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                body = $"<could not read response body: {ex.Message}>";
+            }
             response.Dispose();
+
+            if (body.Length > MaxErrorBodyChars)
+                body = body[..MaxErrorBodyChars] + "...";
+
             throw new InvalidOperationException(
-                $"Ultimate returned {(int)status} for {request.Method} {url}");
+                $"Ultimate returned {(int)status} for {request.Method} {url}: {body}");
         }
 
         return response;

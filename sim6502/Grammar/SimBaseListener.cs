@@ -1648,16 +1648,35 @@ namespace sim6502.Grammar
             var command = bytes.ToArray();
             Logger.Debug($"uci(${command[0]:X2}, ${command[1]:X2}) — {command.Length} bytes");
 
-            var (status, data) = backend.IssueUciCommand(command);
-            _lastUciStatus = status;
-            _lastUciData = data;
-            _uciCalled = true;
-
             // A uci() call is the test doing real work, so it satisfies the
             // "test executed something" guard the same way jsr() and run() do.
             // Without this, a suite that drives the Ultimate purely from the host
-            // — which is the whole point of uci() — fails every test.
+            // — which is the whole point of uci() — fails every test. Set before
+            // the try so a thrown transaction still counts as an attempt, not a
+            // test that never executed anything.
             _didExecute = true;
+
+            // A UCI transaction can throw (e.g. U64UciException from a wedged
+            // real Ultimate). Uncaught, that exception would unwind the single
+            // ParseTreeWalker.Walk driving the whole suite file: every remaining
+            // test and suite would be skipped, ExitSuites (and its "N suites
+            // passed" summary) would never run, and RunCli's outer catch would
+            // report a bare failure instead of a known, isolated divergence.
+            // Recording it as this test's failure keeps the rest of the run
+            // going.
+            try
+            {
+                var (status, data) = backend.IssueUciCommand(command);
+                _lastUciStatus = status;
+                _lastUciData = data;
+                _uciCalled = true;
+            }
+            catch (Exception ex)
+            {
+                _testFailureMessages.Add(
+                    $"uci(${command[0]:X2}, ${command[1]:X2}) did not complete: {ex.Message}");
+                FailTest();
+            }
         }
 
         public override void ExitUciStatusCheck(sim6502Parser.UciStatusCheckContext context)

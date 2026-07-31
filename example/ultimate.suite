@@ -4,6 +4,9 @@
 ;   dotnet run --project sim6502 -- --suitefile example/ultimate.suite \
 ;     --backend u64sim --u64sim-fs-root sim6502tests/Fixtures/usb0
 ;
+; Or compare against real hardware:
+;   make differential U64_HOST=192.168.1.62
+;
 ; Every uci() call here runs host-side, so no assembled program is needed.
 
 suites {
@@ -66,7 +69,7 @@ suites {
       assert(uci_data(0) == $43, "response starts with 'C'")
     }
 
-    test("control-reu-absent", "REU commands report the REU is not enabled") {
+    test("control-reu-absent", "REU commands report the REU is not enabled", tags = "hardware-wedges") {
       uci($04, $08, "image.reu")
       assert(uci_status("84,REU NOT ENABLED"), "LOAD_REU reports no REU")
     }

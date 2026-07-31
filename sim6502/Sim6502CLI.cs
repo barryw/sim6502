@@ -156,6 +156,11 @@ namespace sim6502
             [Option("u64-timeout", Required = false, Default = 5000,
                 HelpText = "Timeout in ms for a single REST request to the Ultimate")]
             public int U64Timeout { get; set; } = 5000;
+
+            [Option("u64-command-budget", Required = false, Default = 30000,
+                HelpText = "Timeout in ms for one UCI command to leave BUSY before recovery " +
+                           "runs, applied per continuation part (u64 backend)")]
+            public int U64CommandBudgetMs { get; set; } = 30000;
         }
 
         private static int Main(string[] args)
@@ -317,7 +322,8 @@ namespace sim6502
                 {
                     Host = opts.U64Host ?? "",
                     Port = opts.U64Port,
-                    HttpTimeoutMs = opts.U64Timeout
+                    HttpTimeoutMs = opts.U64Timeout,
+                    CommandBudgetMs = opts.U64CommandBudgetMs
                 } : null
             );
         }

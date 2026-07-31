@@ -334,8 +334,14 @@ Drains are bounded because the availability bit never clears.
 - If recovery leaves Busy set, the exception says so and states that a power cycle
   is required. This is a real, reachable condition — `LOAD_REU` reaches it.
 - HTTP failures are wrapped with the endpoint and address that failed.
-- An unreachable host fails at construction with the configured host in the message,
-  matching how `ViceBackend.Connect` reports a missing MCP server.
+- Unlike `ViceBackend.Connect`, `U64Backend` connects lazily: construction does
+  no network I/O, and an unreachable host only fails on the first command,
+  wrapped with the configured host in the message. This is deliberate, not an
+  oversight -- `U64ListenerTests` depends on constructing a `U64Backend`
+  (including its real `U64RestConnection`) doing no I/O, because tests must
+  never touch the network. An eager construction-time probe would break that
+  guarantee for a diagnostic that a real run surfaces within one command
+  anyway.
 
 ## Testing
 

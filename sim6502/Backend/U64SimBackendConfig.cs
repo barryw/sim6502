@@ -4,8 +4,9 @@ namespace sim6502.Backend;
 public class U64SimBackendConfig
 {
     /// <summary>
-    /// Host directory exposed to the C64 as the Ultimate's /Usb0 mount. Required.
-    /// The tree is copied to a temporary location, so the fixture is never mutated.
+    /// Host directory exposed to the C64 as the Ultimate's mount (see
+    /// <see cref="MountName"/>). Required. The tree is copied to a temporary
+    /// location, so the fixture is never mutated.
     /// </summary>
     public string FsRoot { get; set; } = "";
 

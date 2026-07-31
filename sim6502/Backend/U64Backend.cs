@@ -224,10 +224,22 @@ public sealed class U64Backend : IExecutionBackend, IUltimateBackend
                 return status;
         }
 
-        var last = _connection.ReadByte(UciConstants.ControlAddress);
+        // Best-effort: this read is purely for a more informative message, and
+        // if the connection itself is what's failing, that failure must not
+        // replace the timeout as the exception the caller sees.
+        string lastStatus;
+        try
+        {
+            lastStatus = $"${_connection.ReadByte(UciConstants.ControlAddress):X2}";
+        }
+        catch (Exception)
+        {
+            lastStatus = "unknown";
+        }
+
         throw new U64UciException(
             $"The Ultimate did not answer within {_config.CommandBudgetMs}ms. " +
-            $"Last status ${last:X2}. If the interface stays busy, only a power " +
+            $"Last status {lastStatus}. If the interface stays busy, only a power " +
             "cycle clears it -- see GideonZ/1541ultimate#740 for one command " +
             "known to wedge it.");
     }
@@ -285,6 +297,10 @@ public sealed class U64Backend : IExecutionBackend, IUltimateBackend
     public int ReadWord(int address)
     {
         var bytes = _connection.ReadBytes(address, 2);
+        if (bytes.Length < 2)
+            throw new InvalidOperationException(
+                $"Ultimate returned {bytes.Length} byte(s) reading a word at " +
+                $"${address:X4}; expected 2");
         return bytes[0] | (bytes[1] << 8);
     }
 

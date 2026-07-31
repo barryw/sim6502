@@ -21,7 +21,9 @@ public readonly record struct UltimateDirEntry(
 
 /// <summary>
 /// Exposes a host directory as the Ultimate's mounted filesystem, rooted at
-/// <c>/Usb0</c> by default.
+/// <c>/Usb0</c> by default -- pass a different <c>mountName</c> to the
+/// constructor to match real hardware, which enumerates its stick as
+/// <c>/USB1</c>.
 ///
 /// The host tree is copied to a temporary directory at construction and the copy
 /// is deleted on dispose, so tests operate on throwaway state and fixture files

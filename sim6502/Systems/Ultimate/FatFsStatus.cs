@@ -12,6 +12,14 @@ namespace sim6502.Systems.Ultimate;
 /// paths and a DOS status on others, and which one applies is per-command.
 /// DOS_CMD_OPEN_FILE (dos.cc:111-124) uses these; confirmed on hardware
 /// running fw 3.14d, which answers "FILE DOESN'T EXIST" for a missing file.
+///
+/// This is deliberately the subset of the upstream table that .NET's own
+/// exceptions distinguish in <see cref="UltimateDosTarget"/>'s OpenFile
+/// (<see cref="FileDoesntExist"/>, <see cref="PathDoesntExist"/>,
+/// <see cref="AccessDenied"/>, <see cref="FileExists"/>), not a full port --
+/// every other FatFs result .NET doesn't separately distinguish falls through
+/// to a generic internal-error status instead. The remaining four constants
+/// below have no caller.
 /// </summary>
 public static class FatFsStatus
 {

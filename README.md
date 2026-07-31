@@ -1950,11 +1950,15 @@ make differential U64_HOST=192.168.1.62
 ```
 
 **Known firmware issue:** `uci($04, $08, ...)` (`LOAD_REU`) never returns on
-fw 3.14d and leaves the command interface wedged until a power cycle. Reported
-as [GideonZ/1541ultimate#740](https://github.com/GideonZ/1541ultimate/issues/740).
-`example/ultimate.suite` keeps its `control-reu-absent` test because `u64sim`
-returns the status upstream specifies; that one test is expected to fail against
-current hardware.
+fw 3.14d and wedges the command interface until a power cycle -- not just a
+failed test, but the interface stuck until you cycle power. Reported as
+[GideonZ/1541ultimate#740](https://github.com/GideonZ/1541ultimate/issues/740).
+`example/ultimate.suite` keeps its `control-reu-absent` test, tagged
+`hardware-wedges`, because `u64sim` returns the status upstream specifies. The
+differential check (`scripts/differential.sh`) passes `--exclude-tag
+hardware-wedges` to both backends so the comparison stays symmetric without
+ever issuing that command against real hardware; `u64sim` users still run it
+by default.
 
 #### License
 

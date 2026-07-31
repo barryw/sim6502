@@ -603,6 +603,34 @@ public class U64BackendTests : IDisposable
         backend.ReadWord(0xC000).Should().Be(0x1234);
     }
 
+    [Fact]
+    public void LoadBinary_WritesEveryByteAtTheGivenAddress()
+    {
+        // LoadBinary is how the CLI's setup-block/load() path reaches the u64
+        // backend (SimBaseListener.LoadResources), and it has no other REST
+        // exercise -- go through the real WriteBytes chunking rather than
+        // asserting on a mock.
+        using var backend = Build(out _);
+
+        backend.LoadBinary(BinaryPayload, 0xC000);
+
+        for (var i = 0; i < BinaryPayload.Length; i++)
+            backend.ReadByte(0xC000 + i).Should().Be(BinaryPayload[i]);
+    }
+
+    [Fact]
+    public void Reset_IssuesMachineReset()
+    {
+        // Reset() is the REST path behind SimBaseListener's cold-start/reset
+        // handling for the u64 backend; FakeU64Connection.ResetCount exists
+        // for exactly this but was never asserted anywhere.
+        using var backend = Build(out var conn);
+
+        backend.Reset();
+
+        conn.ResetCount.Should().Be(1);
+    }
+
     [Theory]
     [InlineData("GetRegister")]
     [InlineData("SetRegister")]
