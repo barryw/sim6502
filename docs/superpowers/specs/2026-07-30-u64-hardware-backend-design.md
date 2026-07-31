@@ -208,6 +208,56 @@ reply thereafter. The same file uses the correct idiom elsewhere
 Reported upstream as
 [GideonZ/1541ultimate#740](https://github.com/GideonZ/1541ultimate/issues/740).
 
+**Fixed upstream in [PR #741](https://github.com/GideonZ/1541ultimate/pull/741)
+(merged 2026-07-31), and our root-cause analysis was wrong.** The real defect was
+`struprt()` in `control_target.cc`, which never advanced its pointer:
+
+```c
+char *next = str;
+while (*str != '\0')
+    *str = toupper((unsigned char)*str);   // str is never incremented
+```
+
+An infinite loop over one byte. `CommandInterface::run_task()` calls the target
+handler inline, so it wedged the whole UCI server task — which is why abort,
+clear-error and data-accept could not release it: the loop that was spinning is
+the one that services them.
+
+Our reading of `data_message.message + 4` as a misdirected filename was
+incorrect. `REUPreloader::LoadREU(char *status)` takes an **output buffer for
+status text** and reads the image path from the "REU Preload Image" *setting*, so
+that argument is deliberate. The separate observation — that the documented
+`<FILENAME>` argument never reaches the handler — is confirmed by the PR as a
+genuine but distinct gap, still unfixed.
+
+It also explains why the REU-disabled case still hung for us. On a freshly
+restarted device `LoadREU()` returns before writing a status string and the
+buffer's first byte happens to be zero, so the broken loop exits immediately. Our
+machine had run other commands, leaving text behind — which is the PR's second
+defect (the reply length was taken from whatever the previous command left in the
+buffer).
+
+### Divergences this exposes in `u64sim` — for the REU milestone
+
+`ControlTarget.cs:67` collapses `CmdLoadReu or CmdSaveReu` to a single
+`UciReply.Empty(StatusReuNotEnabled)`. The PR's verified hardware output shows
+real replies are a 4-byte little-endian return code, optionally followed by status
+text:
+
+| Case | Hardware (fw with #741) | `u64sim` today |
+|---|---|---|
+| REU disabled | `\xfe\xff\xff\xff` + `84,REU NOT ENABLED` | empty + `84,REU NOT ENABLED` |
+| REU enabled, image absent | `85,REU FILE CANNOT BE OPENED` + text | `84,REU NOT ENABLED` |
+| REU enabled, image present | `00,OK` + LE byte count + text | `84,REU NOT ENABLED` |
+| command length < 5 | `c_status_invalid_params` | `84,REU NOT ENABLED` |
+
+These are **deliberately not fixed in this milestone** — REU is its own milestone,
+and the placeholder status was correct against the behaviour observable when it
+was written. The REU milestone must model the 4-byte return-code prefix and the
+length check, and can then un-exclude `control-reu-absent` once the machine runs
+firmware containing #741.
+
+
 Consequences:
 
 - `control-reu-absent` is excluded from the hardware differential run. It cannot be
