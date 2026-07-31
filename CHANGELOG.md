@@ -2,6 +2,89 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v4.0.0 - 2026-07-31
+#### Features
+- (**backend**) IExecutionBackend surface for the u64 backend - (91a7e35) - Barry Walker, *Claude Opus 5 (1M context)*
+- (**backend**) UCI transaction against real Ultimate 64 hardware - (fcd79b3) - Barry Walker
+- (**backend**) REST transport for the Ultimate 64 - (7b46e25) - Barry Walker
+- (**backend**) add the u64sim execution backend - (b6a2741) - Barry Walker
+- (**cli**) add the u64 backend and --u64-host - (0b84c0b) - Barry Walker, *Claude Opus 5 (1M context)*
+- <span style="background-color: #d73a49; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold; font-size: 0.85em;">BREAKING</span>(**grammar**) add ultimate(), uci(), uci_status(), uci_data() - (c209ee6) - Barry Walker, *Claude Opus 5 (1M context)*
+- (**systems**) dispatch C64 I/O reads and writes to registered handlers - (ccfb6a9) - Barry Walker
+- (**u64sim**) make the Ultimate mount name configurable - (ffb7dcf) - Barry Walker
+- (**ultimate**) add the UCI control target at $04 - (33d9214) - Barry Walker, *Claude Opus 5 (1M context)*
+- (**ultimate**) Ultimate DOS stat, info, delete, rename, copy, listing - (359e467) - Barry Walker
+- (**ultimate**) Ultimate DOS file open, read, write, seek, and close - (0d96ac1) - Barry Walker
+- (**ultimate**) Ultimate DOS identity, directory navigation, and echo - (5fa7c2b) - Barry Walker
+- (**ultimate**) map a host directory to the Ultimate /Usb0 namespace - (c811746) - Barry Walker
+- (**ultimate**) implement UCI register decode and command buffering - (e8b673a) - Barry Walker
+- (**ultimate**) add UCI constants, reply type, and command target seam - (bcea520) - Barry Walker
+- hardware differential check and u64 backend docs - (a06e158) - Barry Walker
+#### Bug Fixes
+- (**backend**) resolve U64Backend UCI findings from third review round - (1a287ab) - Barry Walker, *Claude Opus 5 (1M context)*
+- (**backend**) resolve NoReplyFlag desync introduced by prior fix pass - (e08ff83) - Barry Walker, *Claude Opus 5 (1M context)*
+- (**backend**) resolve U64Backend UCI review findings - (53a6268) - Barry Walker, *Claude Opus 5 (1M context)*
+- (**backend**) dispose the listener's backend exactly once per suite - (e51c3a4) - Barry Walker
+- (**differential**) catch silent false-match and unreachable-host death - (40fcfda) - Barry Walker
+- (**grammar**) let a uci()-only test satisfy the executed-something guard - (88fc3a1) - Barry Walker
+- (**grammar**) don't double-report uci_status() called before uci() - (eeccbe4) - Barry Walker
+- (**plan**) correct the mount-name test to send a real CHANGE_DIR command - (00045fe) - Barry Walker
+- (**u64**) stop ResetCycleCount from killing every u64 test run - (4778550) - Barry Walker, *Claude Opus 5 (1M context)*
+- (**u64backend**) stop the error-latch check from killing healthy transactions - (60e6bc8) - Barry Walker, *Claude Opus 5 (1M context)*
+- (**ultimate**) default the UCI bus ID to 11, as hardware reports - (81de22d) - Barry Walker, *Claude Opus 5 (1M context)*
+- (**ultimate**) return FatFs error text from OPEN_FILE, as hardware does - (b9727b2) - Barry Walker
+- (**ultimate**) assert the traversal boundary, not the absence of a substring - (78430f9) - Barry Walker
+- (**ultimate**) revert UCI pointer guards to upstream /= semantics - (9b06694) - Barry Walker, *Claude Opus 5 (1M context)*
+- (**ultimate**) fix UciRegisters crash and status-byte snapshot bug - (f0a57b2) - Barry Walker, *Claude Opus 5 (1M context)*
+- repair the never-run differential script and hardware-safety gaps - (b22ecc0) - Barry Walker, *Claude Opus 5 (1M context)*
+#### Documentation
+- (**plan**) correct Task 6, whose code blocks shipped two critical defects - (a8274b2) - Barry Walker
+- (**plan**) implementation plan for the u64 hardware backend - (6e92c52) - Barry Walker, *Claude Opus 5 (1M context)*
+- (**plan**) fix task 6's traversal assertion - (c60c68e) - Barry Walker
+- (**plan**) correct task 5's full-buffer reply test - (70d1afb) - Barry Walker
+- (**plan**) expand u64sim tasks 13-14, plan is now execution-ready - (93f00e1) - Barry Walker, *Claude Opus 5 (1M context)*
+- (**plan**) expand u64sim task 12, drop duplicated task 11 stub - (57e1e8e) - Barry Walker, *Claude Opus 5 (1M context)*
+- (**plan**) expand u64sim tasks 10-11 to executable form - (ba6e686) - Barry Walker, *Claude Opus 5 (1M context)*
+- (**plan**) expand u64sim task 9 to executable form - (69e3928) - Barry Walker, *Claude Opus 5 (1M context)*
+- (**plan**) expand u64sim tasks 6-8 to executable form - (f7f28a5) - Barry Walker, *Claude Opus 5 (1M context)*
+- (**plan**) u64sim implementation plan, tasks 1-5 execution-ready - (df28321) - Barry Walker, *Claude Opus 5 (1M context)*
+- (**readme**) expand u64sim UCI reference and client walkthrough - (6668716) - Barry Walker, *Claude Opus 5 (1M context)*
+- (**spec**) record the upstream fix for #740 and correct our root cause - (7922bfe) - Barry Walker
+- (**spec**) record the differential passing on real hardware - (f0b41dc) - Barry Walker
+- (**spec**) document the PLA banking caveat on u64 memory access - (5f761aa) - Barry Walker, *Claude Opus 5 (1M context)*
+- (**spec**) root-cause the LOAD_REU wedge and record the upstream report - (34ae6c9) - Barry Walker, *Claude Opus 5 (1M context)*
+- (**spec**) u64 hardware backend design (milestone 2) - (2532b88) - Barry Walker, *Claude Opus 5 (1M context)*
+- (**spec**) Ultimate 64 u64sim design (UCI core + Ultimate DOS) - (8d411ed) - Barry Walker, *Claude Opus 5 (1M context)*
+- (**ultimate**) name the real upstream files in ControlTarget's origin header - (bc96968) - Barry Walker
+- (**ultimate**) narrow symlink guarantee to the lexical containment check - (36c80b3) - Barry Walker, *Claude Opus 5 (1M context)*
+- (**ultimate**) warn that UciReply compares Data by reference - (9d90f21) - Barry Walker
+- document the u64sim backend and release 4.0.0 - (abe02ac) - Barry Walker
+#### Tests
+- (**backend**) cover ViceBackend, NovaVmConnection, ViceLauncher - (8df13a3) - Barry Walker, *Claude Opus 5 (1M context)*
+- (**backend**) make the continuation test actually span chunks - (8d49e0d) - Barry Walker
+- (**cli**) pin SimBaseListener -> BackendFactory u64 wiring - (1e056fb) - Barry Walker, *Claude Opus 5 (1M context)*
+- (**cli**) add regression coverage for the MountName wire in BuildBackendConfigs - (a519082) - Barry Walker, *Claude Opus 5 (1M context)*
+- (**novavm**) update a comment left stale by the _didJsr rename - (1ddfd3f) - Barry Walker
+- (**u64backend**) add the missing genuinely-busy error-latch twin test - (02e4cf9) - Barry Walker, *Claude Opus 5 (1M context)*
+- (**ultimate**) cover uci_data()/uci_status() value-path listener code + run example suite in CI - (3ac850e) - Barry Walker, *Claude Opus 5 (1M context)*
+- (**ultimate**) drive the u64sim stack from 6502 code and from the DSL - (2adaff2) - Barry Walker
+- (**ultimate**) verify empty status on a completing read chunk - (f5887f1) - Barry Walker
+- (**ultimate**) make the oversized-reply test actually exercise truncation - (589740e) - Barry Walker
+- (**ultimate**) cover UCI dispatch, multi-part replies, abort, latency - (4aba9ff) - Barry Walker, *Claude Opus 5 (1M context)*
+- backfill coverage for MemoryCompare, BaseCompare, Utility, Generic6510MemoryMap - (da489fe) - Barry Walker
+- cover Sim6502CLI.cs (0% -> 83%) and BackendFactory's vice/novavm/verilator branches - (01572b7) - Barry Walker
+#### Build system
+- fix make grammar so it reproduces the committed parser - (24ef26c) - Barry Walker
+#### Continuous Integration
+- verify committed ANTLR parser stays in sync with grammar - (38dafc6) - Barry Walker
+#### Refactoring
+- (**grammar**) let uci() target any Ultimate-capable backend - (85371f1) - Barry Walker
+#### Chores
+- <span style="background-color: #d73a49; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold; font-size: 0.85em;">BREAKING</span>(**license**) relicense to GPL-3.0 for Ultimate 64 support - (97ee9a1) - Barry Walker
+- ignore .superpowers/ scratch directory - (6b3ab16) - Barry Walker
+
+- - -
+
 ## v4.0.0 - 2026-07-30
 #### Breaking Changes
 - (**license**) relicense from BSD-2-Clause to GPL-3.0; Ultimate 64 support ports protocol and DOS behaviour from [GideonZ/1541ultimate](https://github.com/GideonZ/1541ultimate), which is GPL-3.0. Releases before 4.0.0 remain BSD-2-Clause - (97ee9a1) - Barry Walker
