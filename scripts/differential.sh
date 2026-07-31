@@ -26,8 +26,11 @@ OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 
 echo "==> Checking the Ultimate is reachable and idle at $U64_HOST"
-IDLE=$(curl -sf --max-time 8 \
-    "http://$U64_HOST/v1/machine:readmem?address=df1b&length=5" | xxd -p)
+if ! IDLE=$(curl -sS -f --max-time 8 \
+    "http://$U64_HOST/v1/machine:readmem?address=df1b&length=5" | xxd -p); then
+    echo "Could not reach $U64_HOST — check the IP and that the machine is powered on." >&2
+    exit 1
+fi
 echo "    \$DF1B-\$DF1F = $IDLE"
 case "$IDLE" in
     ??00*) ;;
@@ -44,6 +47,14 @@ dotnet run --project sim6502 -- --suitefile "$SUITE" \
 echo "==> Running $SUITE against real hardware at $U64_HOST"
 dotnet run --project sim6502 -- --suitefile "$SUITE" \
     --backend u64 --u64-host "$U64_HOST" > "$OUT/u64.txt" 2>&1 || true
+
+for f in "$OUT/u64sim.txt" "$OUT/u64.txt"; do
+    grep -q "suites passed\." "$f" || {
+        echo "ERROR: $f never reached a suite summary — the run did not complete:" >&2
+        cat "$f" >&2
+        exit 1
+    }
+done
 
 echo "==> Comparing"
 # Strip the backend banner lines, which legitimately differ.

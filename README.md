@@ -1916,7 +1916,7 @@ Two behaviours are easy to get wrong, both deliberate:
 | UCI network target `$03` | Not implemented — unpopulated, like any target outside `$01`, `$02` and `$04` |
 | Drive mounting / disk images | Not implemented. MOUNT_DISK, UNMOUNT_DISK and SWAP_DISK answer `99,FUNCTION NOT IMPLEMENTED` |
 
-### `u64` — a real Ultimate 64
+#### `u64` — a real Ultimate 64
 
 Runs UCI traffic against physical hardware over the firmware's REST API.
 
