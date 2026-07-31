@@ -978,6 +978,32 @@ connection because concurrent requests can lock a real machine up."
 
 ### Task 6: The UCI transaction
 
+> **CORRECTION (post-implementation).** The code blocks in this task shipped six
+> real defects, found by review and fixed in commit `53a6268`. The implemented
+> source is authoritative; do not re-apply the code below verbatim.
+>
+> - **Critical.** `while (true)` had no continuation bound, so a device stuck on
+>   `StateDataMore` looped forever. `UciRegisters` already guards this with
+>   `MaxContinuationParts = 4096`; the sibling walk must not disagree.
+> - **Critical.** `if (b == 0) break;` in the drain truncated every binary
+>   payload — an 8-byte PRG returned 2 bytes. The premise was wrong: the
+>   availability bit does *not* never-clear in general. `ResponseValid` is
+>   `(pointer - start) < length` and clears normally; it sticks only when a reply
+>   exactly fills its queue, which `MaxDrain` already covers. With this check the
+>   backend returned different bytes than u64sim, defeating its whole purpose.
+> - **Important.** The status drain used `ResponseBufferSize` (896) as its bound
+>   instead of `StatusBufferSize` (256), so a full status returned 640 repeats of
+>   its last byte. The bound is now a parameter.
+> - **Important.** A reply with empty data *and* empty status sets no
+>   availability bit, so a zero-length read or a `NoReplyFlag` command burned the
+>   whole budget and then fired `ControlAbort` at healthy hardware. `WaitForReply`
+>   now also returns once the state settles on `StateDataLast`/`StateDataMore`,
+>   and `NoReplyFlag` is handled explicitly rather than by racing the state.
+> - **Minor.** Dead `continue`; undocumented per-part budget semantics; two doc
+>   comments repeating the false never-clears claim; `U64UciException` not sealed
+>   and unable to chain an inner exception.
+
+
 The heart of the backend. Read the spec's "The UCI transaction" section before starting.
 
 **Files:**
