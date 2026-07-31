@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using FluentAssertions;
 using sim6502.Backend;
@@ -12,11 +13,19 @@ public class U64BackendTests : IDisposable
     private readonly UltimateFileSystem _fs;
     private readonly UltimateDosTarget _dos;
 
+    /// <summary>An 8-byte payload with embedded $00 bytes, like a real C64 PRG header.</summary>
+    private static readonly byte[] BinaryPayload =
+        { 0x01, 0x08, 0x00, 0x0C, 0x08, 0x0A, 0x00, 0x99 };
+
     public U64BackendTests()
     {
         _fixture = Path.Combine(Path.GetTempPath(), "u64backend-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(_fixture, "data"));
         File.WriteAllText(Path.Combine(_fixture, "data", "hello.txt"), "HELLO FROM USB0");
+        // UltimateFileSystem snapshots this directory at construction time (see
+        // below), so every fixture file must exist before that call, not inside
+        // an individual test method.
+        File.WriteAllBytes(Path.Combine(_fixture, "data", "binary.prg"), BinaryPayload);
 
         _fs = new UltimateFileSystem(_fixture);
         _dos = new UltimateDosTarget(_fs, "ULTIMATE-II DOS V1.2");
@@ -80,6 +89,22 @@ public class U64BackendTests : IDisposable
     }
 
     [Fact]
+    public void IssueUciCommand_ReadsBinaryDataWithEmbeddedZeroBytes()
+    {
+        // Regression for the DrainInto zero-check that used to treat $00 as
+        // end-of-data. Every C64 binary contains $00 bytes; the pre-fix drain
+        // truncated this 8-byte payload to just the first two bytes (01 08).
+        using var backend = Build(out _);
+
+        backend.IssueUciCommand(BuildCommand(0x01, 0x11, "/Usb0/data"));
+        backend.IssueUciCommand(BuildCommand(0x01, 0x02, 0x01, "binary.prg"));
+        var (_, data) = backend.IssueUciCommand(
+            new byte[] { 0x01, 0x04, (byte)BinaryPayload.Length, 0x00 });
+
+        data.Should().Equal(BinaryPayload);
+    }
+
+    [Fact]
     public void IssueUciCommand_MissingFile_ReportsTheFatFsString()
     {
         using var backend = Build(out _);
@@ -104,6 +129,104 @@ public class U64BackendTests : IDisposable
         using var backend = Build(out _);
         var act = () => backend.IssueUciCommand(Array.Empty<byte>());
         act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void IssueUciCommand_ZeroLengthRead_ReturnsPromptlyInsteadOfBurningTheBudget()
+    {
+        // A zero-length DOS read answers with empty data AND empty status, so
+        // neither availability bit is ever set. Before the fix, WaitForReply
+        // only returned on an availability bit, so this burned the entire
+        // CommandBudgetMs before wrongly declaring a hang.
+        using var backend = Build(out _);
+
+        backend.IssueUciCommand(BuildCommand(0x01, 0x11, "/Usb0/data"));
+        backend.IssueUciCommand(BuildCommand(0x01, 0x02, 0x01, "hello.txt"));
+
+        var sw = Stopwatch.StartNew();
+        var (status, data) = backend.IssueUciCommand(new byte[] { 0x01, 0x04, 0x00, 0x00 });
+        sw.Stop();
+
+        status.Should().BeEmpty();
+        data.Should().BeEmpty();
+        sw.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(1),
+            "a completed zero-length read must not wait out CommandBudgetMs");
+    }
+
+    [Fact]
+    public void IssueUciCommand_NoReplyFlag_ReturnsPromptlyWithoutWaiting()
+    {
+        // Bit 7 of command byte 0 means "don't reply". Before the fix there was
+        // nothing that recognised this locally, so the backend raced the
+        // Ultimate's state machine (or the default config's 30s budget) instead
+        // of returning immediately.
+        using var backend = Build(out _);
+
+        var sw = Stopwatch.StartNew();
+        var (status, data) = backend.IssueUciCommand(new byte[] { 0x81, 0x01 });
+        sw.Stop();
+
+        status.Should().BeEmpty();
+        data.Should().BeEmpty();
+        sw.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(1),
+            "a NoReplyFlag command must not wait for a reply that will never come");
+    }
+
+    private sealed class FixedStatusTarget : ICommandTarget
+    {
+        private readonly string _status;
+        public FixedStatusTarget(string status) => _status = status;
+        public UciReply ParseCommand(byte[] command) => UciReply.Empty(_status);
+        public UciReply GetMoreData() => UciReply.Empty(UciConstants.StatusOk);
+        public void Abort(int bytesConsumed) { }
+    }
+
+    [Fact]
+    public void IssueUciCommand_StatusExactlyFillsQueue_ReturnsStatusBufferSizeNotResponseBufferSize()
+    {
+        // A status that exactly fills its 256-byte queue leaves the availability
+        // bit stuck (pointer saturation, same mechanism as UciRegisters' doc
+        // comment). Before the fix, the status drain used the *response*
+        // buffer's 896-byte bound, so it kept reading the stuck bit and
+        // returned 896 bytes: 256 real ones plus 640 repeats of the last byte.
+        var status256 = new string('X', UciConstants.StatusBufferSize);
+        var connection = new FakeU64Connection(0, (2, new FixedStatusTarget(status256)));
+        using var backend = new U64Backend(new U64BackendConfig { Host = "fake" }, connection);
+
+        var (status, _) = backend.IssueUciCommand(new byte[] { 0x02, 0x01 });
+
+        status.Length.Should().Be(UciConstants.StatusBufferSize);
+        status.Should().Be(status256);
+    }
+
+    private sealed class StuckContinuationConnection : IU64Connection
+    {
+        // Every reply part reports StateDataMore with the response available,
+        // so a client that never bounds its continuation loop spins forever.
+        public byte ReadByte(int address) =>
+            address == UciConstants.ControlAddress
+                ? (byte)(UciConstants.StatusResponseAvailable | UciConstants.StateDataMore)
+                : (byte)0x41;
+
+        public void WriteByte(int address, byte value) { }
+        public byte[] ReadBytes(int address, int length) => new byte[length];
+        public void WriteBytes(int address, byte[] data) { }
+        public void Dispose() { }
+    }
+
+    [Fact]
+    public void IssueUciCommand_UnboundedContinuation_ThrowsInsteadOfHanging()
+    {
+        using var backend = new U64Backend(
+            new U64BackendConfig { Host = "fake" }, new StuckContinuationConnection());
+
+        var sw = Stopwatch.StartNew();
+        var act = () => backend.IssueUciCommand(new byte[] { 0x01, 0x01 });
+        act.Should().Throw<U64UciException>().WithMessage("*4096*");
+        sw.Stop();
+
+        sw.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(1),
+            "the continuation-part guard must trip long before any wall-clock budget");
     }
 
     private static byte[] BuildCommand(byte target, byte cmd, string text)

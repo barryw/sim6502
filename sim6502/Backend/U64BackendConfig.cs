@@ -18,6 +18,13 @@ public class U64BackendConfig
     /// <see cref="HttpTimeoutMs"/>: a command can legitimately stay busy for far
     /// longer than a single round-trip, and treating that as a wall-clock race is
     /// exactly what wedges the interface.
+    ///
+    /// Applies PER CONTINUATION PART, not per transaction: the wait timer
+    /// restarts inside the wait for every "data more" part of a multi-part
+    /// reply. A reply that uses the maximum number of continuation parts
+    /// (U64Backend bounds this at 4096, mirroring UciRegisters) can therefore
+    /// legitimately take up to CommandBudgetMs * 4096 before that guard gives
+    /// up -- this value is per-part headroom, not a transaction-wide deadline.
     /// </summary>
     public int CommandBudgetMs { get; set; } = 30000;
 }

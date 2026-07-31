@@ -6,9 +6,10 @@ using sim6502.Systems.Ultimate;
 namespace sim6502.Backend;
 
 /// <summary>Raised when a UCI transaction cannot be completed or recovered.</summary>
-public class U64UciException : InvalidOperationException
+public sealed class U64UciException : InvalidOperationException
 {
     public U64UciException(string message) : base(message) { }
+    public U64UciException(string message, Exception inner) : base(message, inner) { }
 }
 
 /// <summary>
@@ -19,20 +20,24 @@ public class U64UciException : InvalidOperationException
 /// and resets the machine. Registers, flags, cycle counts and ExecuteJsr have no
 /// REST equivalent and are not emulated -- see the spec's "Supported and
 /// unsupported members".
+///
+/// Reply and status drains are bounded to their own queue's size. The
+/// availability bit in $DF1C clears normally once the read pointer passes the
+/// reply's length; it only sticks when a reply exactly fills its queue, because
+/// the pointer saturates at the last slot instead of advancing past it. A "read
+/// until the bit drops" loop would spin forever in that one case, so each drain
+/// stops at its queue's own capacity instead of trusting the bit to clear.
 /// </summary>
 public sealed class U64Backend : IUltimateBackend, IDisposable
 {
     private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
 
     /// <summary>
-    /// Upper bound on a single reply or status drain.
-    ///
-    /// Bounded on purpose. The availability bit in $DF1C never clears once set --
-    /// an upstream wart pinned by u64sim's tests and confirmed on silicon -- so a
-    /// "read until the bit drops" loop would spin forever. Sized to the UCI's own
-    /// response buffer.
+    /// Guard against a target that never reports a last part. Mirrors
+    /// UciRegisters' own MaxContinuationParts -- the two are sibling walks of
+    /// the same continuation protocol and must not disagree.
     /// </summary>
-    private const int MaxDrain = UciConstants.ResponseBufferSize;
+    private const int MaxContinuationParts = 4096;
 
     private readonly IU64Connection _connection;
     private readonly U64BackendConfig _config;
@@ -65,20 +70,35 @@ public sealed class U64Backend : IUltimateBackend, IDisposable
             _connection.WriteByte(UciConstants.ControlAddress,
                 UciConstants.ControlPushCommand);
 
+            if ((command[0] & UciConstants.NoReplyFlag) != 0)
+            {
+                // By definition there is no reply to wait for. Inferring this
+                // from the state register instead (e.g. "idle after push")
+                // would race the Ultimate actually servicing the command.
+                completed = true;
+                return (string.Empty, Array.Empty<byte>());
+            }
+
             var data = new List<byte>();
             var status = new List<byte>();
+            var parts = 0;
 
             while (true)
             {
                 var state = WaitForReply();
 
                 DrainInto(data, UciConstants.ResponseAddress,
-                    UciConstants.StatusResponseAvailable);
+                    UciConstants.StatusResponseAvailable, UciConstants.ResponseBufferSize);
                 DrainInto(status, UciConstants.StatusAddress,
-                    UciConstants.StatusStatusAvailable);
+                    UciConstants.StatusStatusAvailable, UciConstants.StatusBufferSize);
 
                 if ((state & UciConstants.StatusStateMask) != UciConstants.StateDataMore)
                     break;
+
+                if (++parts > MaxContinuationParts)
+                    throw new U64UciException(
+                        $"UCI reply did not finish after {MaxContinuationParts} continuation " +
+                        "parts; the target may never report a last part.");
 
                 // More parts follow: acknowledge and go round again.
                 _connection.WriteByte(UciConstants.ControlAddress,
@@ -123,8 +143,13 @@ public sealed class U64Backend : IUltimateBackend, IDisposable
                            UciConstants.StatusStatusAvailable)) != 0)
                 return status;
 
-            if ((status & UciConstants.StatusStateMask) == UciConstants.StateBusy)
-                continue;
+            // A reply with no data and no status (e.g. a zero-length read) sets
+            // neither availability bit, yet the transaction is done: the state
+            // has settled on a data state. Waiting out the full budget here
+            // would misdiagnose a completed command as a hang.
+            var state = (byte)(status & UciConstants.StatusStateMask);
+            if (state == UciConstants.StateDataLast || state == UciConstants.StateDataMore)
+                return status;
         }
 
         var last = _connection.ReadByte(UciConstants.ControlAddress);
@@ -135,16 +160,25 @@ public sealed class U64Backend : IUltimateBackend, IDisposable
             "known to wedge it.");
     }
 
-    /// <summary>Drain one FIFO, bounded because the availability bit never clears.</summary>
-    private void DrainInto(List<byte> sink, int address, byte availableBit)
+    /// <summary>
+    /// Drain one FIFO into <paramref name="sink"/>, up to <paramref name="bound"/>
+    /// bytes -- the queue's own size (<see cref="UciConstants.ResponseBufferSize"/>
+    /// for a reply, <see cref="UciConstants.StatusBufferSize"/> for a status).
+    ///
+    /// The availability bit clears normally once the read pointer passes the
+    /// reply's length; it only sticks when a reply exactly fills its queue,
+    /// because the pointer saturates at the last slot instead of advancing past
+    /// it -- see the class summary. Bounding by the queue's own capacity covers
+    /// that case without assuming every byte is non-zero: C64 binaries routinely
+    /// contain $00, and a value of zero is not end-of-data on this bus.
+    /// </summary>
+    private void DrainInto(List<byte> sink, int address, byte availableBit, int bound)
     {
         var taken = 0;
-        while (taken < MaxDrain &&
+        while (taken < bound &&
                (_connection.ReadByte(UciConstants.ControlAddress) & availableBit) != 0)
         {
-            var b = _connection.ReadByte(address);
-            if (b == 0) break;
-            sink.Add(b);
+            sink.Add(_connection.ReadByte(address));
             taken++;
         }
     }
