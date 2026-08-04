@@ -2,6 +2,18 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v5.0.0 - 2026-08-04
+#### Features
+- <span style="background-color: #d73a49; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold; font-size: 0.85em;">BREAKING</span>run the simulator on SixtyFiveXX and delete the bundled core - (2fa0953) - Barry Walker
+#### Bug Fixes
+- (**ci**) make the example suite wait for the build it runs - (c83e363) - Barry Walker
+- <span style="background-color: #d73a49; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold; font-size: 0.85em;">BREAKING</span>(**grammar**) give operators their conventional precedence - (a8dc4e6) - Barry Walker
+- resolve suite resources relative to the suite, and stop a crash - (41637cf) - Barry Walker
+#### Documentation
+- correct what the simulator is and what it guarantees - (8d91ac6) - Barry Walker
+
+- - -
+
 ## v4.0.1 - 2026-07-31
 #### Bug Fixes
 - (**deps**) bump brace-expansion to 2.1.4 in the vscode extension - (1efa629) - Barry Walker
