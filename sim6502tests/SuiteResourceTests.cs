@@ -67,6 +67,40 @@ public class SuiteResourceTests
     }
 
     /// <summary>
+    /// The same for <c>load(...)</c>, which is checked for existence at the moment it is
+    /// parsed. Resolving only where the resource was later constructed left that check
+    /// looking at the unresolved name, so a suite run from a different working directory
+    /// reported "file not found" for a program sitting right beside it — which is exactly
+    /// what happened inside the Docker image, where the working directory is not /code.
+    /// </summary>
+    [Fact]
+    public void RelativeLoadPaths_ResolveAgainstTheSuiteFile()
+    {
+        var directory = Directory.CreateTempSubdirectory("sim6502-load");
+        try
+        {
+            File.WriteAllBytes(Path.Combine(directory.FullName, "prog.prg"), [0x00, 0x10, 0xEA, 0x60]);
+
+            var listener = new SimBaseListener { SuiteDirectory = directory.FullName };
+            var collector = Walk("""
+                suites {
+                  suite("s") {
+                    load("prog.prg", strip_header = true)
+                  }
+                }
+                """, listener);
+
+            collector.HasErrors.Should().BeFalse(
+                "the program sits beside the suite and should have been found: " +
+                string.Join("; ", collector.Errors.Select(e => e.Message)));
+        }
+        finally
+        {
+            directory.Delete(recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Without a suite directory, a relative path still resolves against the working
     /// directory — which is what every existing invocation relies on.
     /// </summary>

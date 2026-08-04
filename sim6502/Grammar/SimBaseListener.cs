@@ -525,7 +525,7 @@ namespace sim6502.Grammar
         public override void ExitRomDeclaration(sim6502Parser.RomDeclarationContext context)
         {
             var romName = StripQuotes(context.romName().StringLiteral().GetText());
-            var romFilename = StripQuotes(context.romFilename().StringLiteral().GetText());
+            var romFilename = ResolveResourcePath(StripQuotes(context.romFilename().StringLiteral().GetText()));
             var filenameCtx = context.romFilename();
 
             if (!File.Exists(romFilename))
@@ -969,7 +969,7 @@ namespace sim6502.Grammar
 
         public override void ExitLoadFunction(sim6502Parser.LoadFunctionContext context)
         {
-            var filename = StripQuotes(context.loadFilename().StringLiteral().GetText());
+            var filename = ResolveResourcePath(StripQuotes(context.loadFilename().StringLiteral().GetText()));
             var filenameCtx = context.loadFilename();
             var addrCtx = context.loadAddress();
             var strip = false;
@@ -1003,7 +1003,7 @@ namespace sim6502.Grammar
 
             var address = addrCtx == null ? Utility.GetProgramLoadAddress(filename) : GetIntValue(context.loadAddress().address());
 
-            var lr = new LoadableResource {Filename = ResolveResourcePath(filename), LoadAddress = address, StripHeader = strip};
+            var lr = new LoadableResource {Filename = filename, LoadAddress = address, StripHeader = strip};
 
             _suiteResources.Add(lr);
         }
