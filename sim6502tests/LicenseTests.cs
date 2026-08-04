@@ -29,8 +29,15 @@ public class LicenseTests
     {
         var text = File.ReadAllText(Path.Combine(RepoRoot(), "NOTICE"));
         text.Should().Contain("Gideon Zweijtzer");
-        text.Should().Contain("Aaron Mell");
         text.Should().Contain("1541ultimate");
+
+        // The emulator core in current releases.
+        text.Should().Contain("SixtyFiveXX");
+
+        // Aaron Mell's 6502Net was the core through 4.0.0 and is no longer present in
+        // any form, but releases that shipped it remain available, so the NOTICE still
+        // records it. Asserted so the history cannot be quietly dropped.
+        text.Should().Contain("Aaron Mell");
     }
 
     [Fact]

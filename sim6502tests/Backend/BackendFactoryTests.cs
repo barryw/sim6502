@@ -1,7 +1,7 @@
+using sim6502;
 using System.Net.Sockets;
 using FluentAssertions;
 using sim6502.Backend;
-using sim6502.Proc;
 using sim6502.Systems;
 using Xunit;
 

@@ -26,7 +26,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using NLog;
-using sim6502.Proc;
+
+using sim6502.Backend;
 
 namespace sim6502.Utilities
 {
@@ -94,7 +95,15 @@ namespace sim6502.Utilities
             return program[1] * 256 + program[0];
         }
 
-        public static void LoadFileIntoProcessor(Processor proc, int address, string filename, bool stripHeader = false)
+        /// <summary>
+        /// Loads a file into a backend's memory at <paramref name="address"/>.
+        /// </summary>
+        /// <remarks>
+        /// Takes an <see cref="IExecutionBackend"/> rather than the old concrete processor,
+        /// which no longer exists. Every backend can load bytes, so this now works against
+        /// a real machine as well as the simulator.
+        /// </remarks>
+        public static void LoadFileIntoProcessor(IExecutionBackend backend, int address, string filename, bool stripHeader = false)
         {
             Logger.Trace($"Loading {filename} @ {address.ToHex()}");
             FileExists(filename);
@@ -113,7 +122,7 @@ namespace sim6502.Utilities
                 program.RemoveAt(0);
             }
 
-            proc.LoadProgram(address, program.ToArray(), address, false);
+            backend.LoadBinary(program.ToArray(), address);
         }
 
         private static IEnumerable<byte> StreamToBytes(Stream stream)

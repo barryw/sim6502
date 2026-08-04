@@ -577,7 +577,7 @@ $A002 = $1234                         ; write word, little-endian
 
 sim6502 supports multiple execution backends through the `IExecutionBackend` interface. This allows the same test DSL to execute against different CPU implementations without modification.
 
-**SimulatorBackend**: Wraps the internal 6502/6510/65C02 CPU simulator. This is the default backend, providing fast, deterministic execution for pure computational testing. No hardware peripherals are emulated.
+**SimulatorBackend**: Runs the program on [SixtyFiveXX](https://github.com/barryw/SixtyFiveXX), a cycle-stepped 65xx emulator core, over the memory map the suite selects. This is the default backend, providing fast, deterministic execution for pure computational testing. All 256 opcodes of each variant are implemented, undocumented ones included. No hardware peripherals are emulated.
 
 **ViceBackend**: Translates execution commands into JSON-RPC 2.0 calls to VICE's embedded MCP server over HTTP. This provides cycle-accurate emulation of the complete Commodore hardware including VIC-II graphics chip, SID sound chip, CIA timers, and full interrupt support.
 
@@ -667,12 +667,16 @@ The internal simulator and VICE emulator exhibit different behaviors due to hard
 
 **Timing Differences**
 
-VICE is cycle-accurate to the real C64 hardware. The internal simulator counts instruction cycles but does not account for:
-- DMA cycles (VIC-II stealing cycles from CPU)
-- Interrupt overhead
+VICE is cycle-accurate to the whole C64. The `sim` backend is cycle-accurate to the
+**processor** — its core is SixtyFiveXX, which is certified per-cycle against 10,220,000
+SingleStepTests vectors — but a processor is not a machine, and `sim` does not model:
+- DMA cycles (VIC-II stealing cycles from the CPU)
+- Interrupt overhead, since nothing raises an interrupt
 - Memory banking penalties
 
-A test that asserts `cycles < 1000` may pass on `sim` but fail on `vice` if interrupts fire during execution.
+So instruction cycle counts agree with hardware; the cycles the *rest of the machine*
+imposes are absent. A test asserting `cycles < 1000` may pass on `sim` and fail on `vice`
+if interrupts fire during execution.
 
 **Memory Access Patterns**
 
@@ -690,7 +694,7 @@ On `vice`, `$D012` reads the current VIC-II raster line (constantly changing). O
 
 If a test passes on `sim` but fails on `vice`:
 - Check for interrupt handlers that may be firing (VICE has IRQs enabled)
-- Check for timing assumptions (VICE is cycle-accurate, sim is approximate)
+- Check for timing assumptions (`sim` counts processor cycles exactly, but models nothing else that costs cycles)
 - Check for hardware register reads (VICE returns live hardware state)
 
 If a test passes on `vice` but fails on `sim`:
@@ -831,6 +835,13 @@ processor(65c02)
 ```
 
 These map to `system(generic_6502)`, `system(generic_6510)`, and `system(generic_65c02)` respectively.
+
+**What each one runs.** `6502` and `6510` share an instruction set — they are the same
+silicon plus a port — so both run the NMOS core, undocumented opcodes included. What makes
+a 6510 a 6510 here is the `$00`/`$01` port, and that belongs to the **memory map**, not the
+processor: `generic_6510` gives you the bare register pair, and `c64` wires `$01` to the
+banking scheme. `65c02` runs the WDC part, so it has `BRA`, `PHX`/`PHY`, `STZ`, `TRB`/`TSB`,
+the `(zp)` addressing mode, `WAI`/`STP`, and Rockwell's `RMB`/`SMB`/`BBR`/`BBS`.
 
 #### symbols(filename)
 Loads a KickAssembler symbol file. Must be called before symbols can be referenced.
@@ -1025,6 +1036,21 @@ Expressions can combine values with operators:
 $1234.l                  ; Low byte = $34
 $1234.h                  ; High byte = $12
 ```
+
+**Where a suffix stops being optional.** A bare `[symbol]` on its own side of a
+comparison reads the memory it names, so `assert([Score] == $10, ...)` does what it
+looks like. Put it in a larger expression and it is the *address* that takes part in
+the arithmetic, so `[Score] + $02` is an address two bytes along — not the value plus
+two. Comparing that to something compares an address:
+
+```
+[Timers] + $02 = $56                 ; writes $56 to the address Timers + 2
+assert(([Timers] + $02).b == $56)    ; reads that byte back — correct
+assert([Timers] + $02  == $56)       ; compares the ADDRESS to $56 — always false
+```
+
+The assignment reads the way you expect and the comparison does not, so reach for `.b`
+or `.w` whenever an address expression does arithmetic.
 
 #### Expression Examples
 
@@ -1704,7 +1730,7 @@ Configure your editor's LSP client to launch the server with one of these comman
 
 #### Thanks
 
-Thanks to Aaron Mell for building the 6502 simulator (https://github.com/aaronmell/6502Net). It was a tremendous help in building this tool.
+Thanks to Aaron Mell for building the 6502 simulator (https://github.com/aaronmell/6502Net), which was sim6502's emulator core from the beginning through 4.0.0 and a tremendous help in building this tool. From 4.1.0 the core is [SixtyFiveXX](https://github.com/barryw/SixtyFiveXX).
 
 Thanks to Terence Parr and Sam Harwell for ANTLR. (https://www.antlr.org/)
 
@@ -1983,6 +2009,8 @@ Thanks to Gideon Zweijtzer for the Ultimate hardware, its firmware, and the
 documentation that made these backends possible.
 
 ANTLR 4.13.1 is Copyright (C) 2012 Terence Parr and Sam Harwell.
-The 6502 simulator core is Copyright (C) 2013 Aaron Mell, BSD 2-Clause (retained
-in `NOTICE`).
+The emulator core is SixtyFiveXX (MIT), consumed as a NuGet package. Through
+4.0.0 it was Aaron Mell's 6502Net, Copyright (C) 2013 Aaron Mell, BSD 2-Clause;
+that code is no longer present, and `NOTICE` records why the attribution is
+kept.
 sim6502 is Copyright (C) 2020-2026 Barry Walker.

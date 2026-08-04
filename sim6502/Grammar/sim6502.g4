@@ -349,13 +349,18 @@ expression
     | intFunction                               # intFunctionValue
     | boolFunction                              # boolFunctionValue
     | LParen expression RParen                  # subExpressionValue
-    | expression BitOr expression               # bitOrExpressionValue
-    | expression BitXor expression              # bitXorExpressionValue
-    | expression BitAnd expression              # bitAndExpressionValue
-    | expression Add expression                 # addValue
-    | expression Sub expression                 # subValue
+    // ANTLR gives left-recursive alternatives descending precedence in the order
+    // they are listed, so this block IS the precedence table. It used to run the
+    // other way round — bitwise OR bound tightest and division loosest — which made
+    // `2 + 3 * 4` evaluate to 20, because it parsed as `(2 + 3) * 4`. This is the
+    // conventional order: multiplicative, then additive, then AND, XOR, OR.
     | expression Mul expression                 # multiplyValue
     | expression Div expression                 # divisionValue
+    | expression Add expression                 # addValue
+    | expression Sub expression                 # subValue
+    | expression BitAnd expression              # bitAndExpressionValue
+    | expression BitXor expression              # bitXorExpressionValue
+    | expression BitOr expression               # bitOrExpressionValue
     ;
     
 lbhb
@@ -565,7 +570,11 @@ StringLiteral
 	
 fragment
 String
-    : ~ ["\n\r]+
+    // Any run of characters that is not a quote, a backslash or a line break, plus
+    // backslash escapes. Without the escape alternative a string simply ended at the
+    // first \" it contained, so `basic("10 PRINT \"HELLO\"")` — an ordinary thing to
+    // write for a NovaVM suite — could not be lexed at all.
+    : ( ~ ["\\\n\r] | '\\' . )+
     ;
 	
 Comment

@@ -1,42 +1,65 @@
+; Demonstrates tag filtering. Run the whole suite, or narrow it with
+;   --filter-tag fast        (only the quick ones)
+;   --exclude-tag slow       (everything except the long fills)
+;   --filter 'apple*'        (by test name)
+;
+; Every test calls FillMemory from the loaded program, which takes its fill value
+; in r0L, its destination in r1 and its length in r2. The cycle assertions are
+; measured values with a little headroom, not guesses — a fill is linear in its
+; length, so the "fast" and "slow" tags describe real differences.
 suites {
   suite("Filter Test Suite") {
-    symbols("/code/include_me_full.sym")
-    load("/code/include_me_full.prg", strip_header = true)
+    symbols("include_me_full.sym")
+    load("include_me_full.prg", strip_header = true)
 
-    test("apple-test-1", "Test for apple functionality", tags = "fruit,fast") {
+    test("apple-test-1", "Fill four bytes", tags = "fruit,fast") {
       [r0L] = $01
+      [r1] = $1000
+      [r2] = $04
       jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
-      assert(cycles < 100, "Should be fast")
+      assert(cycles < 200, "Four bytes costs about 160 cycles")
     }
 
-    test("apple-test-2", "Another apple test", tags = "fruit,slow") {
+    test("apple-test-2", "Fill sixteen bytes", tags = "fruit,slow") {
       [r0L] = $02
+      [r1] = $1000
+      [r2] = $10
       jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
-      assert(cycles < 200, "Can be slower")
+      assert(cycles < 700, "Sixteen bytes costs about 628 cycles")
     }
 
-    test("banana-test-1", "Test for banana functionality", tags = "fruit,fast") {
+    test("banana-test-1", "Fill four bytes elsewhere", tags = "fruit,fast") {
       [r0L] = $03
+      [r1] = $2000
+      [r2] = $04
       jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
-      assert(cycles < 100, "Should be fast")
+      assert(cycles < 200, "Four bytes costs about 160 cycles")
     }
 
-    test("carrot-test-1", "Test for carrot functionality", tags = "vegetable,fast") {
+    test("carrot-test-1", "Fill four bytes, checking the value landed", tags = "vegetable,fast") {
       [r0L] = $04
+      [r1] = $3000
+      [r2] = $04
       jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
-      assert(cycles < 100, "Should be fast")
+      assert($3000 == $04, "First byte of the fill")
+      assert($3003 == $04, "Last byte of the fill")
     }
 
-    test("carrot-test-2", "Another carrot test", tags = "vegetable,slow") {
+    test("carrot-test-2", "Fill sixty-four bytes", tags = "vegetable,slow") {
       [r0L] = $05
+      [r1] = $4000
+      [r2] = $40
       jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
-      assert(cycles < 200, "Can be slower")
+      assert(cycles < 2600, "Sixty-four bytes costs about 2500 cycles")
     }
 
-    test("dragon-test-1", "Test for dragon functionality", tags = "animal,mythical") {
+    test("dragon-test-1", "Fill sixteen bytes and check both ends", tags = "animal,mythical") {
       [r0L] = $06
+      [r1] = $5000
+      [r2] = $10
       jsr([FillMemory], stop_on_rts = true, fail_on_brk = true)
-      assert(cycles < 150, "Dragon magic")
+      assert($5000 == $06, "First byte of the fill")
+      assert($500f == $06, "Last byte of the fill")
     }
   }
 }

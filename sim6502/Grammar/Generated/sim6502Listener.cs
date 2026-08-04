@@ -1024,18 +1024,6 @@ public interface Isim6502Listener : IParseTreeListener {
 	/// <param name="context">The parse tree.</param>
 	void ExitBoolValue([NotNull] sim6502Parser.BoolValueContext context);
 	/// <summary>
-	/// Enter a parse tree produced by the <c>bitXorExpressionValue</c>
-	/// labeled alternative in <see cref="sim6502Parser.expression"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	void EnterBitXorExpressionValue([NotNull] sim6502Parser.BitXorExpressionValueContext context);
-	/// <summary>
-	/// Exit a parse tree produced by the <c>bitXorExpressionValue</c>
-	/// labeled alternative in <see cref="sim6502Parser.expression"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	void ExitBitXorExpressionValue([NotNull] sim6502Parser.BitXorExpressionValueContext context);
-	/// <summary>
 	/// Enter a parse tree produced by the <c>multiplyValue</c>
 	/// labeled alternative in <see cref="sim6502Parser.expression"/>.
 	/// </summary>
@@ -1047,6 +1035,18 @@ public interface Isim6502Listener : IParseTreeListener {
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	void ExitMultiplyValue([NotNull] sim6502Parser.MultiplyValueContext context);
+	/// <summary>
+	/// Enter a parse tree produced by the <c>bitXorExpressionValue</c>
+	/// labeled alternative in <see cref="sim6502Parser.expression"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterBitXorExpressionValue([NotNull] sim6502Parser.BitXorExpressionValueContext context);
+	/// <summary>
+	/// Exit a parse tree produced by the <c>bitXorExpressionValue</c>
+	/// labeled alternative in <see cref="sim6502Parser.expression"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitBitXorExpressionValue([NotNull] sim6502Parser.BitXorExpressionValueContext context);
 	/// <summary>
 	/// Enter a parse tree produced by the <c>bitAndExpressionValue</c>
 	/// labeled alternative in <see cref="sim6502Parser.expression"/>.

@@ -993,17 +993,6 @@ public partial class sim6502BaseVisitor<Result> : AbstractParseTreeVisitor<Resul
 	/// <return>The visitor result.</return>
 	public virtual Result VisitBoolValue([NotNull] sim6502Parser.BoolValueContext context) { return VisitChildren(context); }
 	/// <summary>
-	/// Visit a parse tree produced by the <c>bitXorExpressionValue</c>
-	/// labeled alternative in <see cref="sim6502Parser.expression"/>.
-	/// <para>
-	/// The default implementation returns the result of calling <see cref="AbstractParseTreeVisitor{Result}.VisitChildren(IRuleNode)"/>
-	/// on <paramref name="context"/>.
-	/// </para>
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	public virtual Result VisitBitXorExpressionValue([NotNull] sim6502Parser.BitXorExpressionValueContext context) { return VisitChildren(context); }
-	/// <summary>
 	/// Visit a parse tree produced by the <c>multiplyValue</c>
 	/// labeled alternative in <see cref="sim6502Parser.expression"/>.
 	/// <para>
@@ -1014,6 +1003,17 @@ public partial class sim6502BaseVisitor<Result> : AbstractParseTreeVisitor<Resul
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	public virtual Result VisitMultiplyValue([NotNull] sim6502Parser.MultiplyValueContext context) { return VisitChildren(context); }
+	/// <summary>
+	/// Visit a parse tree produced by the <c>bitXorExpressionValue</c>
+	/// labeled alternative in <see cref="sim6502Parser.expression"/>.
+	/// <para>
+	/// The default implementation returns the result of calling <see cref="AbstractParseTreeVisitor{Result}.VisitChildren(IRuleNode)"/>
+	/// on <paramref name="context"/>.
+	/// </para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	public virtual Result VisitBitXorExpressionValue([NotNull] sim6502Parser.BitXorExpressionValueContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>bitAndExpressionValue</c>
 	/// labeled alternative in <see cref="sim6502Parser.expression"/>.

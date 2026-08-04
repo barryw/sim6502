@@ -1,5 +1,4 @@
 using NLog;
-using sim6502.Proc;
 using sim6502.Systems;
 using sim6502.Systems.Ultimate;
 
@@ -46,7 +45,7 @@ public class U64SimBackend : IExecutionBackend, IUltimateBackend
         {
             // Busy is held relative to the processor's own cycle count, so a
             // polling loop in 6502 code really does advance it.
-            CycleCounter = () => _sim.Processor.CycleCount,
+            CycleCounter = () => _sim.GetCycles(),
             ServiceEnabled = true,
             BusId = config.BusId
         };

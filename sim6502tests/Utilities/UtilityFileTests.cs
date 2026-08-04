@@ -1,7 +1,9 @@
+using sim6502;
+using sim6502.Backend;
+using sim6502.Systems;
 using System;
 using System.IO;
 using FluentAssertions;
-using sim6502.Proc;
 using sim6502.Utilities;
 using Xunit;
 
@@ -61,12 +63,12 @@ public class UtilityFileTests
         var path = CreateTempFile(new byte[] { 0xA9, 0x42, 0x60 }); // LDA #$42, RTS
         try
         {
-            var proc = new Processor();
+            var proc = new SimulatorBackend(ProcessorType.MOS6502, MemoryMapFactory.CreateForProcessor(ProcessorType.MOS6502).map);
             Utility.LoadFileIntoProcessor(proc, 0x0600, path);
 
-            proc.ReadMemoryValueWithoutCycle(0x0600).Should().Be(0xA9);
-            proc.ReadMemoryValueWithoutCycle(0x0601).Should().Be(0x42);
-            proc.ReadMemoryValueWithoutCycle(0x0602).Should().Be(0x60);
+            proc.ReadByte(0x0600).Should().Be(0xA9);
+            proc.ReadByte(0x0601).Should().Be(0x42);
+            proc.ReadByte(0x0602).Should().Be(0x60);
         }
         finally
         {
@@ -81,11 +83,11 @@ public class UtilityFileTests
         var path = CreateTempFile(new byte[] { 0x00, 0x08, 0xA9, 0x42 });
         try
         {
-            var proc = new Processor();
+            var proc = new SimulatorBackend(ProcessorType.MOS6502, MemoryMapFactory.CreateForProcessor(ProcessorType.MOS6502).map);
             Utility.LoadFileIntoProcessor(proc, 0x0800, path, stripHeader: true);
 
-            proc.ReadMemoryValueWithoutCycle(0x0800).Should().Be(0xA9);
-            proc.ReadMemoryValueWithoutCycle(0x0801).Should().Be(0x42);
+            proc.ReadByte(0x0800).Should().Be(0xA9);
+            proc.ReadByte(0x0801).Should().Be(0x42);
         }
         finally
         {
@@ -99,7 +101,7 @@ public class UtilityFileTests
         var path = CreateTempFile(new byte[] { 0x01 });
         try
         {
-            var proc = new Processor();
+            var proc = new SimulatorBackend(ProcessorType.MOS6502, MemoryMapFactory.CreateForProcessor(ProcessorType.MOS6502).map);
             var act = () => Utility.LoadFileIntoProcessor(proc, 0x0800, path, stripHeader: true);
 
             act.Should().Throw<InvalidOperationException>()
@@ -115,7 +117,7 @@ public class UtilityFileTests
     public void LoadFileIntoProcessor_MissingFile_ThrowsFileNotFoundException()
     {
         var path = Path.Combine(Path.GetTempPath(), $"sim6502-missing-{Guid.NewGuid():N}.bin");
-        var proc = new Processor();
+        var proc = new SimulatorBackend(ProcessorType.MOS6502, MemoryMapFactory.CreateForProcessor(ProcessorType.MOS6502).map);
 
         var act = () => Utility.LoadFileIntoProcessor(proc, 0x0600, path);
 

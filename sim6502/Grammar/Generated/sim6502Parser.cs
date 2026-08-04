@@ -5337,32 +5337,6 @@ public partial class sim6502Parser : Parser {
 			else return visitor.VisitChildren(this);
 		}
 	}
-	public partial class BitXorExpressionValueContext : ExpressionContext {
-		[System.Diagnostics.DebuggerNonUserCode] public ExpressionContext[] expression() {
-			return GetRuleContexts<ExpressionContext>();
-		}
-		[System.Diagnostics.DebuggerNonUserCode] public ExpressionContext expression(int i) {
-			return GetRuleContext<ExpressionContext>(i);
-		}
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode BitXor() { return GetToken(sim6502Parser.BitXor, 0); }
-		public BitXorExpressionValueContext(ExpressionContext context) { CopyFrom(context); }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override void EnterRule(IParseTreeListener listener) {
-			Isim6502Listener typedListener = listener as Isim6502Listener;
-			if (typedListener != null) typedListener.EnterBitXorExpressionValue(this);
-		}
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override void ExitRule(IParseTreeListener listener) {
-			Isim6502Listener typedListener = listener as Isim6502Listener;
-			if (typedListener != null) typedListener.ExitBitXorExpressionValue(this);
-		}
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			Isim6502Visitor<TResult> typedVisitor = visitor as Isim6502Visitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitBitXorExpressionValue(this);
-			else return visitor.VisitChildren(this);
-		}
-	}
 	public partial class MultiplyValueContext : ExpressionContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ExpressionContext[] expression() {
 			return GetRuleContexts<ExpressionContext>();
@@ -5386,6 +5360,32 @@ public partial class sim6502Parser : Parser {
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			Isim6502Visitor<TResult> typedVisitor = visitor as Isim6502Visitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitMultiplyValue(this);
+			else return visitor.VisitChildren(this);
+		}
+	}
+	public partial class BitXorExpressionValueContext : ExpressionContext {
+		[System.Diagnostics.DebuggerNonUserCode] public ExpressionContext[] expression() {
+			return GetRuleContexts<ExpressionContext>();
+		}
+		[System.Diagnostics.DebuggerNonUserCode] public ExpressionContext expression(int i) {
+			return GetRuleContext<ExpressionContext>(i);
+		}
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode BitXor() { return GetToken(sim6502Parser.BitXor, 0); }
+		public BitXorExpressionValueContext(ExpressionContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			Isim6502Listener typedListener = listener as Isim6502Listener;
+			if (typedListener != null) typedListener.EnterBitXorExpressionValue(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			Isim6502Listener typedListener = listener as Isim6502Listener;
+			if (typedListener != null) typedListener.ExitBitXorExpressionValue(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			Isim6502Visitor<TResult> typedVisitor = visitor as Isim6502Visitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitBitXorExpressionValue(this);
 			else return visitor.VisitChildren(this);
 		}
 	}
@@ -5556,84 +5556,84 @@ public partial class sim6502Parser : Parser {
 					switch ( Interpreter.AdaptivePredict(TokenStream,31,Context) ) {
 					case 1:
 						{
-						_localctx = new BitOrExpressionValueContext(new ExpressionContext(_parentctx, _parentState));
+						_localctx = new MultiplyValueContext(new ExpressionContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expression);
 						State = 587;
 						if (!(Precpred(Context, 7))) throw new FailedPredicateException(this, "Precpred(Context, 7)");
 						State = 588;
-						Match(BitOr);
+						Match(Mul);
 						State = 589;
 						expression(8);
 						}
 						break;
 					case 2:
 						{
-						_localctx = new BitXorExpressionValueContext(new ExpressionContext(_parentctx, _parentState));
+						_localctx = new DivisionValueContext(new ExpressionContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expression);
 						State = 590;
 						if (!(Precpred(Context, 6))) throw new FailedPredicateException(this, "Precpred(Context, 6)");
 						State = 591;
-						Match(BitXor);
+						Match(Div);
 						State = 592;
 						expression(7);
 						}
 						break;
 					case 3:
 						{
-						_localctx = new BitAndExpressionValueContext(new ExpressionContext(_parentctx, _parentState));
+						_localctx = new AddValueContext(new ExpressionContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expression);
 						State = 593;
 						if (!(Precpred(Context, 5))) throw new FailedPredicateException(this, "Precpred(Context, 5)");
 						State = 594;
-						Match(BitAnd);
+						Match(Add);
 						State = 595;
 						expression(6);
 						}
 						break;
 					case 4:
 						{
-						_localctx = new AddValueContext(new ExpressionContext(_parentctx, _parentState));
+						_localctx = new SubValueContext(new ExpressionContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expression);
 						State = 596;
 						if (!(Precpred(Context, 4))) throw new FailedPredicateException(this, "Precpred(Context, 4)");
 						State = 597;
-						Match(Add);
+						Match(Sub);
 						State = 598;
 						expression(5);
 						}
 						break;
 					case 5:
 						{
-						_localctx = new SubValueContext(new ExpressionContext(_parentctx, _parentState));
+						_localctx = new BitAndExpressionValueContext(new ExpressionContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expression);
 						State = 599;
 						if (!(Precpred(Context, 3))) throw new FailedPredicateException(this, "Precpred(Context, 3)");
 						State = 600;
-						Match(Sub);
+						Match(BitAnd);
 						State = 601;
 						expression(4);
 						}
 						break;
 					case 6:
 						{
-						_localctx = new MultiplyValueContext(new ExpressionContext(_parentctx, _parentState));
+						_localctx = new BitXorExpressionValueContext(new ExpressionContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expression);
 						State = 602;
 						if (!(Precpred(Context, 2))) throw new FailedPredicateException(this, "Precpred(Context, 2)");
 						State = 603;
-						Match(Mul);
+						Match(BitXor);
 						State = 604;
 						expression(3);
 						}
 						break;
 					case 7:
 						{
-						_localctx = new DivisionValueContext(new ExpressionContext(_parentctx, _parentState));
+						_localctx = new BitOrExpressionValueContext(new ExpressionContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expression);
 						State = 605;
 						if (!(Precpred(Context, 1))) throw new FailedPredicateException(this, "Precpred(Context, 1)");
 						State = 606;
-						Match(Div);
+						Match(BitOr);
 						State = 607;
 						expression(2);
 						}
@@ -6473,12 +6473,12 @@ public partial class sim6502Parser : Parser {
 		1,0,0,0,578,586,3,36,18,0,579,586,3,132,66,0,580,586,3,134,67,0,581,582,
 		5,28,0,0,582,583,3,126,63,0,583,584,5,29,0,0,584,586,1,0,0,0,585,569,1,
 		0,0,0,585,574,1,0,0,0,585,578,1,0,0,0,585,579,1,0,0,0,585,580,1,0,0,0,
-		585,581,1,0,0,0,586,610,1,0,0,0,587,588,10,7,0,0,588,589,5,23,0,0,589,
-		609,3,126,63,8,590,591,10,6,0,0,591,592,5,24,0,0,592,609,3,126,63,7,593,
-		594,10,5,0,0,594,595,5,22,0,0,595,609,3,126,63,6,596,597,10,4,0,0,597,
-		598,5,18,0,0,598,609,3,126,63,5,599,600,10,3,0,0,600,601,5,19,0,0,601,
-		609,3,126,63,4,602,603,10,2,0,0,603,604,5,20,0,0,604,609,3,126,63,3,605,
-		606,10,1,0,0,606,607,5,21,0,0,607,609,3,126,63,2,608,587,1,0,0,0,608,590,
+		585,581,1,0,0,0,586,610,1,0,0,0,587,588,10,7,0,0,588,589,5,20,0,0,589,
+		609,3,126,63,8,590,591,10,6,0,0,591,592,5,21,0,0,592,609,3,126,63,7,593,
+		594,10,5,0,0,594,595,5,18,0,0,595,609,3,126,63,6,596,597,10,4,0,0,597,
+		598,5,19,0,0,598,609,3,126,63,5,599,600,10,3,0,0,600,601,5,22,0,0,601,
+		609,3,126,63,4,602,603,10,2,0,0,603,604,5,24,0,0,604,609,3,126,63,3,605,
+		606,10,1,0,0,606,607,5,23,0,0,607,609,3,126,63,2,608,587,1,0,0,0,608,590,
 		1,0,0,0,608,593,1,0,0,0,608,596,1,0,0,0,608,599,1,0,0,0,608,602,1,0,0,
 		0,608,605,1,0,0,0,609,612,1,0,0,0,610,608,1,0,0,0,610,611,1,0,0,0,611,
 		127,1,0,0,0,612,610,1,0,0,0,613,616,5,95,0,0,614,616,5,96,0,0,615,613,

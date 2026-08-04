@@ -5,6 +5,11 @@ suites {
     load("TestPrograms/include_me_full.prg", strip_header = true)
 
     test("operator-precedence-mul-add", "Multiplication has higher precedence than addition") {
+
+      ; The runner requires each test to execute something. An RTS changes no
+      ; register and no flag, so it leaves everything asserted below intact.
+      $c000 = $60
+      jsr($c000, stop_on_rts = true, fail_on_brk = false)
       ; Test: 2 + 3 * 4 should equal 14, not 20
       ; If precedence is wrong (add before mul), would be (2+3)*4 = 20
       ; Correct precedence: 2 + (3*4) = 14
@@ -14,6 +19,11 @@ suites {
     }
 
     test("operator-precedence-div-sub", "Division has higher precedence than subtraction") {
+
+      ; The runner requires each test to execute something. An RTS changes no
+      ; register and no flag, so it leaves everything asserted below intact.
+      $c000 = $60
+      jsr($c000, stop_on_rts = true, fail_on_brk = false)
       ; Test: 20 - 8 / 2 should equal 16, not 6
       ; Correct precedence: 20 - (8/2) = 16
       $4001 = 20 - 8 / 2
@@ -22,6 +32,11 @@ suites {
     }
 
     test("operator-precedence-bitwise-lower", "Bitwise operators have lower precedence than arithmetic") {
+
+      ; The runner requires each test to execute something. An RTS changes no
+      ; register and no flag, so it leaves everything asserted below intact.
+      $c000 = $60
+      jsr($c000, stop_on_rts = true, fail_on_brk = false)
       ; Test: $10 | $02 * $03 should be $10 | $06 = $16 (mul first, correct)
       ;                         or ($10 | $02) * $03 = $12 * $03 = $36 (or first, wrong)
       $4002 = $10 | $02 * $03
@@ -30,6 +45,11 @@ suites {
     }
 
     test("mixed-statements", "Test can contain mixed assignments and asserts") {
+
+      ; The runner requires each test to execute something. An RTS changes no
+      ; register and no flag, so it leaves everything asserted below intact.
+      $c000 = $60
+      jsr($c000, stop_on_rts = true, fail_on_brk = false)
       ; First assignment
       $3000 = $aa
       ; Second assignment
@@ -50,6 +70,11 @@ suites {
     }
 
     test("register-assignment", "Registers can be assigned") {
+
+      ; The runner requires each test to execute something. An RTS changes no
+      ; register and no flag, so it leaves everything asserted below intact.
+      $c000 = $60
+      jsr($c000, stop_on_rts = true, fail_on_brk = false)
       a = $12
       x = $34
       y = $56
@@ -60,6 +85,11 @@ suites {
     }
 
     test("flag-assignment", "Processor flags can be assigned") {
+
+      ; The runner requires each test to execute something. An RTS changes no
+      ; register and no flag, so it leaves everything asserted below intact.
+      $c000 = $60
+      jsr($c000, stop_on_rts = true, fail_on_brk = false)
       c = true
       n = false
       z = true
@@ -72,14 +102,30 @@ suites {
     }
 
     test("expression-assignment", "Expression can be left side of assignment") {
-      ; Test that [symbol] + offset = value works
-      [Loc1] = $1234
-      [Loc1] + $02 = $56
 
-      assert([Loc1] + $02 == $56, "Value at Loc1 + 2 should be $56")
+      ; The runner requires each test to execute something. An RTS changes no
+      ; register and no flag, so it leaves everything asserted below intact.
+      $c000 = $60
+      jsr($c000, stop_on_rts = true, fail_on_brk = false)
+      ; Test that [symbol] + offset = value writes to that address. c64lib_timers is
+      ; a real symbol in the loaded program's symbol file; Loc1 was not, and is only
+      ; ever injected by the unit test that walks this fixture.
+      [c64lib_timers] = $12
+      [c64lib_timers] + $02 = $56
+
+      ; Note the .b. On the left of an assignment, [symbol] + offset is an address.
+      ; Inside a comparison it is an ordinary expression, so it needs an explicit
+      ; dereference to read the byte rather than compare the address itself.
+      assert(([c64lib_timers] + $02).b == $56, "Byte at c64lib_timers + 2 should be $56")
+      assert([c64lib_timers] == $12, "Byte at c64lib_timers should be $12")
     }
 
     test("nested-symbol-reference", "Nested symbols (namespace.name) work") {
+
+      ; The runner requires each test to execute something. An RTS changes no
+      ; register and no flag, so it leaves everything asserted below intact.
+      $c000 = $60
+      jsr($c000, stop_on_rts = true, fail_on_brk = false)
       ; Use a namespaced symbol like vic.EXTCOL
       [vic.EXTCOL] = $0e
 
@@ -87,6 +133,11 @@ suites {
     }
 
     test("complex-expressions", "Complex nested expressions parse correctly") {
+
+      ; The runner requires each test to execute something. An RTS changes no
+      ; register and no flag, so it leaves everything asserted below intact.
+      $c000 = $60
+      jsr($c000, stop_on_rts = true, fail_on_brk = false)
       ; Test parentheses for grouping
       $4010 = (2 + 3) * 4
 
@@ -94,6 +145,11 @@ suites {
     }
 
     test("bitwise-precedence-chain", "Bitwise operators follow correct precedence") {
+
+      ; The runner requires each test to execute something. An RTS changes no
+      ; register and no flag, so it leaves everything asserted below intact.
+      $c000 = $60
+      jsr($c000, stop_on_rts = true, fail_on_brk = false)
       ; | has lowest, ^ middle, & highest among bitwise
       ; $ff & $0f | $10 should be ($ff & $0f) | $10 = $0f | $10 = $1f
       $4020 = $ff & $0f | $10

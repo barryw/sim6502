@@ -256,7 +256,12 @@ namespace sim6502
                     ViceConfig = backendConfigs.Vice,
                     NovaVmConfig = backendConfigs.NovaVm,
                     U64SimConfig = backendConfigs.U64Sim,
-                    U64Config = backendConfigs.U64
+                    U64Config = backendConfigs.U64,
+
+                    // A suite names the files that sit beside it, so relative paths in
+                    // symbols(...) and load(...) resolve against the suite rather than
+                    // against wherever the runner happened to be invoked from.
+                    SuiteDirectory = Path.GetDirectoryName(Path.GetFullPath(opts.SuiteFile)) ?? ""
                 };
 
                 walker.Walk(sbl, tree);

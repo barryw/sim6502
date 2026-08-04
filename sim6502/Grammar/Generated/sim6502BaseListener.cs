@@ -1213,20 +1213,6 @@ public partial class sim6502BaseListener : Isim6502Listener {
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitBoolValue([NotNull] sim6502Parser.BoolValueContext context) { }
 	/// <summary>
-	/// Enter a parse tree produced by the <c>bitXorExpressionValue</c>
-	/// labeled alternative in <see cref="sim6502Parser.expression"/>.
-	/// <para>The default implementation does nothing.</para>
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	public virtual void EnterBitXorExpressionValue([NotNull] sim6502Parser.BitXorExpressionValueContext context) { }
-	/// <summary>
-	/// Exit a parse tree produced by the <c>bitXorExpressionValue</c>
-	/// labeled alternative in <see cref="sim6502Parser.expression"/>.
-	/// <para>The default implementation does nothing.</para>
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	public virtual void ExitBitXorExpressionValue([NotNull] sim6502Parser.BitXorExpressionValueContext context) { }
-	/// <summary>
 	/// Enter a parse tree produced by the <c>multiplyValue</c>
 	/// labeled alternative in <see cref="sim6502Parser.expression"/>.
 	/// <para>The default implementation does nothing.</para>
@@ -1240,6 +1226,20 @@ public partial class sim6502BaseListener : Isim6502Listener {
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitMultiplyValue([NotNull] sim6502Parser.MultiplyValueContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by the <c>bitXorExpressionValue</c>
+	/// labeled alternative in <see cref="sim6502Parser.expression"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterBitXorExpressionValue([NotNull] sim6502Parser.BitXorExpressionValueContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by the <c>bitXorExpressionValue</c>
+	/// labeled alternative in <see cref="sim6502Parser.expression"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitBitXorExpressionValue([NotNull] sim6502Parser.BitXorExpressionValueContext context) { }
 	/// <summary>
 	/// Enter a parse tree produced by the <c>bitAndExpressionValue</c>
 	/// labeled alternative in <see cref="sim6502Parser.expression"/>.
