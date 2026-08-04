@@ -11,10 +11,10 @@ namespace sim6502tests;
 
 public class TestSuiteParser
 {
-    private static sim6502Parser.SuitesContext GetContext(string test)
+    private static sim6502Parser.SuitesContext GetContext(string test, ErrorCollector? collector = null)
     {
         var source = File.ReadAllText(test);
-        var collector = new ErrorCollector();
+        collector ??= new ErrorCollector();
         collector.SetSource(source, test);
 
         var inputStream = new AntlrInputStream(source);
@@ -335,8 +335,18 @@ public class TestSuiteParser
     [Fact]
     public void TestSuite23_NovaVmGrammarParsesWithoutErrors()
     {
-        // NovaVM commands require IHighLevelBackend so we only test parsing, not execution
-        var tree = GetContext("GrammarTests/test-23.txt");
+        // NovaVM commands require IHighLevelBackend, so this checks parsing only.
+        //
+        // It used to assert nothing but a non-null tree, which ANTLR returns even when
+        // every line failed to lex — so the name was a claim the test never checked. The
+        // fixture contains basic("10 PRINT \"HELLO\""), and escaped quotes did not lex
+        // at all until the String rule learned about them. Now the errors are asserted.
+        var collector = new ErrorCollector();
+        var tree = GetContext("GrammarTests/test-23.txt", collector);
+
+        collector.HasErrors.Should().BeFalse(
+            "the fixture must parse cleanly: " +
+            string.Join("; ", collector.Errors.Select(e => e.Message)));
         tree.Should().NotBeNull();
         tree.suite().Should().NotBeEmpty();
     }

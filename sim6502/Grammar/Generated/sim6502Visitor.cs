@@ -622,19 +622,19 @@ public interface Isim6502Visitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitBoolValue([NotNull] sim6502Parser.BoolValueContext context);
 	/// <summary>
-	/// Visit a parse tree produced by the <c>bitXorExpressionValue</c>
-	/// labeled alternative in <see cref="sim6502Parser.expression"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitBitXorExpressionValue([NotNull] sim6502Parser.BitXorExpressionValueContext context);
-	/// <summary>
 	/// Visit a parse tree produced by the <c>multiplyValue</c>
 	/// labeled alternative in <see cref="sim6502Parser.expression"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitMultiplyValue([NotNull] sim6502Parser.MultiplyValueContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>bitXorExpressionValue</c>
+	/// labeled alternative in <see cref="sim6502Parser.expression"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitBitXorExpressionValue([NotNull] sim6502Parser.BitXorExpressionValueContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>bitAndExpressionValue</c>
 	/// labeled alternative in <see cref="sim6502Parser.expression"/>.

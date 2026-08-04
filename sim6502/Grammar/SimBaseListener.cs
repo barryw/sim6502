@@ -31,11 +31,33 @@ namespace sim6502.Grammar
         /// Strip surrounding quotes from a string literal.
         /// The grammar no longer strips quotes, so we do it here for portability.
         /// </summary>
+        /// <summary>
+        /// Takes the surrounding quotes off a string literal and resolves its escapes.
+        /// </summary>
+        /// <remarks>
+        /// The lexer keeps escapes intact so it can tell a closing quote from an escaped
+        /// one, which means the backslashes are still here and have to come off now.
+        /// <c>\"</c> and <c>\\</c> are the escapes that matter; a backslash before
+        /// anything else is left exactly as written, because suites contain Windows paths
+        /// and turning <c>C:\temp</c> into <c>C:temp</c> would be worse than useless.
+        /// </remarks>
         private static string StripQuotes(string text)
         {
             if (text.Length >= 2 && text.StartsWith("\"") && text.EndsWith("\""))
-                return text.Substring(1, text.Length - 2);
-            return text;
+                text = text.Substring(1, text.Length - 2);
+
+            if (!text.Contains('\\')) return text;
+
+            var builder = new System.Text.StringBuilder(text.Length);
+            for (var i = 0; i < text.Length; i++)
+            {
+                if (text[i] == '\\' && i + 1 < text.Length && (text[i + 1] == '"' || text[i + 1] == '\\'))
+                    i++;
+
+                builder.Append(text[i]);
+            }
+
+            return builder.ToString();
         }
 
         /// <summary>
@@ -189,7 +211,40 @@ namespace sim6502.Grammar
         public ErrorCollector Errors { get; set; } = new();
 
         public IExecutionBackend Backend { get; set; }
-        public SymbolFile Symbols { get; set; }
+        /// <summary>
+        /// Symbols available to the suite, empty until <c>symbols(...)</c> loads a file.
+        /// </summary>
+        /// <remarks>
+        /// Starts empty rather than null so that referencing a symbol without loading a
+        /// symbol file reports "unknown symbol", with a suggestion, instead of throwing a
+        /// NullReferenceException out of the parse walk and killing the whole run.
+        /// </remarks>
+        public SymbolFile Symbols { get; set; } = new(new Dictionary<string, int>());
+
+        /// <summary>
+        /// Directory of the suite file being walked, used to resolve the relative paths in
+        /// <c>symbols(...)</c> and <c>load(...)</c>. Empty when unset, which leaves those
+        /// paths resolving against the working directory exactly as before.
+        /// </summary>
+        public string SuiteDirectory { get; set; } = "";
+
+        /// <summary>
+        /// Resolves a resource path named by a suite.
+        /// </summary>
+        /// <remarks>
+        /// A suite names the files that sit beside it, so a relative path is resolved
+        /// against the suite file first and against the working directory second. The
+        /// fallback is what keeps existing invocations working: a path that resolved
+        /// against the working directory before still does, because it is only consulted
+        /// when the suite-relative candidate does not exist. Absolute paths are untouched.
+        /// </remarks>
+        private string ResolveResourcePath(string filename)
+        {
+            if (Path.IsPathRooted(filename) || SuiteDirectory.Length == 0) return filename;
+
+            var besideTheSuite = Path.Combine(SuiteDirectory, filename);
+            return File.Exists(besideTheSuite) ? besideTheSuite : filename;
+        }
 
         // Whether the object currently in Backend was constructed by EnterSuite,
         // as opposed to a caller (tests) injecting one directly. An injected
@@ -885,7 +940,7 @@ namespace sim6502.Grammar
         
         public override void ExitSymbolsFunction(sim6502Parser.SymbolsFunctionContext context)
         {
-            var filename = StripQuotes(context.symbolsFilename().StringLiteral().GetText());
+            var filename = ResolveResourcePath(StripQuotes(context.symbolsFilename().StringLiteral().GetText()));
             var filenameCtx = context.symbolsFilename();
 
             if (!File.Exists(filename))
@@ -948,7 +1003,7 @@ namespace sim6502.Grammar
 
             var address = addrCtx == null ? Utility.GetProgramLoadAddress(filename) : GetIntValue(context.loadAddress().address());
 
-            var lr = new LoadableResource {Filename = filename, LoadAddress = address, StripHeader = strip};
+            var lr = new LoadableResource {Filename = ResolveResourcePath(filename), LoadAddress = address, StripHeader = strip};
 
             _suiteResources.Add(lr);
         }
