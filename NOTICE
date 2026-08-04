@@ -14,32 +14,16 @@ later are GPL-3.0.
 Third-party components
 --------------------------------------------------------------------------------
 
-6502 simulator core
-  Copyright (C) 2013 Aaron Mell. All Rights Reserved.
-  Originally licensed under the BSD 2-Clause licence, reproduced below. BSD
-  2-Clause is compatible with the GPL; this notice is retained as that licence
-  requires.
+6502/65xx emulator core
+  SixtyFiveXX, https://github.com/barryw/SixtyFiveXX — MIT, consumed as a NuGet
+  package. Its licence text ships with the package.
 
-  Redistribution and use in source and binary forms, with or without
-  modification, are permitted provided that the following conditions are met:
-
-  1. Redistributions of source code must retain the above copyright notice,
-     this list of conditions and the following disclaimer.
-  2. Redistributions in binary form must reproduce the above copyright notice,
-     this list of conditions and the following disclaimer in the documentation
-     and/or other materials provided with the distribution.
-
-  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-  POSSIBILITY OF SUCH DAMAGE.
+  Versions 4.0.0 and earlier embedded a 6502 core derived from Aaron Mell's
+  6502Net (Copyright (C) 2013 Aaron Mell), used under the BSD 2-Clause licence.
+  That code was removed when the simulator moved onto SixtyFiveXX and is no
+  longer present in any form, so the attribution BSD 2-Clause required of
+  redistributions no longer applies to current releases. It is recorded here
+  because releases that did contain it remain available.
 
 Ultimate Command Interface and Ultimate DOS behaviour
   Copyright (C) Gideon Zweijtzer.
