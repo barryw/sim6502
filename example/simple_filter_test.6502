@@ -2,7 +2,7 @@ suites {
   suite("Simple Filter Test Suite") {
     ; Create a simple program that just returns
     setup {
-      [$c000] = $60   ; RTS
+      $c000 = $60   ; RTS
     }
 
     test("apple-test-1", "Test for apple functionality", tags = "fruit,fast") {

@@ -10,9 +10,14 @@ suites {
         [r1] = $1000    ; Start address
         [r2] = $10      ; Size (16 bytes)
 
-        ; Start at FillMemory ($2195) and stop at CopyMemory address ($21b8) numerically
-        ; This verifies stop_on_address works with numeric addresses
-        jsr($2195, stop_on_address = $21b8, fail_on_brk = true)
+        ; Stop inside FillMemory's loop rather than at CopyMemory. FillMemory returns
+        ; before $21b8, so a stop there was never reached: the run continued past the
+        ; RTS into a BRK, and fail_on_brk reported that as a failure.
+        jsr($2195, stop_on_address = $21a1, fail_on_brk = true)
+
+        ; A whole sixteen-byte fill costs about 628 cycles. Stopping partway through
+        ; the first pass must cost far less, which is what proves the stop happened.
+        assert(cycles < 100, "stop_on_address stopped the run early")
     }
 
     test("stop-on-address-symbol-target", "Test stop_on_address with symbol reference for stop address") {
@@ -21,9 +26,10 @@ suites {
         [r1] = $1000    ; Start address
         [r2] = $10      ; Size (16 bytes)
 
-        ; Start at FillMemory (numeric) and stop at CopyMemory (symbol)
-        ; This verifies the grammar accepts symbols in stop_on_address position
-        jsr($2195, stop_on_address = [CopyMemory], fail_on_brk = true)
+        ; A symbol in stop_on_address position, aimed at an address the routine
+        ; actually reaches — its own entry point, which stops it immediately.
+        jsr($2195, stop_on_address = [FillMemory], fail_on_brk = true)
+        assert(cycles < 100, "stop_on_address accepted a symbol and stopped the run")
     }
 
     test("stop-on-address-both-symbols", "Test stop_on_address with symbols for both jsr target and stop address") {
@@ -32,9 +38,9 @@ suites {
         [r1] = $1000    ; Start address
         [r2] = $10      ; Size (16 bytes)
 
-        ; Both jsr target and stop_on_address use symbols
-        ; This is the full grammar test for symbol support
-        jsr([FillMemory], stop_on_address = [CopyMemory], fail_on_brk = true)
+        ; Both the target and the stop address are symbols.
+        jsr([FillMemory], stop_on_address = [FillMemory], fail_on_brk = true)
+        assert(cycles < 100, "symbols work in both positions")
     }
 
     test("stop-on-address-nested-symbol", "Test stop_on_address with nested symbol (namespace.label)") {
@@ -43,8 +49,10 @@ suites {
         [r1] = $1000
         [r2] = $08
 
-        ; Use a nested symbol like Keyboard.Return
-        jsr([FillMemory], stop_on_address = [Keyboard.Return], fail_on_brk = true)
+        ; A nested symbol parses in stop_on_address position. FillMemory never reaches
+        ; Keyboard.Return, so it runs to its own RTS and on into a BRK — which is fine
+        ; here, because what this test checks is that the namespaced symbol resolves.
+        jsr([FillMemory], stop_on_address = [Keyboard.Return], fail_on_brk = false)
     }
   }
 }

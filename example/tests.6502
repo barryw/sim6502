@@ -1,8 +1,8 @@
 suites {
   suite("Tests against pseudo register library") {
     ; Load the program under test
-    symbols("/code/include_me_full.sym")
-    load("/code/include_me_full.prg", strip_header = true)
+    symbols("include_me_full.sym")
+    load("include_me_full.prg", strip_header = true)
 
     test("memory-fill-1", "Fill an uneven block of memory") {
       [r0L] = $bd   ; Stuff $bd into our memory locations. Odd number, right?
@@ -124,7 +124,7 @@ suites {
 
       assert(cycles < 462, "Ensure that we run in fewer than 462 cycles")
       assert([c64lib_timers]        == [ENABLE], "Timer is enabled")
-      assert([c64lib_timers] + $02  == [TIMER_ONE_SECOND], "Current value has been reset")
+      assert(([c64lib_timers] + $02).w == [TIMER_ONE_SECOND], "Current value has been reset")
     }
 
     test("timer-enable", "Enable a disabled timer") {
@@ -166,8 +166,8 @@ suites {
       jsr([CreateTimer], stop_on_rts = true, fail_on_brk = true)
 
       assert(cycles < 82, "Ensure that we run in fewer than 82 cycles")
-      assert([c64lib_timers] + $00 + peekbyte([r2H]) * 8 == [ENABLE], "Timer enabled")
-      assert([c64lib_timers] + $01 + peekbyte([r2H]) * 8 == [TIMER_SINGLE], "Timer type is single")
+      assert(([c64lib_timers] + $00 + peekbyte([r2H]) * 8).b == [ENABLE], "Timer enabled")
+      assert(([c64lib_timers] + $01 + peekbyte([r2H]) * 8).b == [TIMER_SINGLE], "Timer type is single")
       assert(([c64lib_timers] + $02 + peekbyte([r2H]) * 8).w == $1000, "Timer's current value")
       assert(([c64lib_timers] + $04 + peekbyte([r2H]) * 8).w == $1000, "Timer's frequency")
       assert(([c64lib_timers] + $06 + peekbyte([r2H]) * 8).w == [ReadJoysticks], "Timer's callback address")

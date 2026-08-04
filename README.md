@@ -1037,6 +1037,21 @@ $1234.l                  ; Low byte = $34
 $1234.h                  ; High byte = $12
 ```
 
+**Where a suffix stops being optional.** A bare `[symbol]` on its own side of a
+comparison reads the memory it names, so `assert([Score] == $10, ...)` does what it
+looks like. Put it in a larger expression and it is the *address* that takes part in
+the arithmetic, so `[Score] + $02` is an address two bytes along — not the value plus
+two. Comparing that to something compares an address:
+
+```
+[Timers] + $02 = $56                 ; writes $56 to the address Timers + 2
+assert(([Timers] + $02).b == $56)    ; reads that byte back — correct
+assert([Timers] + $02  == $56)       ; compares the ADDRESS to $56 — always false
+```
+
+The assignment reads the way you expect and the comparison does not, so reach for `.b`
+or `.w` whenever an address expression does arithmetic.
+
 #### Expression Examples
 
 ```
