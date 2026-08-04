@@ -1,4 +1,4 @@
-using sim6502.Proc;
+using sim6502;
 using sim6502.Systems;
 using Xunit;
 

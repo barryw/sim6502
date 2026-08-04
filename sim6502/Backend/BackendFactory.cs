@@ -1,5 +1,4 @@
 using NLog;
-using sim6502.Proc;
 using sim6502.Systems;
 
 namespace sim6502.Backend;

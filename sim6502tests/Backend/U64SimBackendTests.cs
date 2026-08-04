@@ -1,7 +1,6 @@
 using System.Text;
 using FluentAssertions;
 using sim6502.Backend;
-using sim6502.Proc;
 using sim6502.Systems;
 using sim6502.Systems.Ultimate;
 using Xunit;

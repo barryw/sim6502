@@ -51,10 +51,10 @@ public class TestSuiteParser
 
         walker.Walk(sbl, tree);
 
-        sbl.Proc.ReadMemoryValueWithoutCycle(0x80).Should().Be(0xd0);
-        sbl.Proc.ReadMemoryWordWithoutCycle(0xc000).Should().Be(0xabcd);
-        sbl.Proc.ReadMemoryWordWithoutCycle(0xc002).Should().Be(0xdcba);
-        sbl.Proc.ReadMemoryValueWithoutCycle(0x81).Should().Be(0x0d);
+        sbl.Backend.ReadByte(0x80).Should().Be(0xd0);
+        sbl.Backend.ReadWord(0xc000).Should().Be(0xabcd);
+        sbl.Backend.ReadWord(0xc002).Should().Be(0xdcba);
+        sbl.Backend.ReadByte(0x81).Should().Be(0x0d);
     }
 
     [Fact]
@@ -70,9 +70,9 @@ public class TestSuiteParser
 
         walker.Walk(sbl, tree);
 
-        sbl.Proc.XRegister.Should().Be(0x11);
-        sbl.Proc.Accumulator.Should().Be(0x22);
-        sbl.Proc.YRegister.Should().Be(0xff);
+        sbl.Backend.GetRegister("x").Should().Be(0x11);
+        sbl.Backend.GetRegister("a").Should().Be(0x22);
+        sbl.Backend.GetRegister("y").Should().Be(0xff);
     }
 
     [Fact]
@@ -97,9 +97,9 @@ public class TestSuiteParser
 
         walker.Walk(sbl, tree);
 
-        sbl.Proc.ReadMemoryValueWithoutCycle(0xd020).Should().Be(0x11);
-        sbl.Proc.ReadMemoryValueWithoutCycle(0xd021).Should().Be(0x22);
-        sbl.Proc.ReadMemoryValueWithoutCycle(0xd022).Should().Be(0xff);
+        sbl.Backend.ReadByte(0xd020).Should().Be(0x11);
+        sbl.Backend.ReadByte(0xd021).Should().Be(0x22);
+        sbl.Backend.ReadByte(0xd022).Should().Be(0xff);
     }
 
     [Fact]
@@ -115,11 +115,11 @@ public class TestSuiteParser
 
         walker.Walk(sbl, tree);
 
-        sbl.Proc.CarryFlag.Should().BeTrue();
-        sbl.Proc.NegativeFlag.Should().BeFalse();
-        sbl.Proc.ZeroFlag.Should().BeTrue();
-        sbl.Proc.OverflowFlag.Should().BeFalse();
-        sbl.Proc.DecimalFlag.Should().BeFalse();
+        sbl.Backend.GetFlag("c").Should().BeTrue();
+        sbl.Backend.GetFlag("n").Should().BeFalse();
+        sbl.Backend.GetFlag("z").Should().BeTrue();
+        sbl.Backend.GetFlag("v").Should().BeFalse();
+        sbl.Backend.GetFlag("d").Should().BeFalse();
     }
 
     [Fact]
@@ -172,8 +172,8 @@ public class TestSuiteParser
 
         walker.Walk(sbl, tree);
 
-        sbl.Proc.ReadMemoryWordWithoutCycle(0xd020).Should().Be(0xabcd);
-        sbl.Proc.ReadMemoryValueWithoutCycle(0xd022).Should().Be(0xd0);
+        sbl.Backend.ReadWord(0xd020).Should().Be(0xabcd);
+        sbl.Backend.ReadByte(0xd022).Should().Be(0xd0);
     }
 
     [Fact]

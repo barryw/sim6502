@@ -8,7 +8,6 @@ using sim6502.Backend;
 using sim6502.Errors;
 using sim6502.Expressions;
 using sim6502.Grammar.Generated;
-using sim6502.Proc;
 using sim6502.Systems;
 using sim6502.Utilities;
 
@@ -190,7 +189,6 @@ namespace sim6502.Grammar
         public ErrorCollector Errors { get; set; } = new();
 
         public IExecutionBackend Backend { get; set; }
-        public Processor? Proc => (Backend as SimulatorBackend)?.Processor;
         public SymbolFile Symbols { get; set; }
 
         // Whether the object currently in Backend was constructed by EnterSuite,
