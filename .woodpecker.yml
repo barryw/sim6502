@@ -18,6 +18,11 @@ steps:
     image: mcr.microsoft.com/dotnet/sdk:10.0
     commands:
       - dotnet run --project sim6502 -c Release --no-build -- --suitefile example/ultimate.suite --backend u64sim
+    # --no-build means this step cannot build anything itself, so it has to wait for the
+    # step that does. Without this it started in parallel with build-and-test and passed
+    # only when a previous run had left binaries in the agent's workspace — on a clean
+    # agent it failed with "No such file or directory" for the runner it was invoking.
+    depends_on: [build-and-test]
 
   - name: grammar-sync
     image: eclipse-temurin:21-jdk
